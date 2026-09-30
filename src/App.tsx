@@ -164,21 +164,13 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen p-3 sm:p-5 lg:p-6 transition-colors duration-300 ${
-        isDarkMode ? 'bg-[#050914] text-slate-100 dark' : 'bg-[#eef2f6] text-slate-800'
+      className={`w-screen h-screen overflow-hidden flex flex-col transition-colors duration-300 ${
+        isDarkMode ? 'bg-[#070d18] text-slate-100 dark' : 'bg-white text-slate-800'
       }`}
+      data-purpose="app-container"
     >
-      {/* Main Dashboard Shell Container */}
-      <div
-        className={`relative w-full max-w-[1680px] mx-auto min-h-[920px] h-[calc(100vh-2.5rem)] rounded-[2.5rem] border shadow-2xl overflow-hidden flex flex-col transition-colors duration-300 ${
-          isDarkMode
-            ? 'bg-[#070d18] border-cyan-500/20 shadow-[0_0_60px_rgba(0,0,0,0.8)]'
-            : 'bg-white border-slate-200/90'
-        }`}
-        data-purpose="app-container"
-      >
-        {/* Top Bar Navigation */}
-        <Header
+      {/* Top Bar Navigation */}
+      <Header
           isDarkMode={isDarkMode}
           onToggleTheme={handleToggleTheme}
           selectedDate={selectedDate}
@@ -277,9 +269,8 @@ export default function App() {
             />
           )}
         </main>
-      </div>
 
-      {/* Standalone Report Modal */}
+        {/* Standalone Report Modal */}
       <ReportModal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
