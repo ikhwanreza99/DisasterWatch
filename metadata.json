@@ -1,0 +1,6 @@
+{
+  "name": "DisasterWatch",
+  "description": "Sistem Informasi Tanggap Darurat Bencana RI - Platform pemantauan bencana interaktif real-time se-Nusantara, pemetaan rute distribusi logistik dan evakuasi, pelaporan warga terverifikasi, serta asisten tanggap darurat DisasterAI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

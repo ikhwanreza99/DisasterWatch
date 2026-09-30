@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        try {
+          var originalFetch = typeof window !== 'undefined' && window.fetch ? window.fetch.bind(window) : null;
+          var activeFetch = originalFetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return activeFetch;
+            },
+            set: function(newFetch) {
+              activeFetch = newFetch;
+            },
+            configurable: true,
+            enumerable: true,
+          });
+        } catch (e) {
+          try {
+            if (typeof Window !== 'undefined' && Window.prototype) {
+              Object.defineProperty(Window.prototype, 'fetch', {
+                get: function() {
+                  return activeFetch;
+                },
+                set: function(newFetch) {
+                  activeFetch = newFetch;
+                },
+                configurable: true,
+                enumerable: true,
+              });
+            }
+          } catch (err) {}
+        }
+      })();
+    </script>
+    <title>DisasterWatch - Sistem Informasi Tanggap Darurat Bencana RI</title>
+    <meta name="description" content="Sistem Informasi Tanggap Darurat Bencana RI - Platform pemantauan bencana interaktif real-time se-Nusantara, pemetaan rute distribusi logistik dan evakuasi, pelaporan warga terverifikasi, serta asisten tanggap darurat DisasterAI." />
+    <meta property="og:title" content="DisasterWatch - Sistem Informasi Tanggap Darurat Bencana RI" />
+    <meta property="og:description" content="Sistem Informasi Tanggap Darurat Bencana RI - Platform pemantauan bencana interaktif real-time se-Nusantara, pemetaan rute distribusi logistik dan evakuasi, pelaporan warga terverifikasi, serta asisten tanggap darurat DisasterAI." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-[#f0f2f5] text-slate-800 antialiased font-sans select-none min-h-screen overflow-x-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
