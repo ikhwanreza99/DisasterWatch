@@ -22,6 +22,12 @@ export default defineConfig(({mode}) => {
       proxy: {
         // Dev proxy: /api/firms/{SOURCE}/{AREA}/{DAYS} → FIRMS area API with MAP_KEY injected server-side.
         // Production needs an equivalent backend proxy (e.g. Firebase Function).
+        // Dev proxy for BMKG nowcast RSS + CAP XML (same-origin → no browser CORS issues).
+        '/api/bmkg': {
+          target: 'https://www.bmkg.go.id',
+          changeOrigin: true,
+          rewrite: (p) => p.replace(/^\/api\/bmkg/, ''),
+        },
         '/api/firms': {
           target: 'https://firms.modaps.eosdis.nasa.gov',
           changeOrigin: true,

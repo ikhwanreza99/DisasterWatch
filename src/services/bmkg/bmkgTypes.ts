@@ -80,3 +80,50 @@ export type BmkgStatus =
   | { state: 'loading' }
   | { state: 'ready'; count: number; updatedAt: string }
   | { state: 'unavailable'; reason: string };
+
+// ---------------------------------------------------------------------------
+// BMKG Weather Warning / Nowcast (V1).
+// Official info page: https://data.bmkg.go.id/peringatan-dini-cuaca/
+// Documented feeds (RSS active provincial warnings + CAP detail docs).
+// Standard: Common Alerting Protocol (CAP) 1.2, XML.
+// Rate limit: 60 requests/minute/IP. BMKG attribution mandatory.
+// CORS note (verified 2026-10-01): RSS listing carries NO ACAO header
+// (browser fetch blocked); CAP detail docs inconsistently carry ACAO:*
+// (absent when an Origin header is sent). The adapter therefore treats
+// feed failure as "unavailable" and never fabricates data.
+
+export const BMKG_WEATHER_FEED_ID = 'https://www.bmkg.go.id/alerts/nowcast/id';
+export const BMKG_WEATHER_FEED_EN = 'https://www.bmkg.go.id/alerts/nowcast/en';
+export const BMKG_WEATHER_INFO_URL = 'https://data.bmkg.go.id/peringatan-dini-cuaca/';
+
+/** Deterministic lifecycle from CAP effective/expires vs NOW. */
+export type BmkgWarningStatus = 'UPCOMING' | 'ACTIVE' | 'EXPIRED';
+
+export interface BmkgWeatherArea {
+  name?: string;
+  /** lat,lng pairs in CAP order. Empty when polygon parsing failed. */
+  polygon: [number, number][];
+}
+
+/**
+ * Normalized weather early-warning record.
+ * Never converted into a flood prediction; never auto-sent to Gemini.
+ */
+export interface BmkgWeatherWarning {
+  id: string;
+  source: 'BMKG';
+  provenance: 'OFFICIAL';
+  event: string;
+  headline: string;
+  description: string;
+  /** ISO-8601 from CAP effective/expires. */
+  effective: string;
+  expires: string;
+  senderName: string;
+  web?: string;
+  areas: BmkgWeatherArea[];
+  status: BmkgWarningStatus;
+  fetchedAt: string;
+  /** Official BMKG CAP detail document URL. */
+  sourceUrl: string;
+}

@@ -62,9 +62,6 @@ export const IntelligenceSummaryBar: React.FC<Props> = ({ disasters, reports, ai
         </div>
       ))}
       {children}
-      <div className="hidden xl:block text-[10px] text-slate-400 font-medium px-2 whitespace-nowrap">
-        MOCK + AI-PROCESSSED — bukan feed resmi BNPB/BMKG
-      </div>
     </div>
   );
 };

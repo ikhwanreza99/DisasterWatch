@@ -15,7 +15,8 @@ import { DonationModal } from './components/DonationModal';
 import { IntelligenceSummaryBar } from './components/IntelligenceSummaryBar';
 import { ArchitectureBadge } from './components/ArchitectureBadge';
 import { BmkgSignalCard } from './components/BmkgSignalCard';
-import { useBmkgEarthquakes } from './services/bmkg';
+import { BmkgWeatherWarningCard } from './components/BmkgWeatherWarningCard';
+import { useBmkgEarthquakes, useBmkgWeatherWarnings } from './services/bmkg';
 import { firmsSensorsLabel, useFirmsHotspots } from './services/firms';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
@@ -53,6 +54,8 @@ export default function App() {
   // NASA FIRMS hotspots via server-side proxy (MAP_KEY never reaches the browser).
   // Range follows the header date selector (Today / 24 jam / 7 hari / 30 hari).
   const firms = useFirmsHotspots(selectedDate);
+  // BMKG weather nowcast: RSS → CAP details → React state. Same constraints.
+  const bmkgWx = useBmkgWeatherWarnings();
 
   const activeDisaster = disasters[activeDisasterKey] || disasters['padang'];
 
@@ -294,11 +297,24 @@ export default function App() {
                   refreshing={bmkg.refreshing}
                   onRefresh={bmkg.refresh}
                 />
+                <BmkgWeatherWarningCard
+                  inline
+                  active={bmkgWx.active}
+                  upcoming={bmkgWx.upcoming}
+                  status={bmkgWx.status}
+                  refreshing={bmkgWx.refreshing}
+                  onRefresh={bmkgWx.refresh}
+                />
               </IntelligenceSummaryBar>
               <ArchitectureBadge />
-              <div className="px-6 sm:px-8 pb-1 text-[11px] text-slate-500 dark:text-slate-400">
-                <span className="font-semibold">{storeNotice}</span>
-                <span className="ml-2 text-slate-400">• Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
+              <div className="px-6 sm:px-8 pb-1 flex items-center justify-between gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="min-w-0 truncate">
+                  <span className="font-semibold">{storeNotice}</span>
+                  <span className="ml-2 text-slate-400">• Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
+                </span>
+                <span className="shrink-0 text-[10px] font-medium text-slate-400 text-right">
+                  MOCK + AI-PROCESSSED — bukan feed resmi BNPB/BMKG
+                </span>
               </div>
             </>
           )}
@@ -351,6 +367,16 @@ export default function App() {
             firmsStatus={firms.status.state}
             firmsRangeLabel={firms.range.label}
             firmsSensors={firmsSensorsLabel(firms.range)}
+            bmkgWeather={bmkgWx.warnings}
+            weatherStatus={
+              bmkgWx.status.state === 'ready'
+                ? 'ready'
+                : bmkgWx.status.state === 'unavailable'
+                  ? 'unavailable'
+                  : bmkgWx.status.state === 'loading'
+                    ? 'loading'
+                    : 'idle'
+            }
           />
 
           {/* MODE 1: Compact Homepage Menu Sidebar (Only rendered when no other window is open and user un-minimizes sidebar) */}
