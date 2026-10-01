@@ -42,6 +42,7 @@ export default function App() {
   // Modal overlays
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState<boolean>(false);
+  const [isWeatherOpen, setIsWeatherOpen] = useState<boolean>(false);
 
   // BMKG V1: official feed → React state → map/UI. No Firestore, no auto-disaster.
   // Fetch on load + manual refresh only (no aggressive polling).
@@ -125,6 +126,15 @@ export default function App() {
     setIsReportsOpen(false);
     setIsSidebarMinimized(true);
     setIsAIOpen(true);
+  };
+
+  const handleOpenWeather = () => {
+    // Weather sidebar opens INSIDE map canvas — does not close other sidebars
+    setIsWeatherOpen(true);
+  };
+
+  const handleCloseWeather = () => {
+    setIsWeatherOpen(false);
   };
 
   const handleToggleSidebar = () => {
@@ -295,6 +305,9 @@ export default function App() {
             isReportsOpen={isReportsOpen}
             onToggleReports={handleToggleReports}
             onOpenReports={handleOpenReports}
+            isWeatherOpen={isWeatherOpen}
+            onOpenWeather={handleOpenWeather}
+            onCloseWeather={handleCloseWeather}
             bmkgEvents={bmkg.events}
             bmkgStatus={
               bmkg.status.state === 'ready'

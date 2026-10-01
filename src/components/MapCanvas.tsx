@@ -28,6 +28,7 @@ import { DisasterIncident, DisasterCategory } from '../types';
 import type { EarthquakeEvent } from '../services/bmkg';
 import { buildBmkgPopupHtml } from './map/bmkgPopup';
 import { WeatherCard } from './WeatherCard';
+import { WeatherDetailSidebar } from './WeatherDetailSidebar';
 
 interface MapCanvasProps {
   disasters: Record<string, DisasterIncident>;
@@ -49,6 +50,9 @@ interface MapCanvasProps {
   isReportsOpen?: boolean;
   onToggleReports?: () => void;
   onOpenReports?: () => void;
+  isWeatherOpen?: boolean;
+  onOpenWeather?: () => void;
+  onCloseWeather?: () => void;
   /** BMKG V1 layer — separate from Disaster incidents, never auto-converted. */
   bmkgEvents?: EarthquakeEvent[];
   bmkgStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
@@ -148,7 +152,8 @@ const GoogleMapCameraController: React.FC<{
   zoomTrigger: { action: 'in' | 'out' | 'reset'; id: number } | null;
   mapType: GoogleMapType;
   onZoomChange: (zoom: number) => void;
-}> = ({ activeDisaster, isRouteOpen, routePoints, zoomTrigger, mapType, onZoomChange }) => {
+  weatherFocusCoords?: { lat: number; lng: number } | null;
+}> = ({ activeDisaster, isRouteOpen, routePoints, zoomTrigger, mapType, onZoomChange, weatherFocusCoords }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -173,7 +178,6 @@ const GoogleMapCameraController: React.FC<{
     if (!map || !activeDisaster || !activeDisaster.coords) return;
     const { lat, lng } = activeDisaster.coords;
     if (typeof lat !== 'number' || typeof lng !== 'number') return;
-
     map.panTo({ lat, lng });
     const currentZ = map.getZoom() || 5;
     if (currentZ < 7) {
@@ -199,6 +203,14 @@ const GoogleMapCameraController: React.FC<{
       map.setZoom(5);
     }
   }, [map, zoomTrigger]);
+
+  // Pan to weather focus coordinates when user clicks "Fokus Peta" in WeatherDetailSidebar
+  useEffect(() => {
+    if (!map || !weatherFocusCoords) return;
+    map.panTo(weatherFocusCoords);
+    const z = map.getZoom() || 5;
+    if (z < 9) map.setZoom(9);
+  }, [map, weatherFocusCoords]);
 
   return null;
 };
@@ -575,12 +587,17 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   isReportsOpen = false,
   onToggleReports,
   onOpenReports,
+  isWeatherOpen = false,
+  onOpenWeather,
+  onCloseWeather,
   bmkgEvents = [],
   bmkgStatus = 'idle',
 }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
   const [showBmkg, setShowBmkg] = useState(true);
   const [selectedBmkgId, setSelectedBmkgId] = useState<string | null>(null);
+  // Coordinates to pan/fly to when user clicks "Fokus Peta" in WeatherDetailSidebar
+  const [weatherFocusCoords, setWeatherFocusCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Engine state: start with 'google' if apiKey present, but auto-fallback to 'osm' on RefererNotAllowedMapError
   const [mapEngine, setMapEngine] = useState<MapEngine>(apiKey ? 'google' : 'osm');
@@ -742,6 +759,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 zoomTrigger={zoomTrigger}
                 mapType={googleMapType}
                 onZoomChange={handleZoomChange}
+                weatherFocusCoords={weatherFocusCoords}
               />
 
               {/* Hazard Impact Perimeter */}
@@ -1183,8 +1201,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           {activeData && typeof activeData.coords?.lat === 'number' && (
             <div
               className="cursor-pointer transition-transform hover:scale-105 active:scale-95 hidden md:block"
-              onClick={onOpenDetail}
-              title={`Cuaca lapangan Google di ${activeData.name} (Klik untuk buka detail situasi)`}
+              onClick={() => onOpenWeather?.()}
+              title={`Cuaca lapangan Google di ${activeData.name} — Klik untuk detail cuaca & titik peta`}
             >
               <WeatherCard
                 lat={activeData.coords.lat}
@@ -1329,6 +1347,23 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           </div>
         )}
       </div>
+
+      {/* Weather Detail Sidebar — opens when user clicks weather pill */}
+      {isWeatherOpen && activeData && typeof activeData.coords?.lat === 'number' && (
+        <WeatherDetailSidebar
+          location={{
+            lat: activeData.coords.lat,
+            lng: activeData.coords.lng,
+            name: activeData.name,
+            province: activeData.province,
+            category: activeData.category,
+          }}
+          disaster={activeData}
+          onClose={() => onCloseWeather?.()}
+          onFocusMap={(coords) => setWeatherFocusCoords(coords)}
+          isDarkMode={isDarkMode}
+        />
+      )}
     </section>
   );
 };
