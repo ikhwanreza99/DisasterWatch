@@ -4,6 +4,7 @@ import {
   Map,
   AdvancedMarker,
   Circle,
+  Polygon,
   Polyline,
   useMap,
 } from '@vis.gl/react-google-maps';
@@ -25,8 +26,8 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { DisasterIncident, DisasterCategory } from '../types';
-import type { EarthquakeEvent } from '../services/bmkg';
-import { buildBmkgPopupHtml } from './map/bmkgPopup';
+import type { EarthquakeEvent, BmkgWeatherWarning } from '../services/bmkg';
+import { buildBmkgPopupHtml, buildBmkgWeatherPopupHtml } from './map/bmkgPopup';
 
 interface MapCanvasProps {
   disasters: Record<string, DisasterIncident>;
@@ -51,6 +52,9 @@ interface MapCanvasProps {
   /** BMKG V1 layer — separate from Disaster incidents, never auto-converted. */
   bmkgEvents?: EarthquakeEvent[];
   bmkgStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
+  /** BMKG weather warnings (only ACTIVE rendered on the primary map layer). */
+  bmkgWeather?: BmkgWeatherWarning[];
+  weatherStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
 }
 
 type MapEngine = 'google' | 'osm';
@@ -222,6 +226,9 @@ const OSMMapRenderer: React.FC<{
   bmkgEvents?: EarthquakeEvent[];
   bmkgStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
   showBmkg?: boolean;
+  bmkgWeather?: BmkgWeatherWarning[];
+  weatherStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
+  showWeather?: boolean;
 }> = ({
   disasters,
   activeDisasterKey,
@@ -241,12 +248,16 @@ const OSMMapRenderer: React.FC<{
   bmkgEvents = [],
   bmkgStatus = 'idle',
   showBmkg = true,
+  bmkgWeather = [],
+  weatherStatus = 'idle',
+  showWeather = true,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const bmkgLayerRef = useRef<L.LayerGroup | null>(null);
+  const weatherLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
 
@@ -313,9 +324,11 @@ const OSMMapRenderer: React.FC<{
     const mGroup = L.layerGroup().addTo(map);
     const rGroup = L.layerGroup().addTo(map);
     const bGroup = L.layerGroup().addTo(map);
+    const wGroup = L.layerGroup().addTo(map);
     markersLayerRef.current = mGroup;
     routeLayerRef.current = rGroup;
     bmkgLayerRef.current = bGroup;
+    weatherLayerRef.current = wGroup;
 
     map.on('move', updatePos);
     map.on('zoomend', () => {
@@ -442,6 +455,31 @@ const OSMMapRenderer: React.FC<{
       bGroup.addLayer(m);
     });
   }, [bmkgEvents, showBmkg, bmkgStatus, mapEpoch]);
+
+  // BMKG weather warning polygons — ACTIVE warnings only, valid polygons only.
+  // Records with unparseable polygons stay in the card/list but draw nothing.
+  useEffect(() => {
+    if (!mapRef.current || !weatherLayerRef.current) return;
+    const wGroup = weatherLayerRef.current;
+    wGroup.clearLayers();
+    if (!showWeather || weatherStatus === 'unavailable') return;
+    bmkgWeather.forEach((w) => {
+      if (w.status !== 'ACTIVE') return;
+      w.areas.forEach((a) => {
+        if (a.polygon.length < 3) return;
+        const latlngs = a.polygon.map(([lat, lng]) => [lat, lng] as [number, number]);
+        const poly = L.polygon(latlngs, {
+          color: '#f97316',
+          fillColor: '#f97316',
+          fillOpacity: 0.15,
+          weight: 2,
+        });
+        poly.bindPopup(buildBmkgWeatherPopupHtml(w), { maxWidth: 300 });
+        poly.bindTooltip(`BMKG ⛈ ${w.event} — ${a.name ?? 'Indonesia'}`, { sticky: true });
+        wGroup.addLayer(poly);
+      });
+    });
+  }, [bmkgWeather, showWeather, weatherStatus, mapEpoch]);
 
   // Route drawing
   useEffect(() => {
@@ -576,10 +614,19 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   onOpenReports,
   bmkgEvents = [],
   bmkgStatus = 'idle',
+  bmkgWeather = [],
+  weatherStatus = 'idle',
 }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
   const [showBmkg, setShowBmkg] = useState(true);
   const [selectedBmkgId, setSelectedBmkgId] = useState<string | null>(null);
+  const [showWeather, setShowWeather] = useState(true);
+  const [selectedWeatherId, setSelectedWeatherId] = useState<string | null>(null);
+  const activeWeather = useMemo(
+    () => bmkgWeather.filter((w) => w.status === 'ACTIVE'),
+    [bmkgWeather],
+  );
+  const selectedWeather = activeWeather.find((w) => w.id === selectedWeatherId) ?? null;
 
   // Engine state: start with 'google' if apiKey present, but auto-fallback to 'osm' on RefererNotAllowedMapError
   const [mapEngine, setMapEngine] = useState<MapEngine>(apiKey ? 'google' : 'osm');
@@ -958,8 +1005,73 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                         </span>
                       </div>
                     </AdvancedMarker>
-                  );
-                })}
+                );
+              })}
+
+              {/* BMKG weather warning polygons — ACTIVE only, valid polygons only */}
+              {showWeather &&
+                weatherStatus !== 'unavailable' &&
+                activeWeather.flatMap((w) =>
+                  w.areas.flatMap((a, ai) => {
+                    if (a.polygon.length < 3) return [];
+                    const paths = a.polygon.map(([lat, lng]) => ({ lat, lng }));
+                    const key = `${w.id}-a${ai}`;
+                    const isSel = w.id === selectedWeatherId;
+                    return [
+                      <Polygon
+                        key={key}
+                        paths={paths}
+                        strokeColor="#f97316"
+                        strokeOpacity={0.9}
+                        strokeWeight={isSel ? 4 : 2}
+                        fillColor="#f97316"
+                        fillOpacity={isSel ? 0.3 : 0.15}
+                        onClick={() => setSelectedWeatherId(isSel ? null : w.id)}
+                      />,
+                    ];
+                  }),
+                )}
+
+              {/* Selected weather warning callout */}
+              {selectedWeather && (
+                <AdvancedMarker
+                  position={{
+                    lat: selectedWeather.areas.find((a) => a.polygon.length > 0)?.polygon[0]?.[0] ?? -2.5,
+                    lng: selectedWeather.areas.find((a) => a.polygon.length > 0)?.polygon[0]?.[1] ?? 118.0,
+                  }}
+                  zIndex={9997}
+                  title={`BMKG ⛈ ${selectedWeather.event}`}
+                  onClick={() => setSelectedWeatherId(null)}
+                >
+                  <div className="relative flex items-center justify-center" data-purpose="bmkg-weather-callout">
+                    <div
+                      className="pointer-events-auto absolute bottom-10 left-1/2 -translate-x-1/2 z-50 min-w-[260px] rounded-2xl p-3 shadow-2xl border border-orange-300/40 bg-slate-900/95 text-white"
+                      onClick={(ev) => ev.stopPropagation()}
+                    >
+                      <div className="text-xs font-black tracking-wide">BMKG WEATHER WARNING</div>
+                      <div className="text-[11px] text-slate-300">Source: <b>BMKG</b> (official nowcast)</div>
+                      <div className="text-[11px]">Event: <b>{selectedWeather.event}</b></div>
+                      <div className="text-[11px]">{selectedWeather.headline}</div>
+                      <div className="text-[11px]">
+                        Area: <b>{selectedWeather.areas.map((a) => a.name).filter(Boolean).join(', ') || 'Indonesia'}</b>
+                      </div>
+                      <div className="text-[10px] text-slate-400">Effective: {selectedWeather.effective}</div>
+                      <div className="text-[10px] text-slate-400">Expires: {selectedWeather.expires}</div>
+                      <a
+                        href={selectedWeather.web || selectedWeather.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-orange-300 underline"
+                      >
+                        Source: BMKG — nowcast detail
+                      </a>
+                    </div>
+                    <span className="w-6 h-6 rounded-full bg-orange-500 border-2 border-white shadow-lg flex items-center justify-center text-white text-[11px]">
+                      ⛈
+                    </span>
+                  </div>
+                </AdvancedMarker>
+              )}
             </Map>
           </APIProvider>
         ) : (
@@ -982,6 +1094,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             bmkgEvents={bmkgEvents}
             bmkgStatus={bmkgStatus}
             showBmkg={showBmkg}
+            bmkgWeather={bmkgWeather}
+            weatherStatus={weatherStatus}
+            showWeather={showWeather}
           />
         )}
       </div>
@@ -1032,6 +1147,30 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     : 'BMKG…'}
               </span>
               <span className="text-[9px] opacity-80">{showBmkg ? 'ON' : 'OFF'}</span>
+            </button>
+          </div>
+          {/* BMKG weather warning layer toggle */}
+          <div className="relative">
+            <button
+              onClick={() => setShowWeather((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border shadow-md cursor-pointer transition-all active:scale-95 ${
+                showWeather
+                  ? 'bg-orange-500 text-white border-orange-400'
+                  : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
+              }`}
+              title="Tampilkan/sembunyikan lapisan peringatan cuaca BMKG (sumber resmi)"
+              data-purpose="bmkg-weather-toggle"
+              data-bmkg-weather-visible={showWeather}
+            >
+              <span>⛈</span>
+              <span>
+                {weatherStatus === 'unavailable'
+                  ? 'CUACA N/A'
+                  : weatherStatus === 'ready'
+                    ? `CUACA: ${activeWeather.length}`
+                    : 'CUACA…'}
+              </span>
+              <span className="text-[9px] opacity-80">{showWeather ? 'ON' : 'OFF'}</span>
             </button>
           </div>
           <div className="relative">
