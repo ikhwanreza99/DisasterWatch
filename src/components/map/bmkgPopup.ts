@@ -1,6 +1,6 @@
 // Shared BMKG popup content (Google + Leaflet use the same copy).
 // Required attribution: "Source: BMKG" + link to official BMKG endpoints.
-import { BMKG_SOURCE_URL, type EarthquakeEvent, type BmkgWeatherWarning } from '../../services/bmkg';
+import { BMKG_SOURCE_URL, uniqueAreaNames, type EarthquakeEvent, type BmkgWeatherWarning } from '../../services/bmkg';
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -26,7 +26,7 @@ export function buildBmkgPopupHtml(e: EarthquakeEvent): string {
 
 /** Popup for BMKG weather early warnings (polygons reference the same record). */
 export function buildBmkgWeatherPopupHtml(w: BmkgWeatherWarning): string {
-  const areaNames = w.areas.map((a) => a.name).filter((n): n is string => !!n);
+  const areaNames = uniqueAreaNames(w);
   const areaLine = areaNames.length > 0 ? areaNames.join(', ') : 'Indonesia';
   const link = w.web || w.sourceUrl;
   return (

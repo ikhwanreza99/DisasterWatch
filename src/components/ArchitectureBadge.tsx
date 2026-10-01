@@ -19,6 +19,7 @@ export const ArchitectureBadge: React.FC = () => {
     ['Firebase Auth', 'anonymous session', fb.configured, 'LIVE', 'MOCK user'],
     ['Firebase AI Logic + Gemini', 'ekstraksi + asisten', ai.available, 'GEMINI', 'HEURISTIK lokal'],
     ['Google Maps Platform', 'provider peta', map === 'google', 'GOOGLE', 'LEAFLET/OSM'],
+    ['Google Weather Platform', 'cuaca MetNet AI riil-time', map === 'google', 'GOOGLE LIVE', 'MOCK fallback'],
     ['Firebase Hosting', 'deploy target (standard Hosting, Spark)', true, 'LIVE', 'BELUM DEPLOY'],
   ];
   const liveCount = rows.filter(([, , live]) => live).length;

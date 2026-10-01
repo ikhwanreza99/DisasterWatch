@@ -24,10 +24,75 @@ import {
   Check,
   ExternalLink,
   RefreshCw,
+  X,
 } from 'lucide-react';
 import { DisasterIncident, DisasterCategory } from '../types';
-import type { EarthquakeEvent, BmkgWeatherWarning } from '../services/bmkg';
+import { uniqueAreaNames, type EarthquakeEvent, type BmkgWeatherWarning } from '../services/bmkg';
 import { buildBmkgPopupHtml, buildBmkgWeatherPopupHtml } from './map/bmkgPopup';
+import { FIRMS_SOURCE_URL, type FireHotspot, type FirmsStatus } from '../services/firms';
+import { GoogleFireOverlay } from './map/GoogleFireOverlay';
+import { useCityWeather, type CityWeather } from '../services/weather/cityWeather';
+
+function escHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+}
+
+/** Compact map chip: icon + temperature + city name. */
+function cityWeatherChipHtml(c: CityWeather): string {
+  const w = c.weather;
+  return (
+    `<div class="flex items-center gap-1 pl-0.5 pr-2 py-0.5 rounded-full bg-white/95 border border-sky-300 shadow-md whitespace-nowrap cursor-pointer transform -translate-x-1/2 -translate-y-1/2">` +
+    `<img src="${escHtml(w.iconUrl)}" alt="" class="w-5 h-5" />` +
+    `<span class="text-[11px] font-black text-slate-900">${Math.round(w.temperature)}°</span>` +
+    `<span class="text-[10px] font-semibold text-slate-600">${escHtml(c.name)}</span>` +
+    `</div>`
+  );
+}
+
+function cityWeatherPopupHtml(c: CityWeather): string {
+  const w = c.weather;
+  return (
+    `<div style="font-size:12px;line-height:1.45">` +
+    `<div style="font-weight:800">⛅ ${escHtml(c.name)}</div>` +
+    `<div><b>${Math.round(w.temperature)}°C</b> (terasa ${Math.round(w.feelsLike)}°C) • ${escHtml(w.conditionText)}</div>` +
+    `<div>Hujan: <b>${w.rainProbability}%</b> • Kelembapan: <b>${w.humidity}%</b> • Angin: <b>${Math.round(w.windSpeed)} km/j</b></div>` +
+    `<div style="color:#64748b;font-size:11px">Source: Google Weather</div>` +
+    `</div>`
+  );
+}
+
+function fireRadius(frp: number): number {
+  return frp >= 50 ? 5 : frp >= 15 ? 3.5 : 2.5;
+}
+
+function fireColor(frp: number): string {
+  if (frp >= 50) return '#dc2626';
+  if (frp >= 15) return '#f97316';
+  return '#facc15';
+}
+
+function formatFireTime(iso: string): string {
+  const t = Date.parse(iso);
+  return Number.isFinite(t)
+    ? new Date(t).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : iso;
+}
+
+function buildFirePopupHtml(h: FireHotspot): string {
+  return (
+    `<div style="font-size:12px;line-height:1.45">` +
+    `<div style="font-weight:800;letter-spacing:.03em">🔥 TITIK PANAS (HOTSPOT)</div>` +
+    `<div>FRP: <b>${h.frp.toFixed(1)} MW</b> • Confidence: <b>${h.confidence}</b></div>` +
+    `<div>Koordinat: <b>${h.latitude.toFixed(3)}, ${h.longitude.toFixed(3)}</b></div>` +
+    (h.count > 1 ? `<div><b>${h.count}</b> deteksi di area ±1 km</div>` : '') +
+    `<div style="color:#64748b">Deteksi: ${formatFireTime(h.acquiredAt)} • ${h.daynight === 'N' ? 'malam' : 'siang'} • ${h.sensor}</div>` +
+    `<div style="color:#64748b;font-size:11px;margin-top:2px">Deteksi satelit, belum terverifikasi lapangan.</div>` +
+    `<a href="${FIRMS_SOURCE_URL}" target="_blank" rel="noopener noreferrer" style="color:#ea580c">Source: NASA FIRMS</a>` +
+    `</div>`
+  );
+}
+import { WeatherCard } from './WeatherCard';
+import { WeatherDetailSidebar } from './WeatherDetailSidebar';
 
 interface MapCanvasProps {
   disasters: Record<string, DisasterIncident>;
@@ -49,9 +114,18 @@ interface MapCanvasProps {
   isReportsOpen?: boolean;
   onToggleReports?: () => void;
   onOpenReports?: () => void;
+  isWeatherOpen?: boolean;
+  onOpenWeather?: () => void;
+  onCloseWeather?: () => void;
   /** BMKG V1 layer — separate from Disaster incidents, never auto-converted. */
   bmkgEvents?: EarthquakeEvent[];
   bmkgStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
+  /** NASA FIRMS active-fire hotspots (satellite detections, not verified incidents). */
+  firmsHotspots?: FireHotspot[];
+  firmsStatus?: FirmsStatus['state'];
+  /** Short label of the active FIRMS range, e.g. "7 hari". */
+  firmsRangeLabel?: string;
+  firmsSensors?: string;
   /** BMKG weather warnings (only ACTIVE rendered on the primary map layer). */
   bmkgWeather?: BmkgWeatherWarning[];
   weatherStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
@@ -151,7 +225,8 @@ const GoogleMapCameraController: React.FC<{
   zoomTrigger: { action: 'in' | 'out' | 'reset'; id: number } | null;
   mapType: GoogleMapType;
   onZoomChange: (zoom: number) => void;
-}> = ({ activeDisaster, isRouteOpen, routePoints, zoomTrigger, mapType, onZoomChange }) => {
+  weatherFocusCoords?: { lat: number; lng: number } | null;
+}> = ({ activeDisaster, isRouteOpen, routePoints, zoomTrigger, mapType, onZoomChange, weatherFocusCoords }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -176,7 +251,6 @@ const GoogleMapCameraController: React.FC<{
     if (!map || !activeDisaster || !activeDisaster.coords) return;
     const { lat, lng } = activeDisaster.coords;
     if (typeof lat !== 'number' || typeof lng !== 'number') return;
-
     map.panTo({ lat, lng });
     const currentZ = map.getZoom() || 5;
     if (currentZ < 7) {
@@ -203,6 +277,14 @@ const GoogleMapCameraController: React.FC<{
     }
   }, [map, zoomTrigger]);
 
+  // Pan to weather focus coordinates when user clicks "Fokus Peta" in WeatherDetailSidebar
+  useEffect(() => {
+    if (!map || !weatherFocusCoords) return;
+    map.panTo(weatherFocusCoords);
+    const z = map.getZoom() || 5;
+    if (z < 9) map.setZoom(9);
+  }, [map, weatherFocusCoords]);
+
   return null;
 };
 
@@ -226,9 +308,12 @@ const OSMMapRenderer: React.FC<{
   bmkgEvents?: EarthquakeEvent[];
   bmkgStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
   showBmkg?: boolean;
+  firmsHotspots?: FireHotspot[];
+  showFirms?: boolean;
   bmkgWeather?: BmkgWeatherWarning[];
   weatherStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
   showWeather?: boolean;
+  cityWeather?: CityWeather[];
 }> = ({
   disasters,
   activeDisasterKey,
@@ -248,21 +333,31 @@ const OSMMapRenderer: React.FC<{
   bmkgEvents = [],
   bmkgStatus = 'idle',
   showBmkg = true,
+  firmsHotspots = [],
+  showFirms = true,
   bmkgWeather = [],
   weatherStatus = 'idle',
   showWeather = true,
+  cityWeather = [],
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const bmkgLayerRef = useRef<L.LayerGroup | null>(null);
+  const firmsLayerRef = useRef<L.LayerGroup | null>(null);
+  // Canvas renderer: thousands of hotspots without thousands of DOM nodes.
+  const firmsRendererRef = useRef<L.Canvas | null>(null);
   const weatherLayerRef = useRef<L.LayerGroup | null>(null);
+  const cityWeatherLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
 
   const [calloutPos, setCalloutPos] = useState<{ x: number; y: number } | null>(null);
   const activeData = disasters[activeDisasterKey];
+  // User can dismiss the callout with the X button; re-opens on next marker click.
+  const [calloutClosed, setCalloutClosed] = useState(false);
+  useEffect(() => setCalloutClosed(false), [activeDisasterKey]);
   // Bumped every time the Leaflet map is (re)created so imperative layers
   // (BMKG) re-render without any user action after a map reset.
   const [mapEpoch, setMapEpoch] = useState(0);
@@ -321,6 +416,9 @@ const OSMMapRenderer: React.FC<{
     const tileLayer = L.tileLayer(cfg.url, { attribution: cfg.attribution, maxZoom: 19 }).addTo(map);
     tileLayerRef.current = tileLayer;
 
+    // Fires added first so incident/BMKG markers stay on top.
+    firmsRendererRef.current = L.canvas({ padding: 0.3 });
+    firmsLayerRef.current = L.layerGroup().addTo(map);
     const mGroup = L.layerGroup().addTo(map);
     const rGroup = L.layerGroup().addTo(map);
     const bGroup = L.layerGroup().addTo(map);
@@ -329,6 +427,7 @@ const OSMMapRenderer: React.FC<{
     routeLayerRef.current = rGroup;
     bmkgLayerRef.current = bGroup;
     weatherLayerRef.current = wGroup;
+    cityWeatherLayerRef.current = L.layerGroup().addTo(map);
 
     map.on('move', updatePos);
     map.on('zoomend', () => {
@@ -413,6 +512,7 @@ const OSMMapRenderer: React.FC<{
       });
 
       m.on('click', () => {
+        setCalloutClosed(false);
         onSelectDisaster(incident.id);
         map.flyTo([lat, lng], Math.max(map.getZoom(), 7), { duration: 1.0 });
       });
@@ -451,11 +551,34 @@ const OSMMapRenderer: React.FC<{
         zIndexOffset: 500,
         title: `BMKG M${mag} — ${e.region}`,
       });
-      m.bindPopup(buildBmkgPopupHtml(e), { maxWidth: 300 });
+      m.bindPopup(buildBmkgPopupHtml(e), { maxWidth: 300, closeButton: true, className: 'bmkg-popup' });
       bGroup.addLayer(m);
     });
   }, [bmkgEvents, showBmkg, bmkgStatus, mapEpoch]);
 
+  // NASA FIRMS hotspot layer (canvas circle markers, colored by FRP)
+  useEffect(() => {
+    const fGroup = firmsLayerRef.current;
+    if (!mapRef.current || !fGroup) return;
+    fGroup.clearLayers();
+    if (!showFirms) return;
+    const renderer = firmsRendererRef.current ?? undefined;
+    // Draw weakest first so strong fires paint on top.
+    for (let i = firmsHotspots.length - 1; i >= 0; i--) {
+      const h = firmsHotspots[i]!;
+      const color = fireColor(h.frp);
+      L.circleMarker([h.latitude, h.longitude], {
+        renderer,
+        radius: fireRadius(h.frp),
+        color: '#7c2d12',
+        weight: 0.6,
+        fillColor: color,
+        fillOpacity: 0.85,
+      })
+        .bindPopup(buildFirePopupHtml(h), { maxWidth: 280, closeButton: true, className: 'bmkg-popup' })
+        .addTo(fGroup);
+    }
+  }, [firmsHotspots, showFirms, mapEpoch]);
   // BMKG weather warning polygons — ACTIVE warnings only, valid polygons only.
   // Records with unparseable polygons stay in the card/list but draw nothing.
   useEffect(() => {
@@ -474,12 +597,29 @@ const OSMMapRenderer: React.FC<{
           fillOpacity: 0.15,
           weight: 2,
         });
-        poly.bindPopup(buildBmkgWeatherPopupHtml(w), { maxWidth: 300 });
+        poly.bindPopup(buildBmkgWeatherPopupHtml(w), { maxWidth: 300, closeButton: true, className: 'bmkg-popup' });
         poly.bindTooltip(`BMKG ⛈ ${w.event} — ${a.name ?? 'Indonesia'}`, { sticky: true });
         wGroup.addLayer(poly);
       });
     });
   }, [bmkgWeather, showWeather, weatherStatus, mapEpoch]);
+
+  // Major-city weather chips (only while CUACA layer is ON)
+  useEffect(() => {
+    const cGroup = cityWeatherLayerRef.current;
+    if (!mapRef.current || !cGroup) return;
+    cGroup.clearLayers();
+    if (!showWeather) return;
+    cityWeather.forEach((c) => {
+      L.marker([c.lat, c.lng], {
+        icon: L.divIcon({ html: cityWeatherChipHtml(c), className: 'city-weather-marker', iconSize: [0, 0] }),
+        zIndexOffset: 300,
+        title: `Cuaca ${c.name}`,
+      })
+        .bindPopup(cityWeatherPopupHtml(c), { maxWidth: 260, closeButton: true, className: 'bmkg-popup' })
+        .addTo(cGroup);
+    });
+  }, [cityWeather, showWeather, mapEpoch]);
 
   // Route drawing
   useEffect(() => {
@@ -522,7 +662,7 @@ const OSMMapRenderer: React.FC<{
   return (
     <>
       <div ref={containerRef} className="w-full h-full absolute inset-0 z-0" />
-      {calloutPos && activeData && (activeCategory === 'all' || activeData.category === activeCategory) && (
+      {calloutPos && !calloutClosed && activeData && (activeCategory === 'all' || activeData.category === activeCategory) && (
         <div
           id="activeCallout"
           style={{
@@ -541,6 +681,18 @@ const OSMMapRenderer: React.FC<{
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
               <span>{activeData.timestamp}</span>
             </span>
+            <button
+              type="button"
+              aria-label="Tutup popup"
+              title="Tutup"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCalloutClosed(true);
+              }}
+              className="ml-2 w-5 h-5 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
           </div>
           <div className="text-base font-black text-white tracking-tight leading-snug truncate">{activeData.name}</div>
           <div className="text-[11px] text-slate-300 mb-1.5 flex items-center justify-between">
@@ -612,14 +764,29 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   isReportsOpen = false,
   onToggleReports,
   onOpenReports,
+  isWeatherOpen = false,
+  onOpenWeather,
+  onCloseWeather,
   bmkgEvents = [],
   bmkgStatus = 'idle',
+  firmsHotspots = [],
+  firmsStatus = 'idle',
+  firmsRangeLabel = '',
+  firmsSensors = '',
   bmkgWeather = [],
   weatherStatus = 'idle',
 }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
   const [showBmkg, setShowBmkg] = useState(true);
   const [selectedBmkgId, setSelectedBmkgId] = useState<string | null>(null);
+  const [showFirms, setShowFirms] = useState(true);
+  const [selectedFire, setSelectedFire] = useState<FireHotspot | null>(null);
+  // Close a stale popup when the date range (dataset) changes.
+  useEffect(() => setSelectedFire(null), [firmsHotspots]);
+  const [gCalloutClosed, setGCalloutClosed] = useState(false);
+  useEffect(() => setGCalloutClosed(false), [activeDisasterKey]);
+  // Coordinates to pan/fly to when user clicks "Fokus Peta" in WeatherDetailSidebar
+  const [weatherFocusCoords, setWeatherFocusCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [showWeather, setShowWeather] = useState(true);
   const [selectedWeatherId, setSelectedWeatherId] = useState<string | null>(null);
   const activeWeather = useMemo(
@@ -627,6 +794,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     [bmkgWeather],
   );
   const selectedWeather = activeWeather.find((w) => w.id === selectedWeatherId) ?? null;
+  // Major-city weather points: fetched only while the CUACA layer is ON.
+  const cityWx = useCityWeather(showWeather);
+  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
 
   // Engine state: start with 'google' if apiKey present, but auto-fallback to 'osm' on RefererNotAllowedMapError
   const [mapEngine, setMapEngine] = useState<MapEngine>(apiKey ? 'google' : 'osm');
@@ -788,6 +958,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 zoomTrigger={zoomTrigger}
                 mapType={googleMapType}
                 onZoomChange={handleZoomChange}
+                weatherFocusCoords={weatherFocusCoords}
               />
 
               {/* Hazard Impact Perimeter */}
@@ -870,10 +1041,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     key={incident.id}
                     position={{ lat, lng }}
                     zIndex={isSelected ? 9999 : 20}
-                    onClick={() => onSelectDisaster(incident.id)}
+                    onClick={() => {
+                      setGCalloutClosed(false);
+                      onSelectDisaster(incident.id);
+                    }}
                   >
                     <div className="relative flex items-center justify-center">
-                      {isSelected && (
+                      {isSelected && !gCalloutClosed && (
                         <div
                           id="activeCallout"
                           className="pointer-events-auto absolute bottom-12 left-1/2 -translate-x-1/2 z-50 min-w-[280px] map-glass-callout rounded-2xl p-3.5 shadow-2xl border border-white/20 text-white animate-fadeIn"
@@ -887,6 +1061,18 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
                               <span>{incident.timestamp}</span>
                             </span>
+                            <button
+                              type="button"
+                              aria-label="Tutup popup"
+                              title="Tutup"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setGCalloutClosed(true);
+                              }}
+                              className="ml-2 w-5 h-5 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
                           </div>
                           <div className="text-base font-black text-white tracking-tight leading-snug truncate">{incident.name}</div>
                           <div className="text-[11px] text-slate-300 mb-1.5 flex items-center justify-between">
@@ -963,6 +1149,54 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 );
               })}
 
+              {/* NASA FIRMS hotspots — one canvas overlay for all points, popup for the clicked one */}
+              {showFirms && (
+                <GoogleFireOverlay
+                  hotspots={firmsHotspots}
+                  color={fireColor}
+                  radius={fireRadius}
+                  onSelect={setSelectedFire}
+                />
+              )}
+              {showFirms && selectedFire && (
+                <AdvancedMarker
+                  position={{ lat: selectedFire.latitude, lng: selectedFire.longitude }}
+                  zIndex={9997}
+                >
+                  <div
+                    className="pointer-events-auto mb-2 min-w-[250px] rounded-2xl p-3 shadow-2xl border border-orange-300/40 bg-slate-900/95 text-white"
+                    data-purpose="firms-popup"
+                    onClick={(ev) => ev.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-black tracking-wide">🔥 TITIK PANAS</div>
+                      <button
+                        type="button"
+                        aria-label="Tutup popup"
+                        title="Tutup"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setSelectedFire(null);
+                        }}
+                        className="w-5 h-5 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <div className="text-[11px]">FRP: <b>{selectedFire.frp.toFixed(1)} MW</b> • Confidence: <b>{selectedFire.confidence}</b></div>
+                    {selectedFire.count > 1 && (
+                      <div className="text-[11px]"><b>{selectedFire.count}</b> deteksi di area ±1 km</div>
+                    )}
+                    <div className="text-[11px]">Koordinat: <b>{selectedFire.latitude.toFixed(3)}, {selectedFire.longitude.toFixed(3)}</b></div>
+                    <div className="text-[10px] text-slate-400">Deteksi: {formatFireTime(selectedFire.acquiredAt)} • {selectedFire.sensor}</div>
+                    <div className="text-[10px] text-slate-400">Deteksi satelit, belum terverifikasi lapangan.</div>
+                    <a href={FIRMS_SOURCE_URL} target="_blank" rel="noopener noreferrer" className="text-[11px] text-orange-300 underline">
+                      Source: NASA FIRMS
+                    </a>
+                  </div>
+                </AdvancedMarker>
+              )}
+
               {/* BMKG Earthquake layer — distinct cyan markers, separate from Disaster incidents */}
               {showBmkg &&
                 bmkgStatus !== 'unavailable' &&
@@ -983,7 +1217,21 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                             className="pointer-events-auto absolute bottom-10 left-1/2 -translate-x-1/2 z-50 min-w-[260px] rounded-2xl p-3 shadow-2xl border border-cyan-300/40 bg-slate-900/95 text-white"
                             onClick={(ev) => ev.stopPropagation()}
                           >
-                            <div className="text-xs font-black tracking-wide">EARTHQUAKE</div>
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs font-black tracking-wide">EARTHQUAKE</div>
+                              <button
+                                type="button"
+                                aria-label="Tutup popup"
+                                title="Tutup"
+                                onClick={(ev) => {
+                                  ev.stopPropagation();
+                                  setSelectedBmkgId(null);
+                                }}
+                                className="w-5 h-5 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
                             <div className="text-[11px] text-slate-300">Source: <b>BMKG</b></div>
                             <div className="text-[11px]">Magnitude: <b>M{e.magnitude}</b> • Depth: <b>{e.depthKm} km</b></div>
                             <div className="text-[11px]">Location: <b>{e.region}</b></div>
@@ -1032,6 +1280,61 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   }),
                 )}
 
+              {/* Major-city weather chips (CUACA layer ON only) */}
+              {showWeather &&
+                cityWx.cities.map((c) => {
+                  const isSel = c.id === selectedCityId;
+                  const w = c.weather;
+                  return (
+                    <AdvancedMarker
+                      key={`city-${c.id}`}
+                      position={{ lat: c.lat, lng: c.lng }}
+                      zIndex={isSel ? 9996 : 25}
+                      title={`Cuaca ${c.name}`}
+                      onClick={() => setSelectedCityId(isSel ? null : c.id)}
+                    >
+                      <div className="relative flex items-center justify-center" data-purpose="city-weather-marker">
+                        {isSel && (
+                          <div
+                            className="pointer-events-auto absolute bottom-9 left-1/2 -translate-x-1/2 z-50 min-w-[230px] rounded-2xl p-3 shadow-2xl border border-sky-300/40 bg-slate-900/95 text-white"
+                            onClick={(ev) => ev.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs font-black tracking-wide">⛅ {c.name}</div>
+                              <button
+                                type="button"
+                                aria-label="Tutup popup"
+                                title="Tutup"
+                                onClick={(ev) => {
+                                  ev.stopPropagation();
+                                  setSelectedCityId(null);
+                                }}
+                                className="w-5 h-5 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <div className="text-[11px]">
+                              <b>{Math.round(w.temperature)}°C</b> (terasa {Math.round(w.feelsLike)}°C) • {w.conditionText}
+                            </div>
+                            <div className="text-[11px]">
+                              Hujan: <b>{w.rainProbability}%</b> • Lembap: <b>{w.humidity}%</b> • Angin: <b>{Math.round(w.windSpeed)} km/j</b>
+                            </div>
+                            <div className="text-[10px] text-slate-400">
+                              Source: Google Weather
+                            </div>
+                          </div>
+                        )}
+                        <span className="flex items-center gap-1 pl-0.5 pr-2 py-0.5 rounded-full bg-white/95 border border-sky-300 shadow-md whitespace-nowrap cursor-pointer">
+                          <img src={w.iconUrl} alt="" className="w-5 h-5" />
+                          <span className="text-[11px] font-black text-slate-900">{Math.round(w.temperature)}°</span>
+                          <span className="text-[10px] font-semibold text-slate-600">{c.name}</span>
+                        </span>
+                      </div>
+                    </AdvancedMarker>
+                  );
+                })}
+
               {/* Selected weather warning callout */}
               {selectedWeather && (
                 <AdvancedMarker
@@ -1048,12 +1351,26 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                       className="pointer-events-auto absolute bottom-10 left-1/2 -translate-x-1/2 z-50 min-w-[260px] rounded-2xl p-3 shadow-2xl border border-orange-300/40 bg-slate-900/95 text-white"
                       onClick={(ev) => ev.stopPropagation()}
                     >
-                      <div className="text-xs font-black tracking-wide">BMKG WEATHER WARNING</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs font-black tracking-wide">BMKG WEATHER WARNING</div>
+                        <button
+                          type="button"
+                          aria-label="Tutup popup"
+                          title="Tutup"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setSelectedWeatherId(null);
+                          }}
+                          className="w-5 h-5 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
                       <div className="text-[11px] text-slate-300">Source: <b>BMKG</b> (official nowcast)</div>
                       <div className="text-[11px]">Event: <b>{selectedWeather.event}</b></div>
                       <div className="text-[11px]">{selectedWeather.headline}</div>
                       <div className="text-[11px]">
-                        Area: <b>{selectedWeather.areas.map((a) => a.name).filter(Boolean).join(', ') || 'Indonesia'}</b>
+                        Area: <b>{uniqueAreaNames(selectedWeather).join(', ') || 'Indonesia'}</b>
                       </div>
                       <div className="text-[10px] text-slate-400">Effective: {selectedWeather.effective}</div>
                       <div className="text-[10px] text-slate-400">Expires: {selectedWeather.expires}</div>
@@ -1094,9 +1411,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             bmkgEvents={bmkgEvents}
             bmkgStatus={bmkgStatus}
             showBmkg={showBmkg}
+            firmsHotspots={firmsHotspots}
+            showFirms={showFirms}
             bmkgWeather={bmkgWeather}
             weatherStatus={weatherStatus}
             showWeather={showWeather}
+            cityWeather={cityWx.cities}
           />
         )}
       </div>
@@ -1149,6 +1469,32 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               <span className="text-[9px] opacity-80">{showBmkg ? 'ON' : 'OFF'}</span>
             </button>
           </div>
+
+          {/* NASA FIRMS hotspot layer toggle */}
+          <div className="relative">
+            <button
+              onClick={() => setShowFirms((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border shadow-md cursor-pointer transition-all active:scale-95 ${
+                showFirms
+                  ? 'bg-orange-600 text-white border-orange-500'
+                  : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
+              }`}
+              title={`Titik panas NASA FIRMS • ${firmsRangeLabel} • ${firmsSensors}. Rentang mengikuti pilihan tanggal di header.`}
+              data-purpose="firms-layer-toggle"
+              aria-pressed={showFirms}
+            >
+              <span>🔥</span>
+              <span>
+                {firmsStatus === 'unavailable'
+                  ? 'FIRMS N/A'
+                  : firmsStatus === 'ready'
+                    ? `FIRMS ${firmsRangeLabel}: ${firmsHotspots.length.toLocaleString('id-ID')}`
+                    : `FIRMS ${firmsRangeLabel}…`}
+              </span>
+              <span className="text-[9px] opacity-80">{showFirms ? 'ON' : 'OFF'}</span>
+            </button>
+          </div>
+
           {/* BMKG weather warning layer toggle */}
           <div className="relative">
             <button
@@ -1158,17 +1504,19 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   ? 'bg-orange-500 text-white border-orange-400'
                   : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
               }`}
-              title="Tampilkan/sembunyikan lapisan peringatan cuaca BMKG (sumber resmi)"
+              title={
+                cityWx.error
+                  ? `Cuaca kota (Google Weather): ${cityWx.error}`
+                  : 'Tampilkan/sembunyikan peringatan cuaca BMKG + cuaca kota besar (Google Weather)'
+              }
               data-purpose="bmkg-weather-toggle"
               data-bmkg-weather-visible={showWeather}
             >
               <span>⛈</span>
               <span>
-                {weatherStatus === 'unavailable'
-                  ? 'CUACA N/A'
-                  : weatherStatus === 'ready'
-                    ? `CUACA: ${activeWeather.length}`
-                    : 'CUACA…'}
+                {cityWx.loading
+                  ? 'CUACA…'
+                  : `CUACA: ${cityWx.cities.length} kota${weatherStatus === 'ready' ? ` • ${activeWeather.length} peringatan` : ''}`}
               </span>
               <span className="text-[9px] opacity-80">{showWeather ? 'ON' : 'OFF'}</span>
             </button>
@@ -1316,6 +1664,23 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               </div>
             )}
           </div>
+
+          {/* Google Weather Live Pill for Currently Selected Incident */}
+          {activeData && typeof activeData.coords?.lat === 'number' && (
+            <div
+              className="cursor-pointer transition-transform hover:scale-105 active:scale-95 hidden md:block"
+              onClick={() => onOpenWeather?.()}
+              title={`Cuaca lapangan Google di ${activeData.name} — Klik untuk detail cuaca & titik peta`}
+            >
+              <WeatherCard
+                lat={activeData.coords.lat}
+                lng={activeData.coords.lng}
+                locationName={activeData.name}
+                disasterCategory={activeData.category}
+                compact={true}
+              />
+            </div>
+          )}
         </div>
 
         {/* Floating Restore Pill on the top right when sidebar is minimized AND NO panel is open */}
@@ -1450,6 +1815,23 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           </div>
         )}
       </div>
+
+      {/* Weather Detail Sidebar — opens when user clicks weather pill */}
+      {isWeatherOpen && activeData && typeof activeData.coords?.lat === 'number' && (
+        <WeatherDetailSidebar
+          location={{
+            lat: activeData.coords.lat,
+            lng: activeData.coords.lng,
+            name: activeData.name,
+            province: activeData.province,
+            category: activeData.category,
+          }}
+          disaster={activeData}
+          onClose={() => onCloseWeather?.()}
+          onFocusMap={(coords) => setWeatherFocusCoords(coords)}
+          isDarkMode={isDarkMode}
+        />
+      )}
     </section>
   );
 };

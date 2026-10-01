@@ -369,3 +369,18 @@ export async function getBmkgWeatherWarnings(
     capFail: capCors + capHttp + capParse,
   };
 }
+
+/** Area names without repeats (CAP alerts often list many polygons under the same province). */
+export function uniqueAreaNames(w: Pick<BmkgWeatherWarning, 'areas'>): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const a of w.areas) {
+    const name = a.name?.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}

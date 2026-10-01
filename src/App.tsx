@@ -17,6 +17,7 @@ import { BmkgSignalsControl } from './components/BmkgSignalsControl';
 import { useBmkgEarthquakes, useBmkgWeatherWarnings } from './services/bmkg';
 import { useBmkgWeatherForecast } from './services/bmkg/useBmkgWeatherForecast';
 import { resolveForecastAdm4 } from './services/bmkg/bmkgWeatherForecast';
+import { firmsSensorsLabel, useFirmsHotspots } from './services/firms';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
 import { loadDisasters } from './services/store/disasterStore';
@@ -44,10 +45,14 @@ export default function App() {
   // Modal overlays
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState<boolean>(false);
+  const [isWeatherOpen, setIsWeatherOpen] = useState<boolean>(false);
 
   // BMKG V1: official feed → React state → map/UI. No Firestore, no auto-disaster.
   // Fetch on load + manual refresh only (no aggressive polling).
   const bmkg = useBmkgEarthquakes();
+  // NASA FIRMS hotspots via server-side proxy (MAP_KEY never reaches the browser).
+  // Range follows the header date selector (Today / 24 jam / 7 hari / 30 hari).
+  const firms = useFirmsHotspots(selectedDate);
   // BMKG weather nowcast: RSS → CAP details → React state. Same constraints.
   const bmkgWx = useBmkgWeatherWarnings();
 
@@ -137,6 +142,15 @@ export default function App() {
     setIsReportsOpen(false);
     setIsSidebarMinimized(true);
     setIsAIOpen(true);
+  };
+
+  const handleOpenWeather = () => {
+    // Weather sidebar opens INSIDE map canvas — does not close other sidebars
+    setIsWeatherOpen(true);
+  };
+
+  const handleCloseWeather = () => {
+    setIsWeatherOpen(false);
   };
 
   const handleToggleSidebar = () => {
@@ -320,6 +334,9 @@ export default function App() {
             isReportsOpen={isReportsOpen}
             onToggleReports={handleToggleReports}
             onOpenReports={handleOpenReports}
+            isWeatherOpen={isWeatherOpen}
+            onOpenWeather={handleOpenWeather}
+            onCloseWeather={handleCloseWeather}
             bmkgEvents={bmkg.events}
             bmkgStatus={
               bmkg.status.state === 'ready'
@@ -330,6 +347,10 @@ export default function App() {
                     ? 'loading'
                     : 'idle'
             }
+            firmsHotspots={firms.hotspots}
+            firmsStatus={firms.status.state}
+            firmsRangeLabel={firms.range.label}
+            firmsSensors={firmsSensorsLabel(firms.range)}
             bmkgWeather={bmkgWx.warnings}
             weatherStatus={
               bmkgWx.status.state === 'ready'
