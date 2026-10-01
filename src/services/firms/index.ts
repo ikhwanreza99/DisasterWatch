@@ -123,8 +123,19 @@ function planChunks(days: number): { days: number; start: string }[] {
   return chunks;
 }
 
+// Dev: Vite proxy injects the server-side NASA_FIRMS_MAP_KEY (see vite.config.ts).
+// Production (static Firebase Hosting, no server): call FIRMS directly (it sends CORS *)
+// with VITE_NASA_FIRMS_MAP_KEY. NOTE: VITE_* is inlined into the public bundle.
+const PROD_FIRMS_KEY = import.meta.env.VITE_NASA_FIRMS_MAP_KEY || '';
+
+function firmsUrl(source: FirmsSource, days: number, start: string): string {
+  const path = `${source}/${INDONESIA_BBOX}/${days}/${start}`;
+  if (import.meta.env.DEV || !PROD_FIRMS_KEY) return `/api/firms/${path}`;
+  return `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${encodeURIComponent(PROD_FIRMS_KEY)}/${path}`;
+}
+
 async function fetchChunk(source: FirmsSource, days: number, start: string, signal?: AbortSignal) {
-  const res = await fetch(`/api/firms/${source}/${INDONESIA_BBOX}/${days}/${start}`, { signal });
+  const res = await fetch(firmsUrl(source, days, start), { signal });
   const text = await res.text();
   if (!res.ok) throw new Error(`FIRMS HTTP ${res.status}`);
   if (!text.startsWith('latitude')) throw new Error(text.slice(0, 120) || 'FIRMS proxy unavailable');

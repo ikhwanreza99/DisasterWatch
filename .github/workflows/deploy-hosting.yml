@@ -53,6 +53,8 @@ jobs:
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
           VITE_GEMINI_MODEL: ${{ secrets.VITE_GEMINI_MODEL }}
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          # Browser-exposed (static Hosting has no proxy). Free, read-only NASA FIRMS key.
+          VITE_NASA_FIRMS_MAP_KEY: ${{ secrets.VITE_NASA_FIRMS_MAP_KEY }}
 
       - name: Deploy Hosting only (live channel)
         uses: FirebaseExtended/action-hosting-deploy@v0
