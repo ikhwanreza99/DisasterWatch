@@ -28,6 +28,39 @@ import {
 import { DisasterIncident, DisasterCategory } from '../types';
 import type { EarthquakeEvent } from '../services/bmkg';
 import { buildBmkgPopupHtml } from './map/bmkgPopup';
+import { FIRMS_SOURCE_URL, type FireHotspot, type FirmsStatus } from '../services/firms';
+import { GoogleFireOverlay } from './map/GoogleFireOverlay';
+
+function fireRadius(frp: number): number {
+  return frp >= 50 ? 5 : frp >= 15 ? 3.5 : 2.5;
+}
+
+function fireColor(frp: number): string {
+  if (frp >= 50) return '#dc2626';
+  if (frp >= 15) return '#f97316';
+  return '#facc15';
+}
+
+function formatFireTime(iso: string): string {
+  const t = Date.parse(iso);
+  return Number.isFinite(t)
+    ? new Date(t).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : iso;
+}
+
+function buildFirePopupHtml(h: FireHotspot): string {
+  return (
+    `<div style="font-size:12px;line-height:1.45">` +
+    `<div style="font-weight:800;letter-spacing:.03em">🔥 TITIK PANAS (HOTSPOT)</div>` +
+    `<div>FRP: <b>${h.frp.toFixed(1)} MW</b> • Confidence: <b>${h.confidence}</b></div>` +
+    `<div>Koordinat: <b>${h.latitude.toFixed(3)}, ${h.longitude.toFixed(3)}</b></div>` +
+    (h.count > 1 ? `<div><b>${h.count}</b> deteksi di area ±1 km</div>` : '') +
+    `<div style="color:#64748b">Deteksi: ${formatFireTime(h.acquiredAt)} • ${h.daynight === 'N' ? 'malam' : 'siang'} • ${h.sensor}</div>` +
+    `<div style="color:#64748b;font-size:11px;margin-top:2px">Deteksi satelit, belum terverifikasi lapangan.</div>` +
+    `<a href="${FIRMS_SOURCE_URL}" target="_blank" rel="noopener noreferrer" style="color:#ea580c">Source: NASA FIRMS</a>` +
+    `</div>`
+  );
+}
 import { WeatherCard } from './WeatherCard';
 import { WeatherDetailSidebar } from './WeatherDetailSidebar';
 
@@ -57,6 +90,12 @@ interface MapCanvasProps {
   /** BMKG V1 layer — separate from Disaster incidents, never auto-converted. */
   bmkgEvents?: EarthquakeEvent[];
   bmkgStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
+  /** NASA FIRMS active-fire hotspots (satellite detections, not verified incidents). */
+  firmsHotspots?: FireHotspot[];
+  firmsStatus?: FirmsStatus['state'];
+  /** Short label of the active FIRMS range, e.g. "7 hari". */
+  firmsRangeLabel?: string;
+  firmsSensors?: string;
 }
 
 type MapEngine = 'google' | 'osm';
@@ -236,6 +275,8 @@ const OSMMapRenderer: React.FC<{
   bmkgEvents?: EarthquakeEvent[];
   bmkgStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
   showBmkg?: boolean;
+  firmsHotspots?: FireHotspot[];
+  showFirms?: boolean;
 }> = ({
   disasters,
   activeDisasterKey,
@@ -255,12 +296,17 @@ const OSMMapRenderer: React.FC<{
   bmkgEvents = [],
   bmkgStatus = 'idle',
   showBmkg = true,
+  firmsHotspots = [],
+  showFirms = true,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const bmkgLayerRef = useRef<L.LayerGroup | null>(null);
+  const firmsLayerRef = useRef<L.LayerGroup | null>(null);
+  // Canvas renderer: thousands of hotspots without thousands of DOM nodes.
+  const firmsRendererRef = useRef<L.Canvas | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
 
@@ -327,6 +373,9 @@ const OSMMapRenderer: React.FC<{
     const tileLayer = L.tileLayer(cfg.url, { attribution: cfg.attribution, maxZoom: 19 }).addTo(map);
     tileLayerRef.current = tileLayer;
 
+    // Fires added first so incident/BMKG markers stay on top.
+    firmsRendererRef.current = L.canvas({ padding: 0.3 });
+    firmsLayerRef.current = L.layerGroup().addTo(map);
     const mGroup = L.layerGroup().addTo(map);
     const rGroup = L.layerGroup().addTo(map);
     const bGroup = L.layerGroup().addTo(map);
@@ -460,6 +509,30 @@ const OSMMapRenderer: React.FC<{
       bGroup.addLayer(m);
     });
   }, [bmkgEvents, showBmkg, bmkgStatus, mapEpoch]);
+
+  // NASA FIRMS hotspot layer (canvas circle markers, colored by FRP)
+  useEffect(() => {
+    const fGroup = firmsLayerRef.current;
+    if (!mapRef.current || !fGroup) return;
+    fGroup.clearLayers();
+    if (!showFirms) return;
+    const renderer = firmsRendererRef.current ?? undefined;
+    // Draw weakest first so strong fires paint on top.
+    for (let i = firmsHotspots.length - 1; i >= 0; i--) {
+      const h = firmsHotspots[i]!;
+      const color = fireColor(h.frp);
+      L.circleMarker([h.latitude, h.longitude], {
+        renderer,
+        radius: fireRadius(h.frp),
+        color: '#7c2d12',
+        weight: 0.6,
+        fillColor: color,
+        fillOpacity: 0.85,
+      })
+        .bindPopup(buildFirePopupHtml(h), { maxWidth: 280, closeButton: true, className: 'bmkg-popup' })
+        .addTo(fGroup);
+    }
+  }, [firmsHotspots, showFirms, mapEpoch]);
 
   // Route drawing
   useEffect(() => {
@@ -611,10 +684,18 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   onCloseWeather,
   bmkgEvents = [],
   bmkgStatus = 'idle',
+  firmsHotspots = [],
+  firmsStatus = 'idle',
+  firmsRangeLabel = '',
+  firmsSensors = '',
 }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
   const [showBmkg, setShowBmkg] = useState(true);
   const [selectedBmkgId, setSelectedBmkgId] = useState<string | null>(null);
+  const [showFirms, setShowFirms] = useState(true);
+  const [selectedFire, setSelectedFire] = useState<FireHotspot | null>(null);
+  // Close a stale popup when the date range (dataset) changes.
+  useEffect(() => setSelectedFire(null), [firmsHotspots]);
   const [gCalloutClosed, setGCalloutClosed] = useState(false);
   useEffect(() => setGCalloutClosed(false), [activeDisasterKey]);
   // Coordinates to pan/fly to when user clicks "Fokus Peta" in WeatherDetailSidebar
@@ -973,6 +1054,54 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 );
               })}
 
+              {/* NASA FIRMS hotspots — one canvas overlay for all points, popup for the clicked one */}
+              {showFirms && (
+                <GoogleFireOverlay
+                  hotspots={firmsHotspots}
+                  color={fireColor}
+                  radius={fireRadius}
+                  onSelect={setSelectedFire}
+                />
+              )}
+              {showFirms && selectedFire && (
+                <AdvancedMarker
+                  position={{ lat: selectedFire.latitude, lng: selectedFire.longitude }}
+                  zIndex={9997}
+                >
+                  <div
+                    className="pointer-events-auto mb-2 min-w-[250px] rounded-2xl p-3 shadow-2xl border border-orange-300/40 bg-slate-900/95 text-white"
+                    data-purpose="firms-popup"
+                    onClick={(ev) => ev.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-black tracking-wide">🔥 TITIK PANAS</div>
+                      <button
+                        type="button"
+                        aria-label="Tutup popup"
+                        title="Tutup"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setSelectedFire(null);
+                        }}
+                        className="w-5 h-5 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <div className="text-[11px]">FRP: <b>{selectedFire.frp.toFixed(1)} MW</b> • Confidence: <b>{selectedFire.confidence}</b></div>
+                    {selectedFire.count > 1 && (
+                      <div className="text-[11px]"><b>{selectedFire.count}</b> deteksi di area ±1 km</div>
+                    )}
+                    <div className="text-[11px]">Koordinat: <b>{selectedFire.latitude.toFixed(3)}, {selectedFire.longitude.toFixed(3)}</b></div>
+                    <div className="text-[10px] text-slate-400">Deteksi: {formatFireTime(selectedFire.acquiredAt)} • {selectedFire.sensor}</div>
+                    <div className="text-[10px] text-slate-400">Deteksi satelit, belum terverifikasi lapangan.</div>
+                    <a href={FIRMS_SOURCE_URL} target="_blank" rel="noopener noreferrer" className="text-[11px] text-orange-300 underline">
+                      Source: NASA FIRMS
+                    </a>
+                  </div>
+                </AdvancedMarker>
+              )}
+
               {/* BMKG Earthquake layer — distinct cyan markers, separate from Disaster incidents */}
               {showBmkg &&
                 bmkgStatus !== 'unavailable' &&
@@ -1053,6 +1182,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             bmkgEvents={bmkgEvents}
             bmkgStatus={bmkgStatus}
             showBmkg={showBmkg}
+            firmsHotspots={firmsHotspots}
+            showFirms={showFirms}
           />
         )}
       </div>
@@ -1103,6 +1234,31 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     : 'BMKG…'}
               </span>
               <span className="text-[9px] opacity-80">{showBmkg ? 'ON' : 'OFF'}</span>
+            </button>
+          </div>
+
+          {/* NASA FIRMS hotspot layer toggle */}
+          <div className="relative">
+            <button
+              onClick={() => setShowFirms((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border shadow-md cursor-pointer transition-all active:scale-95 ${
+                showFirms
+                  ? 'bg-orange-600 text-white border-orange-500'
+                  : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
+              }`}
+              title={`Titik panas NASA FIRMS • ${firmsRangeLabel} • ${firmsSensors}. Rentang mengikuti pilihan tanggal di header.`}
+              data-purpose="firms-layer-toggle"
+              aria-pressed={showFirms}
+            >
+              <span>🔥</span>
+              <span>
+                {firmsStatus === 'unavailable'
+                  ? 'FIRMS N/A'
+                  : firmsStatus === 'ready'
+                    ? `FIRMS ${firmsRangeLabel}: ${firmsHotspots.length.toLocaleString('id-ID')}`
+                    : `FIRMS ${firmsRangeLabel}…`}
+              </span>
+              <span className="text-[9px] opacity-80">{showFirms ? 'ON' : 'OFF'}</span>
             </button>
           </div>
           <div className="relative">

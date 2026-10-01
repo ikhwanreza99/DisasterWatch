@@ -16,6 +16,7 @@ import { IntelligenceSummaryBar } from './components/IntelligenceSummaryBar';
 import { ArchitectureBadge } from './components/ArchitectureBadge';
 import { BmkgSignalCard } from './components/BmkgSignalCard';
 import { useBmkgEarthquakes } from './services/bmkg';
+import { firmsSensorsLabel, useFirmsHotspots } from './services/firms';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
 import { loadDisasters } from './services/store/disasterStore';
@@ -49,6 +50,9 @@ export default function App() {
   // BMKG V1: official feed → React state → map/UI. No Firestore, no auto-disaster.
   // Fetch on load + manual refresh only (no aggressive polling).
   const bmkg = useBmkgEarthquakes();
+  // NASA FIRMS hotspots via server-side proxy (MAP_KEY never reaches the browser).
+  // Range follows the header date selector (Today / 24 jam / 7 hari / 30 hari).
+  const firms = useFirmsHotspots(selectedDate);
 
   const activeDisaster = disasters[activeDisasterKey] || disasters['padang'];
 
@@ -343,6 +347,10 @@ export default function App() {
                     ? 'loading'
                     : 'idle'
             }
+            firmsHotspots={firms.hotspots}
+            firmsStatus={firms.status.state}
+            firmsRangeLabel={firms.range.label}
+            firmsSensors={firmsSensorsLabel(firms.range)}
           />
 
           {/* MODE 1: Compact Homepage Menu Sidebar (Only rendered when no other window is open and user un-minimizes sidebar) */}
