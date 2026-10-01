@@ -252,6 +252,9 @@ const OSMMapRenderer: React.FC<{
 
   const [calloutPos, setCalloutPos] = useState<{ x: number; y: number } | null>(null);
   const activeData = disasters[activeDisasterKey];
+  // Bumped every time the Leaflet map is (re)created so imperative layers
+  // (BMKG) re-render without any user action after a map reset.
+  const [mapEpoch, setMapEpoch] = useState(0);
 
   const getTileConfig = useCallback((type: OSMTileType, dark: boolean) => {
     if (type === 'osm-hot') {
@@ -321,6 +324,7 @@ const OSMMapRenderer: React.FC<{
     });
 
     mapRef.current = map;
+    setMapEpoch((e) => e + 1);
     setTimeout(() => {
       map.invalidateSize();
       updatePos();
@@ -437,7 +441,7 @@ const OSMMapRenderer: React.FC<{
       m.bindPopup(buildBmkgPopupHtml(e), { maxWidth: 300 });
       bGroup.addLayer(m);
     });
-  }, [bmkgEvents, showBmkg, bmkgStatus]);
+  }, [bmkgEvents, showBmkg, bmkgStatus, mapEpoch]);
 
   // Route drawing
   useEffect(() => {
