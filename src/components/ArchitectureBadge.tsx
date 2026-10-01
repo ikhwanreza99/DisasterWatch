@@ -1,10 +1,11 @@
-// Visible Google-ecosystem roles. Each entry shows live vs mock so demo stays honest.
-import React from 'react';
+// Visible Google-ecosystem roles. Compact "System Status" pill; details in popover.
+import React, { useState } from 'react';
 import { aiBackendStatus } from '../lib/firebase/ai';
 import { firebaseStatus } from '../lib/firebase/config';
 import { resolveMapProvider } from './map/mapTypes';
 
 export const ArchitectureBadge: React.FC = () => {
+  const [open, setOpen] = useState(false);
   const fb = firebaseStatus();
   const ai = aiBackendStatus();
   const map = resolveMapProvider();
@@ -20,14 +21,28 @@ export const ArchitectureBadge: React.FC = () => {
     ['Google Maps Platform', 'provider peta', map === 'google', 'GOOGLE', 'LEAFLET/OSM'],
     ['Firebase Hosting', 'deploy target (standard Hosting, Spark)', true, 'LIVE', 'BELUM DEPLOY'],
   ];
+  const liveCount = rows.filter(([, , live]) => live).length;
   return (
-    <div className="px-6 sm:px-8 pb-2 flex items-center gap-1.5 flex-wrap" data-purpose="arch-badge">
-      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">Arsitektur:</span>
-      {rows.map(([name, role, live, a, b]) => (
-        <span key={name} title={role} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
-          {name} {pill(live, a, b)}
-        </span>
-      ))}
+    <div className="relative px-4 sm:px-6 pt-1.5" data-purpose="arch-badge">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer active:scale-95"
+        title="System status — click for service details"
+        aria-expanded={open}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span className="uppercase tracking-wider">System Status · {liveCount}/{rows.length}</span>
+      </button>
+      {open && (
+        <div className="absolute left-4 sm:left-6 top-full mt-1 z-50 bg-white dark:bg-[#0b1329] border border-slate-200 dark:border-slate-700 rounded-2xl p-2 shadow-2xl min-w-[280px] animate-fadeIn">
+          {rows.map(([name, role, live, a, b]) => (
+            <div key={name} title={role} className="flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+              <span>{name}</span>
+              {pill(live, a, b)}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

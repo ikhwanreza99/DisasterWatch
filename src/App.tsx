@@ -13,8 +13,7 @@ import { ReportModal } from './components/ReportModal';
 import { DonationModal } from './components/DonationModal';
 import { IntelligenceSummaryBar } from './components/IntelligenceSummaryBar';
 import { ArchitectureBadge } from './components/ArchitectureBadge';
-import { BmkgSignalCard } from './components/BmkgSignalCard';
-import { BmkgWeatherWarningCard } from './components/BmkgWeatherWarningCard';
+import { BmkgSignalsControl } from './components/BmkgSignalsControl';
 import { useBmkgEarthquakes, useBmkgWeatherWarnings } from './services/bmkg';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
@@ -256,58 +255,30 @@ export default function App() {
 
         <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords} />
         <ArchitectureBadge />
-        <section data-purpose="bmkg-official-signals" aria-label="BMKG Official Signals">
-          <div className="px-6 sm:px-8 pt-1 flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">BMKG Official Signals</span>
-            <span
-              className={`rounded-full border px-1.5 py-px text-[9px] font-bold ${
-                bmkg.status.state === 'ready'
-                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                  : 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400'
-              }`}
-            >
-              EARTHQUAKE {bmkg.status.state === 'ready' ? 'LIVE' : bmkg.status.state.toUpperCase()}
-            </span>
-            <span
-              className={`rounded-full border px-1.5 py-px text-[9px] font-bold ${
-                bmkgWx.status.state === 'ready'
-                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                  : bmkgWx.errorType === 'RSS_CORS_BLOCKED' || bmkgWx.errorType === 'CAP_CORS_BLOCKED'
-                    ? 'border-orange-300 bg-orange-100 text-orange-700 dark:border-orange-700 dark:bg-orange-950/60 dark:text-orange-300'
-                    : 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400'
-              }`}
-            >
-              WEATHER{' '}
-              {bmkgWx.status.state === 'ready'
-                ? 'LIVE'
-                : bmkgWx.errorType === 'RSS_CORS_BLOCKED' || bmkgWx.errorType === 'CAP_CORS_BLOCKED'
-                  ? 'BROWSER ACCESS BLOCKED'
-                  : bmkgWx.status.state.toUpperCase()}
-            </span>
-          </div>
-          <BmkgSignalCard
-            latest={bmkg.latest}
-            count={bmkg.events.length}
-            status={bmkg.status}
-            refreshing={bmkg.refreshing}
-            onRefresh={bmkg.refresh}
-          />
-          <BmkgWeatherWarningCard
-            active={bmkgWx.active}
-            upcoming={bmkgWx.upcoming}
-            status={bmkgWx.status}
-            errorType={bmkgWx.errorType}
-            refreshing={bmkgWx.refreshing}
-            onRefresh={bmkgWx.refresh}
-          />
-        </section>
-        <div className="px-6 sm:px-8 pb-1 text-[11px] text-slate-500 dark:text-slate-400">
+        <div className="px-4 sm:px-6 pt-1 text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
           <span className="font-semibold">{storeNotice}</span>
-          <span className="ml-2 text-slate-400">• Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
+          <span className="ml-2">• Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
         </div>
 
-        {/* Main Work Area */}
-        <main className="relative flex-1 grid grid-cols-12 overflow-hidden">
+        {/* Main Work Area — map-first workspace (min 60vh desktop) */}
+        <main className="relative flex-1 grid grid-cols-12 overflow-hidden min-h-[60vh]">
+          {/* Floating BMKG official-signals control (compact, over map) */}
+          <BmkgSignalsControl
+            quakeCount={bmkg.events.length}
+            quakeLatestText={
+              bmkg.latest
+                ? `M${bmkg.latest.magnitude} • ${bmkg.latest.region} • ${bmkg.latest.depthKm} km`
+                : null
+            }
+            quakeLive={bmkg.status.state === 'ready'}
+            quakeRefreshing={bmkg.refreshing}
+            onRefreshQuake={bmkg.refresh}
+            weatherActiveCount={bmkgWx.active.length}
+            weatherBlocked={bmkgWx.errorType === 'RSS_CORS_BLOCKED' || bmkgWx.errorType === 'CAP_CORS_BLOCKED'}
+            weatherReady={bmkgWx.status.state === 'ready'}
+            weatherRefreshing={bmkgWx.refreshing}
+            onRefreshWeather={bmkgWx.refresh}
+          />
           {/* Left Category Filter Dock */}
           <CategoryFilterBar
             activeCategory={activeCategory}

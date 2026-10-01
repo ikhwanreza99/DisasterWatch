@@ -43,25 +43,32 @@ export const IntelligenceSummaryBar: React.FC<Props> = ({ disasters, reports, ai
   }, [disasters, reports, aid]);
 
   const items = [
-    { label: 'Insiden Aktif', value: String(stats.active), sub: 'terpantau peta' },
-    { label: 'Terdampak (est.)', value: stats.affected > 0 ? stats.affected.toLocaleString('id-ID') + ' jiwa' : '—', sub: 'deterministik' },
-    { label: 'Prioritas', value: stats.criticalName.split(',')[0], sub: `skor ${stats.critical?.score ?? 0}` },
-    { label: 'Total Gap', value: stats.gapItems.toLocaleString('id-ID'), sub: 'unit kebutuhan' },
-    { label: 'Perlu Verifikasi', value: String(stats.unverified), sub: 'laporan AI' },
+    { label: 'Insiden Aktif', value: String(stats.active), accent: false },
+    { label: 'Terdampak', value: stats.affected > 0 ? stats.affected.toLocaleString('id-ID') : '—', accent: false },
+    { label: 'Prioritas', value: `${stats.criticalName.split(',')[0]} · ${stats.critical?.score ?? 0}`, accent: true },
+    { label: 'Gap', value: stats.gapItems.toLocaleString('id-ID'), accent: false },
+    { label: 'Perlu Verifikasi', value: String(stats.unverified), accent: false },
   ];
 
   return (
-    <div className="px-6 sm:px-8 pt-3 pb-1 flex items-center gap-2 overflow-x-auto" data-purpose="intel-summary">
+    <div className="px-4 sm:px-6 pt-1.5 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap" data-purpose="intel-summary">
       {items.map((it) => (
-        <div key={it.label} className="min-w-[150px] flex-1 px-3.5 py-2 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{it.label}</div>
-          <div className="text-sm font-black text-slate-900 dark:text-white truncate">{it.value}</div>
-          <div className="text-[10px] text-slate-500 dark:text-slate-400">{it.sub}</div>
+        <div
+          key={it.label}
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shrink-0"
+        >
+          <span className={`text-sm font-black tabular-nums ${it.accent ? 'text-orange-600 dark:text-orange-400' : 'text-slate-900 dark:text-white'}`}>
+            {it.value}
+          </span>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{it.label}</span>
         </div>
       ))}
-      <div className="hidden xl:block text-[10px] text-slate-400 font-medium px-2 whitespace-nowrap">
-        MOCK + AI-PROCESSSED — bukan feed resmi BNPB/BMKG
-      </div>
+      <span
+        title="MOCK + AI-PROCESSED — bukan feed resmi BNPB/BMKG"
+        className="inline-flex items-center gap-1 h-9 px-2.5 rounded-full border border-dashed border-slate-300 dark:border-slate-700 text-[9px] font-bold uppercase tracking-wider text-slate-400 shrink-0"
+      >
+        Demo data · AI-processed · Not official BNPB/BMKG
+      </span>
     </div>
   );
 };

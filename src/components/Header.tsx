@@ -21,15 +21,15 @@ export const Header: React.FC<HeaderProps> = ({
   const presets = ['Hari ini (24 Jam)', '7 Hari Terakhir', '30 Hari Terakhir'];
 
   return (
-    <header className="relative z-30 flex items-center justify-between px-6 sm:px-8 py-4 sm:py-5 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0b1329]/80 backdrop-blur-xl transition-colors duration-300">
+    <header className="relative z-30 flex items-center justify-between px-4 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0b1329]/80 backdrop-blur-xl transition-colors duration-300">
       {/* Brand Identifier (Top-Left) */}
-      <div className="flex items-center gap-3 sm:gap-4 pointer-events-auto">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-orange-500 flex items-center justify-center shadow-md shadow-orange-500/20 text-white shrink-0">
-          <Radio className="w-5 h-5 text-white" />
+      <div className="flex items-center gap-2.5 pointer-events-auto">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-orange-500 flex items-center justify-center shadow-md shadow-orange-500/20 text-white shrink-0">
+          <Radio className="w-4 h-4 text-white" />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white">
               DisasterWatch
             </h1>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-cyan-950/60 text-slate-700 dark:text-cyan-300 border border-slate-200 dark:border-cyan-500/30">
@@ -37,15 +37,6 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
             <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-600/30 tracking-wider uppercase">
               SIAGA BENCANA
-            </span>
-          </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
-            </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide truncate max-w-[200px] sm:max-w-none">
-              Sistem Informasi Tanggap Darurat Bencana RI
             </span>
           </div>
         </div>

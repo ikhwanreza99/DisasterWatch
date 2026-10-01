@@ -533,23 +533,23 @@ const OSMMapRenderer: React.FC<{
           className="pointer-events-auto absolute z-40 min-w-[280px] map-glass-callout rounded-2xl p-3.5 shadow-2xl border border-white/20 text-white animate-fadeIn"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="text-sm font-bold text-white tracking-tight leading-snug mb-0.5 flex items-center justify-between">
-            <span className="truncate pr-2">{activeData.name}</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/25 text-rose-300 border border-rose-500/40 shadow-xs">
+              {activeData.urgency}
+            </span>
+            <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+              <span>{activeData.timestamp}</span>
+            </span>
+          </div>
+          <div className="text-base font-black text-white tracking-tight leading-snug truncate">{activeData.name}</div>
+          <div className="text-[11px] text-slate-300 mb-1.5 flex items-center justify-between">
+            <span>{activeData.province}</span>
             <span className="text-[10px] text-cyan-300 font-mono font-medium">
               {activeData.coords.lat.toFixed(2)}°, {activeData.coords.lng.toFixed(2)}°
             </span>
           </div>
-          <div className="text-[11px] text-slate-300 mb-1.5">{activeData.province}</div>
-          <div className="flex items-center justify-between text-xs font-medium mb-2">
-            <span className="text-amber-300 font-semibold">{activeData.fullName}</span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/25 text-rose-300 border border-rose-500/40 shadow-xs">
-              {activeData.urgency}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-2.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-            <span>{activeData.timestamp}</span>
-          </div>
+          <div className="text-xs font-semibold text-amber-300 mb-2">{activeData.fullName}</div>
           <div className="pt-2 border-t border-white/15 flex items-center gap-1.5">
             <button
               onClick={(e) => {
@@ -879,23 +879,23 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                           className="pointer-events-auto absolute bottom-12 left-1/2 -translate-x-1/2 z-50 min-w-[280px] map-glass-callout rounded-2xl p-3.5 shadow-2xl border border-white/20 text-white animate-fadeIn"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="text-sm font-bold text-white tracking-tight leading-snug mb-0.5 flex items-center justify-between">
-                            <span className="truncate pr-2">{incident.name}</span>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/25 text-rose-300 border border-rose-500/40 shadow-xs">
+                              {incident.urgency}
+                            </span>
+                            <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                              <span>{incident.timestamp}</span>
+                            </span>
+                          </div>
+                          <div className="text-base font-black text-white tracking-tight leading-snug truncate">{incident.name}</div>
+                          <div className="text-[11px] text-slate-300 mb-1.5 flex items-center justify-between">
+                            <span>{incident.province}</span>
                             <span className="text-[10px] text-cyan-300 font-mono font-medium">
                               {incident.coords.lat.toFixed(2)}°, {incident.coords.lng.toFixed(2)}°
                             </span>
                           </div>
-                          <div className="text-[11px] text-slate-300 mb-1.5">{incident.province}</div>
-                          <div className="flex items-center justify-between text-xs font-medium mb-2">
-                            <span className="text-amber-300 font-semibold">{incident.fullName}</span>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/25 text-rose-300 border border-rose-500/40 shadow-xs">
-                              {incident.urgency}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-2.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                            <span>{incident.timestamp}</span>
-                          </div>
+                          <div className="text-xs font-semibold text-amber-300 mb-2">{incident.fullName}</div>
                           <div className="pt-2 border-t border-white/15 flex items-center gap-1.5">
                             <button
                               onClick={(e) => {
