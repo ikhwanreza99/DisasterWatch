@@ -32,6 +32,57 @@ import { buildBmkgPopupHtml, buildBmkgWeatherPopupHtml } from './map/bmkgPopup';
 import { FIRMS_SOURCE_URL, type FireHotspot, type FirmsStatus } from '../services/firms';
 import { GoogleFireOverlay } from './map/GoogleFireOverlay';
 import { useCityWeather, type CityWeather } from '../services/weather/cityWeather';
+import {
+  useMagma,
+  MAGMA_LANDSLIDE_URL,
+  MAGMA_VOLCANO_URL,
+  VOLCANO_LEVEL_COLOR,
+  VOLCANO_LEVEL_LABEL,
+  type LandslideReport,
+  type MagmaData,
+  type Volcano,
+} from '../services/magma';
+
+/** Triangle volcano icon colored by PVMBG activity level; pulsing ring when erupting. */
+function volcanoMarkerHtml(v: Volcano): string {
+  const c = VOLCANO_LEVEL_COLOR[v.level];
+  const size = v.level >= 3 ? 22 : v.level === 2 ? 18 : 14;
+  const ring = v.erupting
+    ? `<span class="absolute inset-0 -m-1 rounded-full animate-ping" style="background:${c};opacity:.35"></span>`
+    : '';
+  return (
+    `<div class="relative flex items-center justify-center cursor-pointer transform -translate-x-1/2 -translate-y-1/2" style="width:${size}px;height:${size}px">` +
+    ring +
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="position:relative;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))">` +
+    `<path d="M12 3 L22 21 H2 Z" fill="${c}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>` +
+    `</div>`
+  );
+}
+
+function volcanoPopupHtml(v: Volcano): string {
+  return (
+    `<div style="font-size:12px;line-height:1.45">` +
+    `<div style="font-weight:800">🌋 G. ${escHtml(v.name)}</div>` +
+    `<div>Status: <b style="color:${VOLCANO_LEVEL_COLOR[v.level]}">${VOLCANO_LEVEL_LABEL[v.level]}</b>${v.erupting ? ' • <b>erupsi terkini</b>' : ''}</div>` +
+    `<div>${escHtml(v.regency)}, ${escHtml(v.province)}${v.elevationM ? ` • ${v.elevationM} mdpl` : ''}</div>` +
+    (v.noticeNumber ? `<div style="color:#64748b">Laporan: ${escHtml(v.noticeNumber)}${v.hasVona ? ' • VONA tersedia' : ''}</div>` : '') +
+    `<a href="${MAGMA_VOLCANO_URL}" target="_blank" rel="noopener noreferrer" style="color:#b45309">Source: MAGMA Indonesia (PVMBG)</a>` +
+    `</div>`
+  );
+}
+
+function landslidePopupHtml(l: LandslideReport): string {
+  return (
+    `<div style="font-size:12px;line-height:1.45">` +
+    `<div style="font-weight:800">⛰ GERAKAN TANAH</div>` +
+    `<div><b>${escHtml(l.regency)}</b>, ${escHtml(l.province)}</div>` +
+    (l.movementType ? `<div>Jenis: <b>${escHtml(l.movementType)}</b>${l.material ? ` (${escHtml(l.material)})` : ''}</div>` : '') +
+    (l.zone ? `<div>Zona kerentanan: <b>${escHtml(l.zone)}</b></div>` : '') +
+    `<div style="color:#64748b">Tanggal kejadian: ${escHtml(l.date)}</div>` +
+    `<a href="${MAGMA_LANDSLIDE_URL}" target="_blank" rel="noopener noreferrer" style="color:#b45309">Source: MAGMA Indonesia (PVMBG)</a>` +
+    `</div>`
+  );
+}
 
 function escHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -314,6 +365,8 @@ const OSMMapRenderer: React.FC<{
   weatherStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
   showWeather?: boolean;
   cityWeather?: CityWeather[];
+  magma?: MagmaData | null;
+  showMagma?: boolean;
 }> = ({
   disasters,
   activeDisasterKey,
@@ -339,6 +392,8 @@ const OSMMapRenderer: React.FC<{
   weatherStatus = 'idle',
   showWeather = true,
   cityWeather = [],
+  magma = null,
+  showMagma = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -350,6 +405,7 @@ const OSMMapRenderer: React.FC<{
   const firmsRendererRef = useRef<L.Canvas | null>(null);
   const weatherLayerRef = useRef<L.LayerGroup | null>(null);
   const cityWeatherLayerRef = useRef<L.LayerGroup | null>(null);
+  const magmaLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
 
@@ -428,6 +484,7 @@ const OSMMapRenderer: React.FC<{
     bmkgLayerRef.current = bGroup;
     weatherLayerRef.current = wGroup;
     cityWeatherLayerRef.current = L.layerGroup().addTo(map);
+    magmaLayerRef.current = L.layerGroup().addTo(map);
 
     map.on('move', updatePos);
     map.on('zoomend', () => {
@@ -621,6 +678,36 @@ const OSMMapRenderer: React.FC<{
     });
   }, [cityWeather, showWeather, mapEpoch]);
 
+  // MAGMA layer: volcano activity levels + gerakan tanah reports (PVMBG)
+  useEffect(() => {
+    const g = magmaLayerRef.current;
+    if (!mapRef.current || !g) return;
+    g.clearLayers();
+    if (!showMagma || !magma) return;
+    magma.landslides.forEach((l) => {
+      L.marker([l.latitude, l.longitude], {
+        icon: L.divIcon({
+          html: `<div class="w-5 h-5 rounded-md bg-amber-800 border-2 border-white shadow flex items-center justify-center text-[10px] transform -translate-x-1/2 -translate-y-1/2 cursor-pointer">⛰</div>`,
+          className: 'magma-landslide-marker',
+          iconSize: [0, 0],
+        }),
+        zIndexOffset: 350,
+        title: `Gerakan tanah — ${l.regency}`,
+      })
+        .bindPopup(landslidePopupHtml(l), { maxWidth: 280, closeButton: true, className: 'bmkg-popup' })
+        .addTo(g);
+    });
+    magma.volcanoes.forEach((v) => {
+      L.marker([v.latitude, v.longitude], {
+        icon: L.divIcon({ html: volcanoMarkerHtml(v), className: 'magma-volcano-marker', iconSize: [0, 0] }),
+        zIndexOffset: 400 + v.level * 10,
+        title: `G. ${v.name} — ${VOLCANO_LEVEL_LABEL[v.level]}`,
+      })
+        .bindPopup(volcanoPopupHtml(v), { maxWidth: 280, closeButton: true, className: 'bmkg-popup' })
+        .addTo(g);
+    });
+  }, [magma, showMagma, mapEpoch]);
+
   // Route drawing
   useEffect(() => {
     if (!mapRef.current || !routeLayerRef.current) return;
@@ -796,6 +883,16 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const selectedWeather = activeWeather.find((w) => w.id === selectedWeatherId) ?? null;
   // Major-city weather points: fetched only while the CUACA layer is ON.
   const cityWx = useCityWeather(showWeather);
+  // MAGMA (PVMBG): off by default; fetched only when toggled ON.
+  const [showMagma, setShowMagma] = useState(false);
+  const magmaFeed = useMagma(showMagma);
+  const [selectedMagma, setSelectedMagma] = useState<
+    { kind: 'volcano'; v: Volcano } | { kind: 'landslide'; l: LandslideReport } | null
+  >(null);
+  const magmaCounts = useMemo(() => {
+    const vs = magmaFeed.data?.volcanoes ?? [];
+    return { total: vs.length, elevated: vs.filter((v) => v.level >= 2).length };
+  }, [magmaFeed.data]);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
 
   // Engine state: start with 'google' if apiKey present, but auto-fallback to 'osm' on RefererNotAllowedMapError
@@ -1280,6 +1377,106 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   }),
                 )}
 
+              {/* MAGMA (PVMBG): gerakan tanah + volcano activity levels */}
+              {showMagma &&
+                magmaFeed.data?.landslides.map((l) => (
+                  <AdvancedMarker
+                    key={`ls-${l.id}`}
+                    position={{ lat: l.latitude, lng: l.longitude }}
+                    zIndex={35}
+                    title={`Gerakan tanah — ${l.regency}`}
+                    onClick={() => setSelectedMagma({ kind: 'landslide', l })}
+                  >
+                    <div className="w-5 h-5 rounded-md bg-amber-800 border-2 border-white shadow flex items-center justify-center text-[10px] cursor-pointer">
+                      ⛰
+                    </div>
+                  </AdvancedMarker>
+                ))}
+              {showMagma &&
+                magmaFeed.data?.volcanoes.map((v) => (
+                  <AdvancedMarker
+                    key={`gv-${v.code}`}
+                    position={{ lat: v.latitude, lng: v.longitude }}
+                    zIndex={40 + v.level}
+                    title={`G. ${v.name} — ${VOLCANO_LEVEL_LABEL[v.level]}`}
+                    onClick={() => setSelectedMagma({ kind: 'volcano', v })}
+                  >
+                    {/* Marker HTML is built from parsed numeric/enum fields only (no free text). */}
+                    <div dangerouslySetInnerHTML={{ __html: volcanoMarkerHtml(v).replace('transform -translate-x-1/2 -translate-y-1/2', '') }} />
+                  </AdvancedMarker>
+                ))}
+              {showMagma && selectedMagma && (
+                <AdvancedMarker
+                  position={
+                    selectedMagma.kind === 'volcano'
+                      ? { lat: selectedMagma.v.latitude, lng: selectedMagma.v.longitude }
+                      : { lat: selectedMagma.l.latitude, lng: selectedMagma.l.longitude }
+                  }
+                  zIndex={9995}
+                >
+                  <div
+                    className="pointer-events-auto mb-6 min-w-[240px] max-w-[280px] rounded-2xl p-3 shadow-2xl border border-amber-300/40 bg-slate-900/95 text-white"
+                    data-purpose="magma-popup"
+                    onClick={(ev) => ev.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-xs font-black tracking-wide">
+                        {selectedMagma.kind === 'volcano' ? `🌋 G. ${selectedMagma.v.name}` : '⛰ GERAKAN TANAH'}
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Tutup popup"
+                        title="Tutup"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setSelectedMagma(null);
+                        }}
+                        className="w-5 h-5 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    {selectedMagma.kind === 'volcano' ? (
+                      <>
+                        <div className="text-[11px]">
+                          Status:{' '}
+                          <b style={{ color: VOLCANO_LEVEL_COLOR[selectedMagma.v.level] }}>{VOLCANO_LEVEL_LABEL[selectedMagma.v.level]}</b>
+                          {selectedMagma.v.erupting && <> • <b>erupsi terkini</b></>}
+                        </div>
+                        <div className="text-[11px]">
+                          {selectedMagma.v.regency}, {selectedMagma.v.province}
+                          {selectedMagma.v.elevationM ? ` • ${selectedMagma.v.elevationM} mdpl` : ''}
+                        </div>
+                        {selectedMagma.v.noticeNumber && (
+                          <div className="text-[10px] text-slate-400">
+                            Laporan: {selectedMagma.v.noticeNumber}
+                            {selectedMagma.v.hasVona ? ' • VONA tersedia' : ''}
+                          </div>
+                        )}
+                        <a href={MAGMA_VOLCANO_URL} target="_blank" rel="noopener noreferrer" className="text-[11px] text-amber-300 underline">
+                          Source: MAGMA Indonesia (PVMBG)
+                        </a>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-[11px]"><b>{selectedMagma.l.regency}</b>, {selectedMagma.l.province}</div>
+                        {selectedMagma.l.movementType && (
+                          <div className="text-[11px]">
+                            Jenis: <b>{selectedMagma.l.movementType}</b>
+                            {selectedMagma.l.material ? ` (${selectedMagma.l.material})` : ''}
+                          </div>
+                        )}
+                        {selectedMagma.l.zone && <div className="text-[11px]">Zona kerentanan: <b>{selectedMagma.l.zone}</b></div>}
+                        <div className="text-[10px] text-slate-400">Tanggal kejadian: {selectedMagma.l.date}</div>
+                        <a href={MAGMA_LANDSLIDE_URL} target="_blank" rel="noopener noreferrer" className="text-[11px] text-amber-300 underline">
+                          Source: MAGMA Indonesia (PVMBG)
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </AdvancedMarker>
+              )}
+
               {/* Major-city weather chips (CUACA layer ON only) */}
               {showWeather &&
                 cityWx.cities.map((c) => {
@@ -1417,6 +1614,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             weatherStatus={weatherStatus}
             showWeather={showWeather}
             cityWeather={cityWx.cities}
+            magma={magmaFeed.data}
+            showMagma={showMagma}
           />
         )}
       </div>
@@ -1492,6 +1691,40 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     : `FIRMS ${firmsRangeLabel}…`}
               </span>
               <span className="text-[9px] opacity-80">{showFirms ? 'ON' : 'OFF'}</span>
+            </button>
+          </div>
+
+          {/* MAGMA (PVMBG) layer toggle: volcano levels + gerakan tanah */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowMagma((v) => !v);
+                setSelectedMagma(null);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border shadow-md cursor-pointer transition-all active:scale-95 ${
+                showMagma
+                  ? 'bg-amber-700 text-white border-amber-600'
+                  : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
+              }`}
+              title={
+                magmaFeed.status.state === 'unavailable'
+                  ? `MAGMA tidak tersedia: ${magmaFeed.status.reason}`
+                  : 'Gunung api (tingkat aktivitas) & gerakan tanah — MAGMA Indonesia, PVMBG Badan Geologi'
+              }
+              data-purpose="magma-layer-toggle"
+              aria-pressed={showMagma}
+            >
+              <span>🌋</span>
+              <span>
+                {!showMagma
+                  ? 'MAGMA'
+                  : magmaFeed.status.state === 'unavailable'
+                    ? 'MAGMA N/A'
+                    : magmaFeed.status.state === 'ready'
+                      ? `MAGMA: ${magmaCounts.total} gunung • ${magmaCounts.elevated} ≥ Waspada`
+                      : 'MAGMA…'}
+              </span>
+              <span className="text-[9px] opacity-80">{showMagma ? 'ON' : 'OFF'}</span>
             </button>
           </div>
 
@@ -1703,6 +1936,43 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
       {/* Bottom Bar: Controls & Quick Action Buttons */}
       <div className="relative z-30 flex items-center justify-between px-6 sm:px-8 pb-6 pointer-events-auto">
+        {/* MAGMA legend — bottom-left, directly above the zoom controls (only while MAGMA is ON) */}
+        {showMagma && (
+          <div
+            className="absolute left-6 sm:left-8 bottom-full mb-2 w-56 rounded-2xl border border-slate-200/90 dark:border-slate-700/70 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md p-3 shadow-lg text-[11px] text-slate-700 dark:text-slate-200 animate-fadeIn"
+            data-purpose="magma-legend"
+            role="region"
+            aria-label="Legenda MAGMA"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Legenda MAGMA</span>
+              <span className="text-[9px] text-slate-400">PVMBG</span>
+            </div>
+            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Tingkat aktivitas gunung api</div>
+            <ul className="space-y-1 mb-2">
+              {([4, 3, 2, 1] as const).map((lvl) => (
+                <li key={lvl} className="flex items-center gap-2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3 L22 21 H2 Z" fill={VOLCANO_LEVEL_COLOR[lvl]} stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
+                  </svg>
+                  <span>{VOLCANO_LEVEL_LABEL[lvl]}</span>
+                </li>
+              ))}
+              <li className="flex items-center gap-2">
+                <span className="relative flex h-3.5 w-3.5 items-center justify-center" aria-hidden="true">
+                  <span className="absolute inset-0 rounded-full bg-orange-500/40 animate-ping"></span>
+                  <span className="h-2 w-2 rounded-full bg-orange-500"></span>
+                </span>
+                <span>Lingkaran berdenyut = erupsi terkini</span>
+              </li>
+            </ul>
+            <div className="flex items-center gap-2 pt-1.5 border-t border-slate-200/80 dark:border-slate-700/60">
+              <span className="w-4 h-4 rounded bg-amber-800 border border-white shadow-xs flex items-center justify-center text-[8px]" aria-hidden="true">⛰</span>
+              <span>Laporan gerakan tanah</span>
+            </div>
+          </div>
+        )}
+
         {/* Bottom Left Map Controls (Zoom & Scale) */}
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex items-center bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md p-1.5 rounded-full border border-slate-200/90 dark:border-slate-700/70 shadow-md gap-1">
