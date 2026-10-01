@@ -200,5 +200,72 @@ const DETAIL = 'https://www.bmkg.go.id/alerts/nowcast/id/CJB20261001003_alert.xm
   check('10 drawable areas identified', drawable.length === 2, `got ${drawable.length}`);
 }
 
+// 11-15. Error classification via getBmkgWeatherWarnings (injected fetch, no network).
+type StubRoute = { ok: boolean; status: number; text: string } | { threw: unknown };
+function stubFetch(routes: Record<string, StubRoute>, fallback: StubRoute = { threw: new Error('unexpected URL') }) {
+  return (async (url: string): Promise<Response> => {
+    const r = routes[url] ?? fallback;
+    if ('threw' in r) throw r.threw;
+    return { ok: r.ok, status: r.status, statusText: r.ok ? 'OK' : 'Error', text: async () => r.text } as unknown as Response;
+  }) as unknown as typeof fetch;
+}
+const RSS_URL = 'https://www.bmkg.go.id/alerts/nowcast/id';
+const CAP2_URL = 'https://www.bmkg.go.id/alerts/nowcast/id/CRU20261001002_alert.xml';
+const okResp = (text: string): StubRoute => ({ ok: true, status: 200, text });
+
+// 11. CORS-blocked RSS → RSS_CORS_BLOCKED (browser TypeError shape, not generic)
+{
+  const res = await getBmkgWeatherWarnings(stubFetch({ [RSS_URL]: { threw: new TypeError('Failed to fetch') } }), NOW);
+  check('11 CORS RSS → RSS_CORS_BLOCKED', res.ok === false && res.errorType === 'RSS_CORS_BLOCKED' && res.warnings.length === 0, res.errorType);
+}
+
+// 12. HTTP RSS error → RSS_HTTP_ERROR
+{
+  const res = await getBmkgWeatherWarnings(stubFetch({ [RSS_URL]: { ok: false, status: 503, text: 'unavailable' } }), NOW);
+  check('12 HTTP RSS → RSS_HTTP_ERROR', res.ok === false && res.errorType === 'RSS_HTTP_ERROR', res.errorType);
+}
+
+// 13. Malformed RSS → RSS_PARSE_ERROR (reachable but not a listing)
+{
+  const res = await getBmkgWeatherWarnings(stubFetch({ [RSS_URL]: okResp('<html>gateway says hi</html>') }), NOW);
+  check('13 malformed RSS → RSS_PARSE_ERROR', res.ok === false && res.errorType === 'RSS_PARSE_ERROR', res.errorType);
+}
+
+// 14. Valid RSS + CAP details → OK
+{
+  const res = await getBmkgWeatherWarnings(
+    stubFetch({ [RSS_URL]: okResp(RSS_FIXTURE), [DETAIL]: okResp(CAP_FIXTURE), [CAP2_URL]: okResp(CAP_FIXTURE) }),
+    NOW,
+  );
+  check('14 valid feed → OK', res.ok === true && res.errorType === 'OK' && res.warnings.length === 2, `${res.errorType}/${res.warnings.length}`);
+}
+
+// 15. CAP CORS blocked → CAP_CORS_BLOCKED
+{
+  const res = await getBmkgWeatherWarnings(
+    stubFetch({ [RSS_URL]: okResp(RSS_FIXTURE) }, { threw: new TypeError('Failed to fetch') }),
+    NOW,
+  );
+  check('15 CORS CAP → CAP_CORS_BLOCKED', res.ok === false && res.errorType === 'CAP_CORS_BLOCKED', res.errorType);
+}
+
+// 16. Valid but empty listing → EMPTY (reachable, honest zero)
+{
+  const res = await getBmkgWeatherWarnings(
+    stubFetch({ [RSS_URL]: okResp('<?xml version="1.0"?><rss version="2.0"><channel><title>x</title></channel></rss>') }),
+    NOW,
+  );
+  check('16 empty listing → EMPTY + ok', res.ok === true && res.errorType === 'EMPTY' && res.warnings.length === 0, res.errorType);
+}
+
+// 17. Unparseable CAP bodies → CAP_PARSE_ERROR
+{
+  const res = await getBmkgWeatherWarnings(
+    stubFetch({ [RSS_URL]: okResp(RSS_FIXTURE), [DETAIL]: okResp('garbage'), [CAP2_URL]: okResp('garbage') }),
+    NOW,
+  );
+  check('17 bad CAP → CAP_PARSE_ERROR', res.ok === false && res.errorType === 'CAP_PARSE_ERROR', res.errorType);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);

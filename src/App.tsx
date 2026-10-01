@@ -256,20 +256,51 @@ export default function App() {
 
         <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords} />
         <ArchitectureBadge />
-        <BmkgSignalCard
-          latest={bmkg.latest}
-          count={bmkg.events.length}
-          status={bmkg.status}
-          refreshing={bmkg.refreshing}
-          onRefresh={bmkg.refresh}
-        />
-        <BmkgWeatherWarningCard
-          active={bmkgWx.active}
-          upcoming={bmkgWx.upcoming}
-          status={bmkgWx.status}
-          refreshing={bmkgWx.refreshing}
-          onRefresh={bmkgWx.refresh}
-        />
+        <section data-purpose="bmkg-official-signals" aria-label="BMKG Official Signals">
+          <div className="px-6 sm:px-8 pt-1 flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">BMKG Official Signals</span>
+            <span
+              className={`rounded-full border px-1.5 py-px text-[9px] font-bold ${
+                bmkg.status.state === 'ready'
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                  : 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400'
+              }`}
+            >
+              EARTHQUAKE {bmkg.status.state === 'ready' ? 'LIVE' : bmkg.status.state.toUpperCase()}
+            </span>
+            <span
+              className={`rounded-full border px-1.5 py-px text-[9px] font-bold ${
+                bmkgWx.status.state === 'ready'
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                  : bmkgWx.errorType === 'RSS_CORS_BLOCKED' || bmkgWx.errorType === 'CAP_CORS_BLOCKED'
+                    ? 'border-orange-300 bg-orange-100 text-orange-700 dark:border-orange-700 dark:bg-orange-950/60 dark:text-orange-300'
+                    : 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400'
+              }`}
+            >
+              WEATHER{' '}
+              {bmkgWx.status.state === 'ready'
+                ? 'LIVE'
+                : bmkgWx.errorType === 'RSS_CORS_BLOCKED' || bmkgWx.errorType === 'CAP_CORS_BLOCKED'
+                  ? 'BROWSER ACCESS BLOCKED'
+                  : bmkgWx.status.state.toUpperCase()}
+            </span>
+          </div>
+          <BmkgSignalCard
+            latest={bmkg.latest}
+            count={bmkg.events.length}
+            status={bmkg.status}
+            refreshing={bmkg.refreshing}
+            onRefresh={bmkg.refresh}
+          />
+          <BmkgWeatherWarningCard
+            active={bmkgWx.active}
+            upcoming={bmkgWx.upcoming}
+            status={bmkgWx.status}
+            errorType={bmkgWx.errorType}
+            refreshing={bmkgWx.refreshing}
+            onRefresh={bmkgWx.refresh}
+          />
+        </section>
         <div className="px-6 sm:px-8 pb-1 text-[11px] text-slate-500 dark:text-slate-400">
           <span className="font-semibold">{storeNotice}</span>
           <span className="ml-2 text-slate-400">• Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>

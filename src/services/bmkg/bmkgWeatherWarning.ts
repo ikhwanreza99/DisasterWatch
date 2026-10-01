@@ -28,10 +28,47 @@ export interface BmkgWeatherResult {
   warnings: BmkgWeatherWarning[];
   ok: boolean;
   error?: string;
+  /** Machine-readable failure class for accurate UI states (never shown raw). */
+  errorType: BmkgWeatherErrorType;
   fetchedAt: string;
   rssCount: number;
   capOk: number;
   capFail: number;
+}
+
+/**
+ * Internal failure classification for weather-warning fetching.
+ * OK = usable records. EMPTY = reachable feed, zero items (also ok).
+ * *_CORS_BLOCKED = browser blocked before JS saw a response (TypeError).
+ * *_HTTP_ERROR = server answered with an error status. *_PARSE_ERROR =
+ * reachable but structurally unusable. UNKNOWN = anything else (e.g. timeout).
+ */
+export type BmkgWeatherErrorType =
+  | 'OK'
+  | 'RSS_CORS_BLOCKED'
+  | 'RSS_HTTP_ERROR'
+  | 'RSS_PARSE_ERROR'
+  | 'CAP_CORS_BLOCKED'
+  | 'CAP_HTTP_ERROR'
+  | 'CAP_PARSE_ERROR'
+  | 'EMPTY'
+  | 'UNKNOWN';
+
+type FetchFailureKind = 'CORS_BLOCKED' | 'HTTP_ERROR' | 'UNKNOWN';
+
+/** Classify a fetch throw without ever treating generic errors as CORS. */
+export function classifyFetchError(e: unknown): FetchFailureKind {
+  const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  if (/HTTP \d{3}/.test(msg)) return 'HTTP_ERROR';
+  if (/failed to fetch|load failed|networkerror|network request failed|cors|blocked by.+policy/i.test(msg)) {
+    return 'CORS_BLOCKED';
+  }
+  return 'UNKNOWN';
+}
+
+/** True when text looks like the BMKG RSS envelope (vs garbage/error pages). */
+export function isRssDocument(xml: string): boolean {
+  return xml.indexOf('<rss') >= 0 && xml.indexOf('<channel') >= 0;
 }
 
 // --- minimal XML block scanning -------------------------------------------
@@ -243,16 +280,46 @@ export async function getBmkgWeatherWarnings(
     rssXml = await fetchText(BMKG_WEATHER_FEED_ID, fetchImpl);
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
-    return { warnings: [], ok: false, error: reason.slice(0, 200), fetchedAt, rssCount: 0, capOk: 0, capFail: 0 };
+    const kind = classifyFetchError(e);
+    return {
+      warnings: [],
+      ok: false,
+      error: reason.slice(0, 200),
+      errorType: kind === 'CORS_BLOCKED' ? 'RSS_CORS_BLOCKED' : kind === 'HTTP_ERROR' ? 'RSS_HTTP_ERROR' : 'UNKNOWN',
+      fetchedAt,
+      rssCount: 0,
+      capOk: 0,
+      capFail: 0,
+    };
+  }
+  if (!isRssDocument(rssXml)) {
+    return {
+      warnings: [],
+      ok: false,
+      error: 'RSS payload is not a BMKG warning listing.',
+      errorType: 'RSS_PARSE_ERROR',
+      fetchedAt,
+      rssCount: 0,
+      capOk: 0,
+      capFail: 0,
+    };
   }
   const items = parseWeatherRss(rssXml).slice(0, MAX_CAP_DETAILS);
+  if (items.length === 0) {
+    return { warnings: [], ok: true, errorType: 'EMPTY', fetchedAt, rssCount: 0, capOk: 0, capFail: 0 };
+  }
   const settled = await Promise.allSettled(items.map((it) => fetchText(it.link, fetchImpl)));
   const warnings: BmkgWeatherWarning[] = [];
   let capOk = 0;
-  let capFail = 0;
+  let capCors = 0;
+  let capHttp = 0;
+  let capParse = 0;
   settled.forEach((r, i) => {
     if (r.status !== 'fulfilled') {
-      capFail++;
+      const kind = classifyFetchError(r.reason);
+      if (kind === 'CORS_BLOCKED') capCors++;
+      else if (kind === 'HTTP_ERROR') capHttp++;
+      else capParse++;
       return;
     }
     const w = normalizeCapAlert(r.value, items[i]!.link, fetchedAt, nowMs);
@@ -260,15 +327,30 @@ export async function getBmkgWeatherWarnings(
       capOk++;
       warnings.push(w);
     } else {
-      capFail++;
+      capParse++;
     }
   });
+  const merged = dedupeWeatherWarnings(warnings);
+  if (merged.length > 0) {
+    return { warnings: merged, ok: true, errorType: 'OK', fetchedAt, rssCount: items.length, capOk, capFail: capCors + capHttp + capParse };
+  }
+  // Reachable listing, zero usable details → dominant CAP failure class.
+  const errorType: BmkgWeatherErrorType =
+    capCors > 0 && capCors >= capHttp && capCors >= capParse
+      ? 'CAP_CORS_BLOCKED'
+      : capHttp > 0 && capHttp >= capParse
+        ? 'CAP_HTTP_ERROR'
+        : capParse > 0
+          ? 'CAP_PARSE_ERROR'
+          : 'UNKNOWN';
   return {
-    warnings: dedupeWeatherWarnings(warnings),
-    ok: true,
+    warnings: [],
+    ok: false,
+    error: 'No usable CAP warning details.',
+    errorType,
     fetchedAt,
     rssCount: items.length,
     capOk,
-    capFail,
+    capFail: capCors + capHttp + capParse,
   };
 }
