@@ -4,6 +4,7 @@
 // refresh already fans out to 1 RSS + N CAP requests).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getBmkgWeatherWarnings } from './bmkgWeatherWarning';
+import type { BmkgWeatherErrorType } from './bmkgWeatherWarning';
 import type { BmkgWeatherWarning } from './bmkgTypes';
 import type { BmkgStatus } from './bmkgTypes';
 
@@ -20,6 +21,8 @@ export interface UseBmkgWeatherWarnings {
   active: BmkgWeatherWarning[];
   upcoming: BmkgWeatherWarning[];
   status: BmkgStatus;
+  /** Machine-readable fetch class; drives accurate blocked-state messaging. */
+  errorType: BmkgWeatherErrorType;
   refresh: () => void;
   refreshing: boolean;
 }
@@ -28,6 +31,7 @@ export function useBmkgWeatherWarnings(options: { autoRefreshMs?: number } = {})
   const { autoRefreshMs = 0 } = options;
   const [warnings, setWarnings] = useState<BmkgWeatherWarning[]>([]);
   const [status, setStatus] = useState<BmkgStatus>({ state: 'idle' });
+  const [errorType, setErrorType] = useState<BmkgWeatherErrorType>('UNKNOWN');
   const [refreshing, setRefreshing] = useState(false);
   const [nonce, setNonce] = useState(0);
   const mounted = useRef(true);
@@ -47,6 +51,7 @@ export function useBmkgWeatherWarnings(options: { autoRefreshMs?: number } = {})
       .then((res) => {
         if (cancelled || !mounted.current) return;
         setWarnings(res.warnings);
+        setErrorType(res.errorType);
         if (res.ok) {
           setStatus({ state: 'ready', count: res.warnings.length, updatedAt: res.fetchedAt });
         } else {
@@ -56,6 +61,7 @@ export function useBmkgWeatherWarnings(options: { autoRefreshMs?: number } = {})
       .catch((e: unknown) => {
         if (cancelled || !mounted.current) return;
         setWarnings([]);
+        setErrorType('UNKNOWN');
         setStatus({ state: 'unavailable', reason: e instanceof Error ? e.message.slice(0, 200) : 'BMKG fetch failed.' });
       })
       .finally(() => {
@@ -79,6 +85,7 @@ export function useBmkgWeatherWarnings(options: { autoRefreshMs?: number } = {})
     active: warnings.filter((w) => w.status === 'ACTIVE'),
     upcoming: warnings.filter((w) => w.status === 'UPCOMING'),
     status,
+    errorType,
     refresh,
     refreshing,
   };

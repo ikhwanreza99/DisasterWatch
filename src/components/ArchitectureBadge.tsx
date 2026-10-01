@@ -19,7 +19,7 @@ export const ArchitectureBadge: React.FC = () => {
     ['Firebase AI Logic + Gemini', 'ekstraksi + asisten', ai.available, 'GEMINI', 'HEURISTIK lokal'],
     ['Google Maps Platform', 'provider peta', map === 'google', 'GOOGLE', 'LEAFLET/OSM'],
     ['Google Weather Platform', 'cuaca MetNet AI riil-time', map === 'google', 'GOOGLE LIVE', 'MOCK fallback'],
-    ['App Hosting', 'deploy target', false, 'LIVE', 'BELUM DEPLOY'],
+    ['Firebase Hosting', 'deploy target (standard Hosting, Spark)', true, 'LIVE', 'BELUM DEPLOY'],
   ];
   return (
     <div className="px-6 sm:px-8 pb-2 flex items-center gap-1.5 flex-wrap" data-purpose="arch-badge">

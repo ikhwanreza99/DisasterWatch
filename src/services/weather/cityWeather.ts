@@ -1,7 +1,8 @@
 // Current weather for major Indonesian cities (map "CUACA" layer).
-// Uses fetchGoogleWeather (10-min cache). Only fetched while the layer is ON.
+// Source: Google Weather API currentConditions only (no forecast) → 1 request per city.
+// Limited concurrency + retry on 429 so a burst never silently turns into "0 kota".
+// Only fetched while the layer is ON; results cached 10 minutes.
 import { useEffect, useState } from 'react';
-import { fetchGoogleWeather, type WeatherData } from './googleWeather';
 
 export interface CityPoint {
   id: string;
@@ -34,35 +35,112 @@ export const MAJOR_CITIES: CityPoint[] = [
   { id: 'jayapura', name: 'Jayapura', lat: -2.5337, lng: 140.7181 },
 ];
 
+export interface CityWeatherNow {
+  temperature: number;
+  feelsLike: number;
+  conditionText: string;
+  iconUrl: string;
+  humidity: number;
+  windSpeed: number;
+  rainProbability: number;
+}
+
 export interface CityWeather extends CityPoint {
-  weather: WeatherData;
+  weather: CityWeatherNow;
+}
+
+const CONCURRENCY = 4;
+const CACHE_TTL_MS = 10 * 60_000;
+const cache = new Map<string, { at: number; data: CityWeatherNow }>();
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchCityNow(c: CityPoint, apiKey: string, signal: AbortSignal): Promise<CityWeatherNow> {
+  const hit = cache.get(c.id);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
+
+  const url =
+    `https://weather.googleapis.com/v1/currentConditions:lookup?key=${encodeURIComponent(apiKey)}` +
+    `&location.latitude=${c.lat}&location.longitude=${c.lng}&unitsSystem=METRIC&languageCode=id`;
+
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, { signal });
+    if (res.status === 429 && attempt < 2) {
+      await sleep(1000 * (attempt + 1)); // back off on rate limit
+      continue;
+    }
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try {
+        const j = await res.json();
+        if (j?.error?.message) msg += `: ${String(j.error.message).slice(0, 120)}`;
+      } catch {
+        /* non-JSON body */
+      }
+      throw new Error(msg);
+    }
+    const j = await res.json();
+    const cond = j.weatherCondition ?? {};
+    const data: CityWeatherNow = {
+      temperature: j.temperature?.degrees ?? NaN,
+      feelsLike: j.feelsLikeTemperature?.degrees ?? NaN,
+      conditionText: cond.description?.text ?? '—',
+      iconUrl: `${cond.iconBaseUri || 'https://maps.gstatic.com/weather/v1/cloudy'}.svg`,
+      humidity: j.relativeHumidity ?? 0,
+      windSpeed: j.wind?.speed?.value ?? 0,
+      rainProbability: j.precipitation?.probability?.percent ?? 0,
+    };
+    if (!Number.isFinite(data.temperature)) throw new Error('No temperature in response');
+    cache.set(c.id, { at: Date.now(), data });
+    return data;
+  }
 }
 
 export function useCityWeather(enabled: boolean) {
   const [cities, setCities] = useState<CityWeather[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
-    let cancelled = false;
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+    if (!apiKey) {
+      setError('VITE_GOOGLE_MAPS_API_KEY belum diisi');
+      return;
+    }
+    const ctrl = new AbortController();
     setLoading(true);
-    Promise.allSettled(MAJOR_CITIES.map((c) => fetchGoogleWeather(c.lat, c.lng)))
-      .then((res) => {
-        if (cancelled) return;
-        setCities(
-          // Only real Google Weather results; drop the synthetic fallback so "Source: Google Weather" stays true.
-          res.flatMap((r, i) =>
-            r.status === 'fulfilled' && r.value.source === 'google' ? [{ ...MAJOR_CITIES[i]!, weather: r.value }] : [],
-          ),
-        );
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    setError(null);
+
+    (async () => {
+      const out: CityWeather[] = [];
+      const errors: string[] = [];
+      let next = 0;
+      const worker = async () => {
+        while (next < MAJOR_CITIES.length && !ctrl.signal.aborted) {
+          const c = MAJOR_CITIES[next++]!;
+          try {
+            out.push({ ...c, weather: await fetchCityNow(c, apiKey, ctrl.signal) });
+          } catch (e) {
+            if (ctrl.signal.aborted) return;
+            errors.push(`${c.name}: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+      if (ctrl.signal.aborted) return;
+      // Keep the declared city order for stable rendering.
+      out.sort((a, b) => MAJOR_CITIES.findIndex((x) => x.id === a.id) - MAJOR_CITIES.findIndex((x) => x.id === b.id));
+      setCities(out);
+      if (errors.length > 0) {
+        console.warn('[CityWeather] Google Weather failed for', errors.length, 'cities:', errors);
+        setError(`${errors.length} kota gagal — ${errors[0]}`);
+      }
+      setLoading(false);
+    })();
+
+    return () => ctrl.abort();
   }, [enabled]);
 
-  return { cities, loading };
+  return { cities, loading, error };
 }

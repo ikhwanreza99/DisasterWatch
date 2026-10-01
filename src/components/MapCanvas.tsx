@@ -1508,7 +1508,11 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   ? 'bg-orange-500 text-white border-orange-400'
                   : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
               }`}
-              title="Tampilkan/sembunyikan lapisan peringatan cuaca BMKG (sumber resmi)"
+              title={
+                cityWx.error
+                  ? `Cuaca kota (Google Weather): ${cityWx.error}`
+                  : 'Tampilkan/sembunyikan peringatan cuaca BMKG + cuaca kota besar (Google Weather)'
+              }
               data-purpose="bmkg-weather-toggle"
               data-bmkg-weather-visible={showWeather}
             >
