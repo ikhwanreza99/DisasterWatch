@@ -1,12 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { X, Upload, ThumbsUp, Plus, ShieldCheck } from 'lucide-react';
+import { X, Upload, ThumbsUp, Plus } from 'lucide-react';
 import { DisasterIncident } from '../types';
+import type { IntelligenceReport } from '../domain/intelligence';
+import { submitReportPipeline, type PipelineResult } from '../services/pipeline/reportPipeline';
 
 interface ReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   activeDisaster: DisasterIncident;
   onReportSuccess: (report: any) => void;
+  onIntelReport?: (rep: IntelligenceReport) => void;
 }
 
 export const ReportModal: React.FC<ReportModalProps> = ({
@@ -14,6 +17,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   onClose,
   activeDisaster,
   onReportSuccess,
+  onIntelReport,
 }) => {
   const [category, setCategory] = useState(activeDisaster.category);
   const [location, setLocation] = useState(`${activeDisaster.name}, ${activeDisaster.province}`);
@@ -22,25 +26,50 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pipeline, setPipeline] = useState<PipelineResult | null>(null);
+  const [submitError, setSubmitError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitted(true);
-    onReportSuccess({
-      category,
-      location,
-      urgency,
-      urgentNeeds,
-      description,
-      fileName: file?.name,
-    });
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      const rawText = `${description}\nKebutuhan mendesak: ${urgentNeeds}\nTingkat urgensi form: ${urgency}`.trim();
+      const result = await submitReportPipeline({
+        disasterId: activeDisaster.id,
+        sourceType: 'citizen',
+        sourceName: 'Warga Pelapor (Modal)',
+        rawText: rawText || description,
+        locationName: location,
+        lat: activeDisaster.coords.lat,
+        lng: activeDisaster.coords.lng,
+        isMock: true,
+      });
+      setPipeline(result);
+      setIsSubmitted(true);
+      onIntelReport?.(result.report);
+      onReportSuccess({
+        category,
+        location,
+        urgency,
+        urgentNeeds,
+        description,
+        fileName: file?.name,
+      });
+    } catch (err) {
+      setSubmitError(`Gagal memproses laporan: ${String(err)}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {
     setIsSubmitted(false);
+    setPipeline(null);
     setDescription('');
     setFile(null);
   };
@@ -170,6 +199,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 />
               </div>
 
+              {submitError && (
+                <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-[11px] text-rose-700">{submitError}</div>
+              )}
               <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100">
                 <button
                   type="button"
@@ -180,9 +212,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold active:scale-95 transition-all shadow-md cursor-pointer"
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-semibold active:scale-95 transition-all shadow-md cursor-pointer"
                 >
-                  Kirimkan Laporan
+                  {isSubmitting ? 'Menganalisis AI…' : 'Kirimkan Laporan'}
                 </button>
               </div>
             </form>
@@ -204,7 +237,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-left w-full text-[11px] text-slate-600 space-y-1">
               <div className="flex justify-between">
                 <span className="text-slate-400">ID Laporan:</span>
-                <span className="font-mono font-bold text-slate-800">#REP-2026-0927</span>
+                <span className="font-mono font-bold text-slate-800">{pipeline?.report.id ?? '#REP-pending'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Lokasi:</span>
@@ -212,8 +245,27 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Status Validasi:</span>
-                <span className="font-semibold text-amber-600">Menunggu Validasi TRC</span>
+                <span className="font-semibold text-amber-600">{pipeline?.report.verificationStatus ?? 'Menunggu Validasi TRC'}</span>
               </div>
+              {pipeline && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Engine AI:</span>
+                    <span className="font-semibold text-slate-800">{pipeline.engine === 'gemini' ? 'Gemini (Firebase AI Logic)' : 'Heuristik lokal'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">AI confidence:</span>
+                    <span className="font-semibold text-slate-800">{Math.round((pipeline.report.aiConfidence ?? 0) * 100)}% (indikator AI)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Ekstraksi:</span>
+                    <span className="font-semibold text-slate-800 text-right max-w-[260px]">
+                      {pipeline.report.extractedData?.disasterType} • {pipeline.report.extractedData?.needs.map((n) => n.category).join(', ') || '—'}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 pt-1">{pipeline.engineNote} {pipeline.storeMessage}</div>
+                </>
+              )}
             </div>
 
             <div className="pt-4 flex items-center justify-center gap-3 w-full">

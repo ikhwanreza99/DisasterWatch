@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { disastersData } from './data/disasters';
 import { DisasterCategory, DisasterIncident } from './types';
 import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
-import { MapCanvas } from './components/MapCanvas';
+import { MapProvider } from './components/map/MapProvider';
 import { SlimSidebar } from './components/SlimSidebar';
 import { DisasterDetailView } from './components/DisasterDetailView';
 import { RouteDistributionView } from './components/RouteDistributionView';
@@ -11,10 +11,21 @@ import { CitizenReportsView } from './components/CitizenReportsView';
 import { AIHelpdeskPanel } from './components/AIHelpdeskPanel';
 import { ReportModal } from './components/ReportModal';
 import { DonationModal } from './components/DonationModal';
+import { IntelligenceSummaryBar } from './components/IntelligenceSummaryBar';
+import { ArchitectureBadge } from './components/ArchitectureBadge';
+import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
+import { demoAid, demoReports } from './data/seedDemo';
+import { loadDisasters } from './services/store/disasterStore';
+import { ensureUser } from './lib/firebase/auth';
+import { mockUser } from './lib/firebase/auth';
 
 export default function App() {
   const [disasters, setDisasters] = useState<Record<string, DisasterIncident>>(disastersData);
-  const [activeDisasterKey, setActiveDisasterKey] = useState<string>('padang');
+  const [activeDisasterKey, setActiveDisasterKey] = useState<string>('demak');
+  const [intelReports, setIntelReports] = useState<IntelligenceReport[]>(demoReports);
+  const [aidRecords, setAidRecords] = useState<AidRecord[]>(demoAid);
+  const [storeNotice, setStoreNotice] = useState<string>('Mode demo lokal — Firestore fallback aktif.');
+  const [currentUser, setCurrentUser] = useState<UserIdentity>(mockUser());
   const [activeCategory, setActiveCategory] = useState<DisasterCategory | 'all'>('all');
   const [selectedDate, setSelectedDate] = useState<string>('Today');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
@@ -136,8 +147,26 @@ export default function App() {
     );
   };
 
+  // Load Firestore (fallback to mock) + ensure auth session once.
+  useEffect(() => {
+    let cancelled = false;
+    loadDisasters().then(({ data, status }) => {
+      if (cancelled) return;
+      setDisasters(data);
+      setStoreNotice(status.message);
+      if (!data[activeDisasterKey] && data['demak']) setActiveDisasterKey('demak');
+    });
+    ensureUser().then((u) => {
+      if (!cancelled) setCurrentUser(u);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleNewReportSuccess = (newReportData: any) => {
-    // Add the newly filed report to the active disaster's reports list
+    // Legacy path (ReportModal lama / AIHelpdesk lama): keep UI feed working.
     const newReportItem = {
       id: `rep-${Date.now()}`,
       location: newReportData.location || activeDisaster.name,
@@ -162,6 +191,44 @@ export default function App() {
     });
   };
 
+  /** New intelligence pipeline path: structured report + legacy feed stay in sync. */
+  const handleIntelReport = (rep: IntelligenceReport) => {
+    setIntelReports((prev) => [rep, ...prev]);
+    const targetKey = rep.disasterId && disasters[rep.disasterId] ? rep.disasterId : activeDisasterKey;
+    const e = rep.extractedData;
+    setDisasters((prev) => {
+      const updated = { ...prev };
+      const current = updated[targetKey];
+      if (!current) return prev;
+      updated[targetKey] = {
+        ...current,
+        reports: [
+          {
+            id: rep.id,
+            location: rep.location.name,
+            title: e ? `${e.disasterType.toUpperCase()} • AI ${(Math.round((rep.aiConfidence ?? 0) * 100))}%` : 'Laporan AI',
+            desc: rep.rawText.slice(0, 220),
+            time: 'Baru saja',
+            author: `Oleh: ${rep.sourceName}`,
+            tag: rep.verificationStatus === 'VERIFIED' ? 'Terverifikasi Posko TRC' : rep.verificationStatus === 'CONFLICTING' ? 'Konflik — Perlu Verifikasi' : 'AI Review — Menunggu TRC',
+            tagClass:
+              rep.verificationStatus === 'VERIFIED'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : rep.verificationStatus === 'CONFLICTING'
+                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                  : 'bg-amber-50 text-amber-700 border-amber-200',
+          },
+          ...current.reports,
+        ],
+      };
+      return updated;
+    });
+  };
+
+  const handleAidAdded = (aid: AidRecord) => {
+    setAidRecords((prev) => [aid, ...prev]);
+  };
+
   return (
     <div
       className={`w-screen h-screen overflow-hidden flex flex-col transition-colors duration-300 ${
@@ -178,6 +245,13 @@ export default function App() {
           onOpenReportModal={() => setIsReportModalOpen(true)}
         />
 
+        <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords} />
+        <ArchitectureBadge />
+        <div className="px-6 sm:px-8 pb-1 text-[11px] text-slate-500 dark:text-slate-400">
+          <span className="font-semibold">{storeNotice}</span>
+          <span className="ml-2 text-slate-400">• Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
+        </div>
+
         {/* Main Work Area */}
         <main className="relative flex-1 grid grid-cols-12 overflow-hidden">
           {/* Left Category Filter Dock */}
@@ -187,8 +261,8 @@ export default function App() {
             isDarkMode={isDarkMode}
           />
 
-          {/* Central Map Canvas Area */}
-          <MapCanvas
+          {/* Central Map Canvas Area (provider-abstracted, Leaflet default) */}
+          <MapProvider
             disasters={disasters}
             activeDisasterKey={activeDisasterKey}
             onSelectDisaster={handleSelectDisaster}
@@ -233,6 +307,8 @@ export default function App() {
               onViewRoute={handleOpenRoute}
               onViewReports={handleOpenReports}
               isDarkMode={isDarkMode}
+              intelReports={intelReports}
+              aidRecords={aidRecords}
             />
           )}
 
@@ -266,16 +342,21 @@ export default function App() {
               disaster={activeDisaster}
               onClose={() => setIsAIOpen(false)}
               onReportSubmitted={handleNewReportSuccess}
+              disasters={disasters}
+              intelReports={intelReports}
+              aidRecords={aidRecords}
+              onIntelReport={handleIntelReport}
             />
           )}
         </main>
 
-        {/* Standalone Report Modal */}
+        {/* Standalone Report Modal (pipeline: extraction → validation → store) */}
       <ReportModal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         activeDisaster={activeDisaster}
         onReportSuccess={handleNewReportSuccess}
+        onIntelReport={handleIntelReport}
       />
 
       {/* Standalone Donation & Aid Distribution Modal */}
@@ -283,6 +364,7 @@ export default function App() {
         isOpen={isDonationModalOpen}
         onClose={() => setIsDonationModalOpen(false)}
         disaster={activeDisaster}
+        onAidAdded={handleAidAdded}
       />
     </div>
   );

@@ -1,17 +1,29 @@
 import React, { useState } from 'react';
 import { X, HeartHandshake, CheckCircle2, Shield, Droplets, Pill, Package } from 'lucide-react';
 import { DisasterIncident } from '../types';
+import type { AidRecord } from '../domain/intelligence';
+import { newId, nowIso } from '../domain/intelligence';
+import { saveAid } from '../services/store/disasterStore';
 
 interface DonationModalProps {
   isOpen: boolean;
   onClose: () => void;
   disaster: DisasterIncident;
+  onAidAdded?: (aid: AidRecord) => void;
 }
+
+const AID_CATEGORY_MAP: Record<string, string> = {
+  'Masker N95': 'mask',
+  'Tangki Air Bersih': 'clean_water',
+  'Paket Obat ISPA': 'medicine',
+  'Paket Sembako': 'food',
+};
 
 export const DonationModal: React.FC<DonationModalProps> = ({
   isOpen,
   onClose,
   disaster,
+  onAidAdded,
 }) => {
   const [selectedAid, setSelectedAid] = useState<string>('Masker N95');
   const [donorName, setDonorName] = useState('');
@@ -21,8 +33,25 @@ export const DonationModal: React.FC<DonationModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const qty = parseInt(amountOrQuantity.replace(/[^0-9]/g, ''), 10);
+    const record: AidRecord = {
+      id: newId('AID'),
+      disasterId: disaster.id,
+      needCategory: AID_CATEGORY_MAP[selectedAid] ?? 'food',
+      quantity: Number.isFinite(qty) && qty > 0 ? qty : 1,
+      unit: /liter|l\b/i.test(amountOrQuantity) ? 'L' : /pcs|box/i.test(amountOrQuantity) ? 'pcs' : 'paket',
+      sourceName: donorName || 'Donatur',
+      receivedAt: nowIso(),
+      isMock: true,
+    };
+    try {
+      await saveAid(record);
+    } catch {
+      // local fallback already handled in store
+    }
+    onAidAdded?.(record);
     setIsSuccess(true);
   };
 

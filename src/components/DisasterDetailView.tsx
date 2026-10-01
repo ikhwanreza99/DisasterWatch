@@ -17,6 +17,9 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
+import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
+import { AidGapCard } from './AidGapCard';
+import { estimateImpact } from '../services/intelligence/impactEngine';
 
 interface DisasterDetailViewProps {
   disaster: DisasterIncident;
@@ -26,6 +29,8 @@ interface DisasterDetailViewProps {
   onViewRoute?: () => void;
   onViewReports?: () => void;
   isDarkMode?: boolean;
+  intelReports?: IntelligenceReport[];
+  aidRecords?: AidRecord[];
 }
 
 export const DisasterDetailView: React.FC<DisasterDetailViewProps> = ({
@@ -36,7 +41,13 @@ export const DisasterDetailView: React.FC<DisasterDetailViewProps> = ({
   onViewRoute,
   onViewReports,
   isDarkMode = false,
+  intelReports = [],
+  aidRecords = [],
 }) => {
+  const mine = intelReports.filter((r) => !r.disasterId || r.disasterId === disaster.id);
+  const impact = estimateImpact(mine);
+  const verified = mine.filter((r) => r.verificationStatus === 'VERIFIED').length;
+  const conflicting = mine.filter((r) => r.verificationStatus === 'CONFLICTING').length;
   const getCategoryIcon = () => {
     switch (disaster.category) {
       case 'fire':
@@ -288,6 +299,25 @@ export const DisasterDetailView: React.FC<DisasterDetailViewProps> = ({
             <HeartHandshake className="w-4 h-4 text-white" />
             <span>Salurkan Bantuan / Donasi</span>
           </button>
+        </article>
+
+        {/* AI Intelligence: impact + validation (additive, existing style kept) */}
+        <article className="bg-white dark:bg-slate-900/70 rounded-2xl p-4 shadow-xs border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight">Intelijen AI (Terstruktur)</h4>
+            <span className="text-[10px] text-slate-400 font-semibold">{mine.length} laporan dianalisis</span>
+          </div>
+          {mine.length === 0 ? (
+            <p className="text-[11px] text-slate-500 leading-relaxed">Belum ada laporan intelijen untuk lokasi ini. Data di bawah memakai data posko statis.</p>
+          ) : (
+            <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
+              <div>Terdampak (est.): <strong>{impact.affectedPopulation > 0 ? `${impact.affectedPopulation.toLocaleString('id-ID')} jiwa` : '—'}</strong> • Akses: <strong>{impact.accessibility}</strong></div>
+              <div>Terverifikasi: <strong>{verified}</strong> • Konflik: <strong className={conflicting > 0 ? 'text-rose-600' : ''}>{conflicting}</strong>{conflicting > 0 ? ' — perlu verifikasi TRC' : ''}</div>
+              {impact.infraItems.length > 0 && <div className="leading-relaxed">Infrastruktur: {impact.infraItems.slice(0, 3).join('; ')}</div>}
+              <div className="text-[10px] text-slate-400">Confidence AI = indikator model, bukan konfirmasi resmi.</div>
+            </div>
+          )}
+          <AidGapCard disasterId={disaster.id} reports={intelReports} aid={aidRecords} />
         </article>
 
         {/* Panduan Mitigasi & Radius Aman */}

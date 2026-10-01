@@ -1,0 +1,40 @@
+// DisasterWatch Firestore rules — prototype baseline.
+// - Authenticated (incl. anonymous) users may CREATE reports/aid.
+// - Nobody may overwrite verified intelligence except via constrained fields.
+// - Reads are open for demo dashboard; tighten for production.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /disasters/{id} {
+      allow read: if true;
+      allow write: if false; // seeded by admin only in prototype
+    }
+    match /reports/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['sourceType','rawText','location','createdAt'])
+        && request.resource.data.rawText is string
+        && request.resource.data.rawText.size() > 0
+        && request.resource.data.rawText.size() < 4000;
+      allow update: if request.auth != null
+        && !(resource.data.verificationStatus == 'VERIFIED'
+             && request.resource.data.verificationStatus != 'VERIFIED');
+      allow delete: if false;
+    }
+    match /aid/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity > 0;
+      allow update, delete: if false;
+    }
+    match /needs/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /locations/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

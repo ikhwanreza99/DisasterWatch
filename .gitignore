@@ -27,3 +27,9 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Service-account keys (Admin SDK seed — NEVER commit, lives outside repo)
+service-account*.json
+*-service-account.json
+gcp-credentials*.json
+scripts/.seed-done

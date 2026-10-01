@@ -14,11 +14,18 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
+import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
+import { askAssistant } from '../services/ai/disasterAssistant';
+import { submitReportPipeline } from '../services/pipeline/reportPipeline';
 
 interface AIHelpdeskPanelProps {
   disaster: DisasterIncident;
   onClose: () => void;
   onReportSubmitted?: (reportData: any) => void;
+  disasters?: Record<string, DisasterIncident>;
+  intelReports?: IntelligenceReport[];
+  aidRecords?: AidRecord[];
+  onIntelReport?: (rep: IntelligenceReport) => void;
 }
 
 type WorkflowType = 'menu' | 'report-disaster' | 'report-needs' | 'learn-disaster';
@@ -33,10 +40,15 @@ export const AIHelpdeskPanel: React.FC<AIHelpdeskPanelProps> = ({
   disaster,
   onClose,
   onReportSubmitted,
+  disasters,
+  intelReports = [],
+  aidRecords = [],
+  onIntelReport,
 }) => {
   const [currentWorkflow, setCurrentWorkflow] = useState<WorkflowType>('menu');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
+  const [aiThinking, setAiThinking] = useState(false);
 
   // Workflow 1: Laporkan Bencana State
   const [reportLocation, setReportLocation] = useState(`${disaster.name}, ${disaster.province}`);
@@ -73,9 +85,9 @@ export const AIHelpdeskPanel: React.FC<AIHelpdeskPanelProps> = ({
     }
   }, [messages, currentWorkflow, reportSuccess, needsSuccess]);
 
-  const handleSendChat = (textToSend?: string) => {
-    const text = textToSend || inputText.trim();
-    if (!text) return;
+  const handleSendChat = async (textToSend?: string) => {
+    const text = (textToSend || inputText).trim();
+    if (!text || aiThinking) return;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -84,42 +96,68 @@ export const AIHelpdeskPanel: React.FC<AIHelpdeskPanelProps> = ({
     };
     setMessages((prev) => [...prev, userMsg]);
     if (!textToSend) setInputText('');
+    setAiThinking(true);
 
-    setTimeout(() => {
-      let reply = `Terkait **${disaster.name}** (${disaster.fullTitleDisplay}), status saat ini adalah **${disaster.urgency}**. Tim reaksi cepat dan relawan siaga penuh di pos komando induk.`;
-      const q = text.toLowerCase();
-
-      if (q.includes('lapor') || q.includes('kejadian') || q.includes('bencana')) {
-        reply = `Untuk melaporkan kejadian darurat atau sebaran titik bencana terbaru, Anda dapat memilih alur **1. Laporkan Bencana** di atas untuk mengunggah eviden foto dan keterangan langsung.`;
-      } else if (q.includes('butuh') || q.includes('logistik') || q.includes('air') || q.includes('bantuan')) {
-        reply = `Kebutuhan logistik mendesak untuk ${disaster.name} meliputi ${disaster.supplies.map((s) => s.name).join(', ')}. Silakan daftarkan lewat menu **2. Laporkan Kebutuhan**.`;
-      } else if (q.includes('rute') || q.includes('evakuasi') || q.includes('jalan') || q.includes('aman')) {
-        reply = `${disaster.guide.evacRoute} ${disaster.guide.safeRadius}`;
-      } else if (q.includes('posko') || q.includes('medis')) {
-        reply = `Posko rujukan darurat berada di area aman dengan jarak terverifikasi ${disaster.route.distance} (${disaster.route.duration}). Tenaga medis dan obat ISPA siaga.`;
-      }
-
+    try {
+      const deps = {
+        disasters: disasters ?? { [disaster.id]: disaster },
+        reports: intelReports,
+        aid: aidRecords,
+      };
+      const { answer, engine } = await askAssistant(text, deps);
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
-        text: reply,
+        text: `${answer}\n\n[${engine === 'gemini' ? 'Gemini via Firebase AI Logic' : 'Jawaban deterministik dari DATA APLIKASI'}]`,
       };
       setMessages((prev) => [...prev, aiMsg]);
-    }, 450);
+    } catch {
+      const aiMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: `Terkait ${disaster.name} (${disaster.fullTitleDisplay}), status ${disaster.urgency}. ${disaster.guide.evacRoute}`,
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
+      setAiThinking(false);
+    }
   };
 
-  const handleReportSubmit = (e: React.FormEvent) => {
+  const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setReportSuccess(true);
-    if (onReportSubmitted) {
-      onReportSubmitted({
-        location: reportLocation,
-        category: reportCategory,
-        urgency: reportUrgency,
-        desc: reportDesc,
-        file: reportFile?.name,
+    try {
+      const result = await submitReportPipeline({
+        disasterId: disaster.id,
+        sourceType: 'citizen',
+        sourceName: 'Warga (AI Helpdesk)',
+        rawText: `${reportDesc}\nLokasi: ${reportLocation}\nUrgensi form: ${reportUrgency}`,
+        locationName: reportLocation,
+        lat: disaster.coords.lat,
+        lng: disaster.coords.lng,
+        isMock: true,
       });
+      onIntelReport?.(result.report);
+      if (onReportSubmitted) {
+        onReportSubmitted({
+          location: reportLocation,
+          category: reportCategory,
+          urgency: reportUrgency,
+          desc: `${reportDesc} [AI ${Math.round((result.report.aiConfidence ?? 0) * 100)}% via ${result.engine}]`,
+          file: reportFile?.name,
+        });
+      }
+    } catch {
+      if (onReportSubmitted) {
+        onReportSubmitted({
+          location: reportLocation,
+          category: reportCategory,
+          urgency: reportUrgency,
+          desc: reportDesc,
+          file: reportFile?.name,
+        });
+      }
     }
+    setReportSuccess(true);
   };
 
   const handleNeedsSubmit = (e: React.FormEvent) => {
@@ -768,6 +806,10 @@ export const AIHelpdeskPanel: React.FC<AIHelpdeskPanelProps> = ({
           </div>
         ))}
 
+        {aiThinking && (
+          <div className="text-[11px] text-slate-500 italic px-1">DisasterAI sedang membaca data aplikasi…</div>
+        )}
+
         {/* Quick Suggestion Pills */}
         <div className="pt-2">
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1.5 px-1">
@@ -775,22 +817,22 @@ export const AIHelpdeskPanel: React.FC<AIHelpdeskPanelProps> = ({
           </p>
           <div className="flex flex-wrap gap-1.5">
             <button
-              onClick={() => handleSendChat('Rute evakuasi dan jalur logistik aman saat ini')}
+              onClick={() => handleSendChat('Daerah mana yang paling membutuhkan air bersih?')}
               className="px-3 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200 shadow-2xs transition-colors cursor-pointer"
             >
-              🚗 Rute & Jalur Aman
+              💧 Gap air bersih terbesar?
             </button>
             <button
-              onClick={() => handleSendChat('Daftar posko medis terdekat dan ketersediaan ambulans')}
+              onClick={() => handleSendChat('Berapa bantuan yang masih kurang?')}
               className="px-3 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200 shadow-2xs transition-colors cursor-pointer"
             >
-              🏥 Posko Medis Terdekat
+              📦 Bantuan masih kurang?
             </button>
             <button
-              onClick={() => handleSendChat('Protokol keselamatan asap dan masker respirator')}
+              onClick={() => handleSendChat('Berapa laporan yang belum diverifikasi?')}
               className="px-3 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200 shadow-2xs transition-colors cursor-pointer"
             >
-              😷 Protokol Masker N95
+              🛰️ Laporan belum verifikasi?
             </button>
           </div>
         </div>
@@ -809,12 +851,14 @@ export const AIHelpdeskPanel: React.FC<AIHelpdeskPanelProps> = ({
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Ketik pertanyaan untuk asisten tanggap darurat..."
-            className="flex-1 text-xs border border-slate-300 rounded-full px-4 py-2.5 focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none bg-slate-50/50"
+            placeholder={aiThinking ? 'Menjawab…' : 'Tanya berbasis data: kebutuhan, gap, verifikasi…'}
+            disabled={aiThinking}
+            className="flex-1 text-xs border border-slate-300 rounded-full px-4 py-2.5 focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none bg-slate-50/50 disabled:opacity-60"
           />
           <button
             type="submit"
-            className="w-9 h-9 rounded-full bg-slate-900 hover:bg-slate-800 active:scale-95 text-white flex items-center justify-center shadow-md transition-all shrink-0 cursor-pointer"
+            disabled={aiThinking}
+            className="w-9 h-9 rounded-full bg-slate-900 hover:bg-slate-800 active:scale-95 text-white flex items-center justify-center shadow-md transition-all shrink-0 cursor-pointer disabled:opacity-60"
             title="Kirim Pesan"
           >
             <Send className="w-3.5 h-3.5 transform" />
