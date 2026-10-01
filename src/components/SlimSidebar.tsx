@@ -9,6 +9,10 @@ import {
   Sparkles,
   Headset,
   PanelRightClose,
+  Zap,
+  Droplets,
+  Lightbulb,
+  RadioTower
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
 
@@ -55,90 +59,136 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 
   return (
     <aside
-      className="absolute top-0 right-0 z-30 h-full w-[420px] max-w-[92vw] p-5 flex flex-col justify-between overflow-y-auto pointer-events-auto transition-all duration-300 ease-in-out bg-white/85 dark:bg-[#0b1329]/90 backdrop-blur-xl border-l border-slate-200/90 dark:border-slate-800/80 shadow-2xl"
-      id="slimHomepageSidebar"
-    >
+    className="
+      absolute top-0 right-0 z-30
+      h-full
+      w-[390px] max-w-[92vw]
+      px-6 py-5
+      flex flex-col justify-between
+      overflow-y-auto
+
+      bg-white/72
+      backdrop-blur-xl
+      backdrop-saturate-200
+
+      border-l border-white/50
+      shadow-[-12px_0_40px_rgba(15,23,42,0.10)]
+
+      pointer-events-auto
+    "
+    id="slimHomepageSidebar"
+  >
       <div className="space-y-4">
         {/* Header with Expand Option */}
-        <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${disaster.urgencyClass}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${disaster.urgencyClass}`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
               {disaster.urgency.toUpperCase()}
             </span>
-            <span className="text-[11px] text-slate-400 font-medium">Update 3m lalu</span>
+
+            <span className="text-[11px] text-slate-400">
+              Update 3m lalu
+            </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={onOpenDisasterBrief}
-              className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 flex items-center justify-center text-xs font-semibold cursor-pointer transition-colors"
-              title="Detail Teknis Satgas"
-            >
-              i
-            </button>
-            <button
-              onClick={onExpandView}
-              className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs transition-all cursor-pointer"
-              title="Perluas Detail Multi-kolom"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={onMinimize}
-              className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center justify-center text-xs transition-all cursor-pointer"
-              title="Minimize / Sembunyikan Sidebar"
-              aria-label="Minimize sidebar"
-            >
-              <PanelRightClose className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <button
+            onClick={onMinimize}
+            className="
+              w-8 h-8
+              rounded-full
+              flex items-center justify-center
+              text-slate-400
+              hover:text-slate-700
+              hover:bg-slate-100
+              transition-colors
+            "
+            aria-label="Minimize sidebar"
+          >
+            <PanelRightClose className="w-4 h-4" />
+          </button>
         </div>
+      
+
 
         {/* Active Disaster Quick Card */}
         <div
-          className="bg-white dark:bg-slate-900/70 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs cursor-pointer hover:border-orange-300 dark:hover:border-cyan-500/40 transition-colors"
+          className="
+            rounded-[20px]
+            border border-slate-200
+            bg-white
+            p-4
+          "
           onClick={onExpandView}
         >
-          <div className="flex items-start gap-3 mb-3">
+          <div className="flex items-start gap-4 border-b border-slate-100 pb-2">
             <div
-              className={`w-11 h-11 rounded-xl bg-gradient-to-tr ${getGradientClass()} shadow-md flex items-center justify-center p-2.5 shrink-0`}
+              className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${getGradientClass()} shadow-md flex items-center justify-center shrink-0`}
             >
               {getCategoryIcon()}
             </div>
+
             <div className="min-w-0 flex-1">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
-                {disaster.name}
-              </h3>
-              <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+              <h3 className="text-[17px] font-bold text-slate-900 leading-tight">
                 {disaster.fullTitleDisplay}
+              </h3>
+
+              <p className="mt-1 text-[13px] font-medium text-slate-500">
+                {disaster.name}
               </p>
             </div>
           </div>
 
           {/* Financial & Gap mini stats */}
-          <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-2.5 border border-slate-100 dark:border-slate-800">
-              <span className="text-slate-400 block font-medium text-[10px]">Estimasi Dampak</span>
-              <strong className="text-slate-900 dark:text-white font-bold text-sm block mt-0.5">
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            {/* Estimasi Dampak */}
+            <div
+              className="
+                rounded-2xl
+                bg-slate-50
+                border border-slate-100
+                px-4 py-4
+              "
+            >
+              <p className="text-[11px] font-medium text-slate-400">
+                Estimasi Dampak
+              </p>
+
+              <p className="mt-1 text-[18px] font-bold text-slate-900">
                 {disaster.cost}
-              </strong>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium block truncate">
+              </p>
+
+              <p className="mt-2 text-[11px] font-medium text-slate-400">
                 {disaster.impact}
-              </span>
+              </p>
             </div>
-            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-2.5 border border-slate-100 dark:border-slate-800">
-              <span className="text-slate-400 block font-medium text-[10px]">Gap Recovery</span>
-              <strong className="text-slate-800 dark:text-amber-400 font-bold text-sm block mt-0.5">
+
+            {/* Gap Recovery */}
+            <div
+              className="
+                rounded-2xl
+                bg-slate-50
+                border border-slate-100
+                px-4 py-4
+              "
+            >
+              <p className="text-[11px] font-medium text-slate-400">
+                Gap Recovery
+              </p>
+
+              <p className="mt-1 text-[18px] font-bold text-slate-900">
                 {disaster.gapRecovery}
-              </strong>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              </p>
+
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                 <div
-                  className="bg-amber-500 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${disaster.recoveryPct}%` }}
-                ></div>
+                  className="h-full rounded-full bg-amber-500"
+                  style={{
+                    width: `${disaster.recoveryPct}%`,
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -178,46 +228,146 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           </button>
         </div>
 
-        {/* Quick Metrics (3 Cards) */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-white dark:bg-slate-900/70 rounded-xl p-2.5 border border-slate-200/80 dark:border-slate-800 text-center">
-            <span className="text-[9px] font-semibold text-slate-400 uppercase block">Titik Panas</span>
-            <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-              {disaster.stats.hotspots}
-            </div>
-            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-1 py-0.5 rounded">
-              {disaster.stats.hotspotsChange}
-            </span>
-          </div>
-          <div className="bg-white dark:bg-slate-900/70 rounded-xl p-2.5 border border-slate-200/80 dark:border-slate-800 text-center">
-            <span className="text-[9px] font-semibold text-slate-400 uppercase block">Kerugian</span>
-            <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-              {disaster.stats.loss}
-            </div>
-            <span className="text-[9px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/60 px-1 py-0.5 rounded">
-              {disaster.stats.lossChange}
-            </span>
-          </div>
-          <div className="bg-white dark:bg-slate-900/70 rounded-xl p-2.5 border border-slate-200/80 dark:border-slate-800 text-center">
-            <span className="text-[9px] font-semibold text-slate-400 uppercase block">Tim SAR</span>
-            <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-              {disaster.stats.personnel}
-            </div>
-            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-1 py-0.5 rounded">
-              {disaster.stats.personnelChange}
-            </span>
-          </div>
-        </div>
 
-        {/* Snippet: Laporan Warga Terverifikasi */}
-        <div className="bg-white dark:bg-slate-900/70 rounded-2xl p-3.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                Laporan Warga Terverifikasi
+        {/*Metrics 4 Kebutuhan Primer Utilitas
+        <div
+          className="
+            rounded-[20px]
+            border border-slate-200
+            bg-white
+            p-4
+          "
+          onClick={onExpandView}
+        >
+          <div className="flex items-center justify-between pb-2 mb-2 border-slate-100">
+            <h4 className="mt-2 text-[12px] font-bold text-slate-900">
+                Kebutuhan Primer Utilitas
+              </h4>
+          </div>
+
+          {/* Financial & Gap mini stats 
+          <div className="grid grid-cols-2 gap-3">
+            
+            
+            {/* Listrik 
+            <div
+              className="
+                rounded-2xl
+                bg-slate-50
+                border border-slate-100
+                px-4 py-4
+              "
+            >
+            <div className="flex items-center left gap-1.5 mb-1">
+              <Zap className="w-4 h-4 text-slate-950" />
+              <p className="text-[11px] font-medium text-slate-600">
+                Listrik
+              </p>
+            </div>
+              <p className="mt-1 text-[18px] font-bold text-slate-900">
+                {disaster.cost}
+              </p>
+
+              <p className="mt-2 text-[11px] font-medium text-slate-400">
+                {disaster.impact}
+              </p>
+            </div>
+
+
+            {/* Air & Sanitasi *
+            <div
+              className="
+                rounded-2xl
+                bg-slate-50
+                border border-slate-100
+                px-4 py-4
+              "
+            >
+            <div className="flex items-center left gap-1.5 mb-1">
+              <Droplets className="w-4 h-4 text-slate-950" />
+              <p className="text-[11px] font-medium text-slate-600">
+                Air & Sanitasi
+              </p>
+            </div>
+              <p className="mt-1 text-[18px] font-bold text-slate-900">
+                {disaster.cost}
+              </p>
+
+              <p className="mt-2 text-[11px] font-medium text-slate-400">
+                {disaster.impact}
+              </p>
+            </div>
+
+
+            {/* Telekomunikasi *
+            <div
+              className="
+                rounded-2xl
+                bg-slate-50
+                border border-slate-100
+                px-4 py-4
+              "
+            >
+            <div className="flex items-center left gap-1.5 mb-1">
+              <RadioTower className="w-4 h-4 text-slate-950" />
+              <p className="text-[11px] font-medium text-slate-600">
+                Telekomunikasi
+              </p>
+            </div>
+              <p className="mt-1 text-[18px] font-bold text-slate-900">
+                {disaster.cost}
+              </p>
+
+              <p className="mt-2 text-[11px] font-medium text-slate-400">
+                {disaster.impact}
+              </p>
+            </div>
+
+            {/* Akses Jalan *
+            <div
+              className="
+                rounded-2xl
+                bg-slate-50
+                border border-slate-100
+                px-4 py-4
+              "
+            >
+            <div className="flex items-center left gap-1.5 mb-1">
+              <Lightbulb className="w-4 h-4 text-slate-950" />
+              <p className="text-[11px] font-medium text-slate-600">
+                Akses Jalan
+              </p>
+            </div>
+              <p className="mt-1 text-[18px] font-bold text-slate-900">
+                {disaster.cost}
+              </p>
+
+              <p className="mt-2 text-[11px] font-medium text-slate-400">
+                {disaster.impact}
+              </p>
+            </div>
+          </div>        
+        </div>*/}
+
+        {/* Laporan Terverifikasi */}
+        <div
+          className="
+            rounded-[20px]
+            border border-slate-200
+            bg-white
+            p-4
+          "
+        >
+          {/* Section Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+
+              <h4 className="text-[14px] font-bold text-slate-900">
+                Laporan Terverifikasi
               </h4>
             </div>
+
             <button
               onClick={() => {
                 if (onOpenReports) {
@@ -226,25 +376,41 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
                   onExpandView();
                 }
               }}
-              className="text-[10px] text-blue-600 dark:text-cyan-400 font-semibold hover:underline cursor-pointer"
+              className="
+                text-[10px]
+                font-semibold
+                text-blue-600
+                hover:text-blue-700
+                transition-colors
+              "
             >
               Lihat Semua
             </button>
           </div>
 
-          <div className="space-y-2 text-xs">
+          {/* Report List */}
+          <div className="mt-3 space-y-2">
             {disaster.reports.slice(0, 2).map((rep) => (
               <div
                 key={rep.id}
-                className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800"
+                className="
+                  rounded-xl
+                  bg-slate-50
+                  border border-slate-100
+                  px-3 py-3
+                "
               >
-                <div className="flex justify-between items-center text-[10px] text-slate-400 mb-0.5">
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-semibold text-emerald-600 truncate">
                     {rep.tag}
                   </span>
-                  <span>{rep.time}</span>
+
+                  <span className="text-[9px] text-slate-400 shrink-0">
+                    {rep.time}
+                  </span>
                 </div>
-                <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-snug">
+
+                <p className="mt-1 text-[11px] leading-relaxed font-medium text-slate-600">
                   {rep.desc}
                 </p>
               </div>
@@ -252,41 +418,69 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           </div>
         </div>
       </div>
+        
 
-      {/* Bottom Slim Trigger: Laporkan Bencana / AI Helpdesk */}
+      {/* Bottom AI Helpdesk Trigger */}
       <div className="pt-3">
         <button
           onClick={onOpenAIHelpdesk}
-          className="w-full group relative overflow-hidden rounded-2xl p-[2px] shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/35 active:scale-[0.98] transition-all duration-300"
-          title="Buka Asisten AI Tanggap Bencana & Pelaporan"
+          className="
+            w-full
+            rounded-2xl
+            bg-slate-950
+            px-4 py-3
+            flex items-center justify-between
+            text-white
+            shadow-md
+            hover:bg-slate-900
+            active:scale-[0.99]
+            transition-all
+          "
         >
-          <span className="absolute inset-0 bg-gradient-to-r from-amber-500 via-orange-500 to-cyan-500 rounded-2xl animate-pulse"></span>
-          <div className="relative flex items-center justify-between px-4 py-3 rounded-[14px] bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white transition-all duration-300 group-hover:bg-opacity-90">
-            <div className="flex items-center gap-3">
-              <div className="relative w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-500 to-cyan-400 p-[1.5px] shadow-md flex items-center justify-center shrink-0">
-                <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center">
-                  <Headset className="w-4 h-4 text-amber-400" />
-                </div>
-                <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-gradient-to-br from-cyan-300 to-amber-300 rounded-full flex items-center justify-center">
-                  <Sparkles className="w-2 h-2 text-slate-950" />
-                </div>
-              </div>
-              <div className="text-left">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-black tracking-wide text-white group-hover:text-amber-300 transition-colors">
-                    Laporkan Bencana
-                  </span>
-                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
-                    AI Helpdesk
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-300 font-medium truncate max-w-[190px]">
-                  Bantuan Cepat, Logistik & Edukasi
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            {/* Icon */}
+            <div
+              className="
+                w-9 h-9
+                rounded-xl
+                bg-orange-500/15
+                border border-orange-500/30
+                flex items-center justify-center
+                shrink-0
+              "
+            >
+              <Sparkles className="w-4 h-4 text-orange-400" />
             </div>
-            <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+
+            {/* Text */}
+            <div className="text-left">
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] font-bold">
+                  Laporkan Bencana
+                </span>
+
+                <span
+                  className="
+                    px-1.5 py-0.5
+                    rounded-md
+                    bg-cyan-500/15
+                    border border-cyan-400/20
+                    text-[8px]
+                    font-bold
+                    text-cyan-300
+                  "
+                >
+                  AI Helpdesk
+                </span>
+              </div>
+
+              <p className="mt-0.5 text-[10px] text-slate-400">
+                Bantuan darurat & evakuasi
+              </p>
+            </div>
           </div>
+
+          <ArrowRight className="w-4 h-4 text-orange-400" />
         </button>
       </div>
     </aside>
