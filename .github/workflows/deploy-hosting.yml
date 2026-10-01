@@ -1,0 +1,63 @@
+# Production auto-deploy: push to main → build → Firebase Hosting (LIVE).
+#
+# Scope: HOSTING ONLY. This workflow never touches Firestore rules/data,
+# Cloud Functions, Cloud Run, App Hosting, or the Blaze plan (Spark free tier).
+#
+# Auth: official Firebase Hosting GitHub action using a service-account key
+# stored as a GitHub Secret (never committed). Owner setup (one time):
+#   firebase init hosting:github
+# …or manually create secret FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5
+# (GCP service account with "Firebase Hosting Admin" on disasterwatch-61ed5).
+#
+# Build config: Vite inlines VITE_* at build time, so values come from
+# GitHub Secrets (NOT committed files, NOT .env.local).
+# NOTE: VITE_GEMINI_API_KEY is browser-exposed after build — it is NOT a
+# server secret. Restrict the production key to Generative Language API
+# only + appropriate HTTP referrers. Never log or print its value.
+name: Deploy to Firebase Hosting (production)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (Vite production)
+        run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_GEMINI_MODEL: ${{ secrets.VITE_GEMINI_MODEL }}
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+
+      - name: Deploy Hosting only (live channel)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+          channelId: live
+          projectId: disasterwatch-61ed5

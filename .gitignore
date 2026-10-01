@@ -33,3 +33,6 @@ service-account*.json
 *-service-account.json
 gcp-credentials*.json
 scripts/.seed-done
+
+# Firebase CLI local cache (deploy artifacts — never commit)
+.firebase/

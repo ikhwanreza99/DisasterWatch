@@ -25,6 +25,8 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { DisasterIncident, DisasterCategory } from '../types';
+import type { EarthquakeEvent } from '../services/bmkg';
+import { buildBmkgPopupHtml } from './map/bmkgPopup';
 
 interface MapCanvasProps {
   disasters: Record<string, DisasterIncident>;
@@ -46,6 +48,9 @@ interface MapCanvasProps {
   isReportsOpen?: boolean;
   onToggleReports?: () => void;
   onOpenReports?: () => void;
+  /** BMKG V1 layer — separate from Disaster incidents, never auto-converted. */
+  bmkgEvents?: EarthquakeEvent[];
+  bmkgStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
 }
 
 type MapEngine = 'google' | 'osm';
@@ -214,6 +219,9 @@ const OSMMapRenderer: React.FC<{
   onToggleRoute?: () => void;
   onOpenReports?: () => void;
   onToggleReports?: () => void;
+  bmkgEvents?: EarthquakeEvent[];
+  bmkgStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
+  showBmkg?: boolean;
 }> = ({
   disasters,
   activeDisasterKey,
@@ -230,11 +238,15 @@ const OSMMapRenderer: React.FC<{
   onToggleRoute,
   onOpenReports,
   onToggleReports,
+  bmkgEvents = [],
+  bmkgStatus = 'idle',
+  showBmkg = true,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const bmkgLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
 
@@ -297,8 +309,10 @@ const OSMMapRenderer: React.FC<{
 
     const mGroup = L.layerGroup().addTo(map);
     const rGroup = L.layerGroup().addTo(map);
+    const bGroup = L.layerGroup().addTo(map);
     markersLayerRef.current = mGroup;
     routeLayerRef.current = rGroup;
+    bmkgLayerRef.current = bGroup;
 
     map.on('move', updatePos);
     map.on('zoomend', () => {
@@ -401,6 +415,29 @@ const OSMMapRenderer: React.FC<{
 
     updatePos();
   }, [disasters, activeCategory, activeDisasterKey, onSelectDisaster, updatePos]);
+
+  // BMKG earthquake layer (separate from Disaster incidents; distinct cyan style)
+  useEffect(() => {
+    if (!mapRef.current || !bmkgLayerRef.current) return;
+    const bGroup = bmkgLayerRef.current;
+    bGroup.clearLayers();
+    if (!showBmkg || bmkgStatus === 'unavailable') return;
+    bmkgEvents.forEach((e) => {
+      if (!Number.isFinite(e.latitude) || !Number.isFinite(e.longitude)) return;
+      const mag = e.magnitude.toFixed(1);
+      const html =
+        `<div class="relative flex items-center justify-center cursor-pointer group transform -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform">` +
+        `<span class="min-w-9 h-7 px-1.5 rounded-full bg-cyan-600 border-2 border-white dark:border-slate-900 shadow-lg flex items-center justify-center text-white text-[10px] font-black group-hover:ring-4 group-hover:ring-cyan-300/40 transition-all">M${mag}</span>` +
+        `</div>`;
+      const m = L.marker([e.latitude, e.longitude], {
+        icon: L.divIcon({ html, className: 'bmkg-osm-marker', iconSize: [40, 28], iconAnchor: [20, 14] }),
+        zIndexOffset: 500,
+        title: `BMKG M${mag} — ${e.region}`,
+      });
+      m.bindPopup(buildBmkgPopupHtml(e), { maxWidth: 300 });
+      bGroup.addLayer(m);
+    });
+  }, [bmkgEvents, showBmkg, bmkgStatus]);
 
   // Route drawing
   useEffect(() => {
@@ -533,8 +570,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   isReportsOpen = false,
   onToggleReports,
   onOpenReports,
+  bmkgEvents = [],
+  bmkgStatus = 'idle',
 }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+  const [showBmkg, setShowBmkg] = useState(true);
+  const [selectedBmkgId, setSelectedBmkgId] = useState<string | null>(null);
 
   // Engine state: start with 'google' if apiKey present, but auto-fallback to 'osm' on RefererNotAllowedMapError
   const [mapEngine, setMapEngine] = useState<MapEngine>(apiKey ? 'google' : 'osm');
@@ -870,6 +911,51 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   </AdvancedMarker>
                 );
               })}
+
+              {/* BMKG Earthquake layer — distinct cyan markers, separate from Disaster incidents */}
+              {showBmkg &&
+                bmkgStatus !== 'unavailable' &&
+                bmkgEvents.map((e) => {
+                  if (!Number.isFinite(e.latitude) || !Number.isFinite(e.longitude)) return null;
+                  const isSel = e.id === selectedBmkgId;
+                  return (
+                    <AdvancedMarker
+                      key={e.id}
+                      position={{ lat: e.latitude, lng: e.longitude }}
+                      zIndex={isSel ? 9998 : 30}
+                      title={`BMKG M${e.magnitude} — ${e.region}`}
+                      onClick={() => setSelectedBmkgId(isSel ? null : e.id)}
+                    >
+                      <div className="relative flex items-center justify-center" data-purpose="bmkg-marker" data-bmkg-id={e.id}>
+                        {isSel && (
+                          <div
+                            className="pointer-events-auto absolute bottom-10 left-1/2 -translate-x-1/2 z-50 min-w-[260px] rounded-2xl p-3 shadow-2xl border border-cyan-300/40 bg-slate-900/95 text-white"
+                            onClick={(ev) => ev.stopPropagation()}
+                          >
+                            <div className="text-xs font-black tracking-wide">EARTHQUAKE</div>
+                            <div className="text-[11px] text-slate-300">Source: <b>BMKG</b></div>
+                            <div className="text-[11px]">Magnitude: <b>M{e.magnitude}</b> • Depth: <b>{e.depthKm} km</b></div>
+                            <div className="text-[11px]">Location: <b>{e.region}</b></div>
+                            <div className="text-[10px] text-slate-400">Time: {e.eventTime}</div>
+                            {e.feltArea && <div className="text-[11px]">Felt area: <b>{e.feltArea}</b></div>}
+                            {e.mmi && <div className="text-[11px]">MMI: <b>{e.mmi}</b></div>}
+                            <a
+                              href="https://data.bmkg.go.id/gempabumi/"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] text-cyan-300 underline"
+                            >
+                              Source: BMKG — data.bmkg.go.id/gempabumi
+                            </a>
+                          </div>
+                        )}
+                        <span className="min-w-9 h-7 px-1.5 rounded-full bg-cyan-600 border-2 border-white shadow-lg flex items-center justify-center text-white text-[10px] font-black">
+                          M{e.magnitude.toFixed(1)}
+                        </span>
+                      </div>
+                    </AdvancedMarker>
+                  );
+                })}
             </Map>
           </APIProvider>
         ) : (
@@ -889,6 +975,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             onToggleRoute={onToggleRoute}
             onOpenReports={onOpenReports}
             onToggleReports={onToggleReports}
+            bmkgEvents={bmkgEvents}
+            bmkgStatus={bmkgStatus}
+            showBmkg={showBmkg}
           />
         )}
       </div>
@@ -917,7 +1006,30 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             </span>
           </div>
 
-          {/* Engine & Layer Switcher Dropdown */}
+          {/* BMKG official layer toggle */}
+          <div className="relative">
+            <button
+              onClick={() => setShowBmkg((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border shadow-md cursor-pointer transition-all active:scale-95 ${
+                showBmkg
+                  ? 'bg-cyan-600 text-white border-cyan-500'
+                  : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
+              }`}
+              title="Tampilkan/sembunyikan lapisan gempa BMKG (sumber resmi)"
+              data-purpose="bmkg-layer-toggle"
+              data-bmkg-visible={showBmkg}
+            >
+              <span>🌐</span>
+              <span>
+                {bmkgStatus === 'unavailable'
+                  ? 'BMKG N/A'
+                  : bmkgStatus === 'ready'
+                    ? `BMKG: ${bmkgEvents.length}`
+                    : 'BMKG…'}
+              </span>
+              <span className="text-[9px] opacity-80">{showBmkg ? 'ON' : 'OFF'}</span>
+            </button>
+          </div>
           <div className="relative">
             <button
               onClick={() => setShowLayerSelector(!showLayerSelector)}

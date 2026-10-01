@@ -13,6 +13,8 @@ import { ReportModal } from './components/ReportModal';
 import { DonationModal } from './components/DonationModal';
 import { IntelligenceSummaryBar } from './components/IntelligenceSummaryBar';
 import { ArchitectureBadge } from './components/ArchitectureBadge';
+import { BmkgSignalCard } from './components/BmkgSignalCard';
+import { useBmkgEarthquakes } from './services/bmkg';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
 import { loadDisasters } from './services/store/disasterStore';
@@ -40,6 +42,10 @@ export default function App() {
   // Modal overlays
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState<boolean>(false);
+
+  // BMKG V1: official feed → React state → map/UI. No Firestore, no auto-disaster.
+  // Fetch on load + manual refresh only (no aggressive polling).
+  const bmkg = useBmkgEarthquakes();
 
   const activeDisaster = disasters[activeDisasterKey] || disasters['padang'];
 
@@ -247,6 +253,13 @@ export default function App() {
 
         <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords} />
         <ArchitectureBadge />
+        <BmkgSignalCard
+          latest={bmkg.latest}
+          count={bmkg.events.length}
+          status={bmkg.status}
+          refreshing={bmkg.refreshing}
+          onRefresh={bmkg.refresh}
+        />
         <div className="px-6 sm:px-8 pb-1 text-[11px] text-slate-500 dark:text-slate-400">
           <span className="font-semibold">{storeNotice}</span>
           <span className="ml-2 text-slate-400">• Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
@@ -282,6 +295,16 @@ export default function App() {
             isReportsOpen={isReportsOpen}
             onToggleReports={handleToggleReports}
             onOpenReports={handleOpenReports}
+            bmkgEvents={bmkg.events}
+            bmkgStatus={
+              bmkg.status.state === 'ready'
+                ? 'ready'
+                : bmkg.status.state === 'unavailable'
+                  ? 'unavailable'
+                  : bmkg.status.state === 'loading'
+                    ? 'loading'
+                    : 'idle'
+            }
           />
 
           {/* MODE 1: Compact Homepage Menu Sidebar (Only rendered when no other window is open and user un-minimizes sidebar) */}
