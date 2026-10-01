@@ -866,7 +866,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
   const [showBmkg, setShowBmkg] = useState(true);
   const [selectedBmkgId, setSelectedBmkgId] = useState<string | null>(null);
-  const [showFirms, setShowFirms] = useState(true);
+  const [showFirms, setShowFirms] = useState(false);
   const [selectedFire, setSelectedFire] = useState<FireHotspot | null>(null);
   // Close a stale popup when the date range (dataset) changes.
   useEffect(() => setSelectedFire(null), [firmsHotspots]);
