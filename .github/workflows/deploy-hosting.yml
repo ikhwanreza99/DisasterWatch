@@ -19,10 +19,20 @@ name: Deploy to Firebase Hosting (production)
 on:
   push:
     branches: [main]
+  # Refresh the Darwin VAAC volcanic-ash snapshot (public/data/vaac.json) ~every 30 min.
+  # Scheduled runs always use the default branch (main). GitHub may delay cron runs.
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
   checks: write
+
+# Never run two deploys at once; a newer run replaces a queued older one.
+concurrency:
+  group: deploy-hosting-live
+  cancel-in-progress: false
 
 jobs:
   build_and_deploy:
@@ -39,6 +49,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # BOM blocks browser requests, so fetch server-side and ship it as a static file.
+      # Non-fatal: if BOM is down the site still deploys (ABU layer shows N/A).
+      - name: Snapshot Darwin VAAC volcanic ash advisories
+        run: npx tsx scripts/fetchVaacSnapshot.ts public/data/vaac.json || echo "::warning::VAAC snapshot failed; deploying without it"
 
       - name: Build (Vite production)
         run: npm run build

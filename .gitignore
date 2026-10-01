@@ -36,3 +36,5 @@ scripts/.seed-done
 
 # Firebase CLI local cache (deploy artifacts — never commit)
 .firebase/
+# Generated at deploy time by scripts/fetchVaacSnapshot.ts (GitHub Actions)
+public/data/vaac.json

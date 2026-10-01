@@ -1916,7 +1916,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               title={
                 ash.status.state === 'unavailable'
                   ? `Abu vulkanik tidak tersedia: ${ash.status.reason}`
-                  : 'Awan abu vulkanik — Volcanic Ash Advisory dari Darwin VAAC (BOM), pusat resmi ICAO untuk wilayah Indonesia'
+                  : `Awan abu vulkanik — Volcanic Ash Advisory dari Darwin VAAC (BOM), pusat resmi ICAO untuk wilayah Indonesia${
+                      ash.fetchedAt ? ` • data per ${formatUtc(ash.fetchedAt)}` : ''
+                    }`
               }
               data-purpose="ash-layer-toggle"
               aria-pressed={showAsh}
