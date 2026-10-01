@@ -10,6 +10,8 @@ interface Props {
   status: BmkgStatus;
   refreshing: boolean;
   onRefresh: () => void;
+  /** Render as a box inside the summary row (no outer page padding). */
+  inline?: boolean;
 }
 
 function formatTime(iso: string): string {
@@ -22,15 +24,15 @@ function formatTime(iso: string): string {
   }
 }
 
-export const BmkgSignalCard: React.FC<Props> = ({ latest, count, status, refreshing, onRefresh }) => {
+export const BmkgSignalCard: React.FC<Props> = ({ latest, count, status, refreshing, onRefresh, inline = false }) => {
   return (
     <div
-      className="px-6 sm:px-8 pb-1"
+      className={inline ? 'min-w-[340px] flex-[2.5] flex' : 'px-6 sm:px-8 pb-1'}
       data-purpose="bmkg-signal"
       data-bmkg-state={status.state}
       data-bmkg-count={count}
     >
-      <div className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-cyan-200/70 bg-cyan-50/60 px-3.5 py-2 dark:border-cyan-900/60 dark:bg-cyan-950/30">
+      <div className="flex w-full items-center gap-2 overflow-x-auto rounded-2xl border border-cyan-200/70 bg-cyan-50/60 px-3.5 py-2 dark:border-cyan-900/60 dark:bg-cyan-950/30">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cyan-600 text-sm" title="BMKG Earthquake">
           🌐
         </span>

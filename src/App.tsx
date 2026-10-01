@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { disastersData } from './data/disasters';
 import { DisasterCategory, DisasterIncident } from './types';
 import { Header } from './components/Header';
@@ -41,6 +42,7 @@ export default function App() {
 
   // Modal overlays
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [isIntelMinimized, setIsIntelMinimized] = useState<boolean>(false);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState<boolean>(false);
   const [isWeatherOpen, setIsWeatherOpen] = useState<boolean>(false);
 
@@ -261,18 +263,41 @@ export default function App() {
           onOpenReportModal={() => setIsReportModalOpen(true)}
         />
 
-        <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords} />
-        <ArchitectureBadge />
-        <BmkgSignalCard
-          latest={bmkg.latest}
-          count={bmkg.events.length}
-          status={bmkg.status}
-          refreshing={bmkg.refreshing}
-          onRefresh={bmkg.refresh}
-        />
-        <div className="px-6 sm:px-8 pb-1 text-[11px] text-slate-500 dark:text-slate-400">
-          <span className="font-semibold">{storeNotice}</span>
-          <span className="ml-2 text-slate-400">• Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
+        {/* Collapsible intelligence panel */}
+        <div className="relative" data-purpose="intel-panel">
+          <button
+            type="button"
+            onClick={() => setIsIntelMinimized((v) => !v)}
+            aria-expanded={!isIntelMinimized}
+            aria-label={isIntelMinimized ? 'Tampilkan panel ringkasan' : 'Minimize panel ringkasan'}
+            title={isIntelMinimized ? 'Tampilkan' : 'Minimize'}
+            className="absolute right-3 top-1 z-10 flex items-center gap-1 rounded-full border border-slate-200 bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-500 shadow-sm transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            {isIntelMinimized ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+            <span>{isIntelMinimized ? 'Tampilkan' : 'Minimize'}</span>
+          </button>
+
+          {isIntelMinimized ? (
+            <div className="px-6 sm:px-8 py-1.5 text-[11px] font-semibold text-slate-400">Ringkasan intelijen disembunyikan</div>
+          ) : (
+            <>
+              <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords}>
+                <BmkgSignalCard
+                  inline
+                  latest={bmkg.latest}
+                  count={bmkg.events.length}
+                  status={bmkg.status}
+                  refreshing={bmkg.refreshing}
+                  onRefresh={bmkg.refresh}
+                />
+              </IntelligenceSummaryBar>
+              <ArchitectureBadge />
+              <div className="px-6 sm:px-8 pb-1 text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="font-semibold">{storeNotice}</span>
+                <span className="ml-2 text-slate-400">• Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Main Work Area */}

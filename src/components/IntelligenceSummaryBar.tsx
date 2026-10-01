@@ -10,9 +10,11 @@ interface Props {
   disasters: Record<string, DisasterIncident>;
   reports: IntelligenceReport[];
   aid: AidRecord[];
+  /** Extra content rendered right after the last stat box (e.g. BMKG signal). */
+  children?: React.ReactNode;
 }
 
-export const IntelligenceSummaryBar: React.FC<Props> = ({ disasters, reports, aid }) => {
+export const IntelligenceSummaryBar: React.FC<Props> = ({ disasters, reports, aid, children }) => {
   const stats = useMemo(() => {
     const list = Object.values(disasters);
     const ranking = rankDisasters(disasters, reports, aid);
@@ -51,7 +53,7 @@ export const IntelligenceSummaryBar: React.FC<Props> = ({ disasters, reports, ai
   ];
 
   return (
-    <div className="px-6 sm:px-8 pt-3 pb-1 flex items-center gap-2 overflow-x-auto" data-purpose="intel-summary">
+    <div className="px-6 sm:px-8 pt-7 pb-1 flex items-stretch gap-2 overflow-x-auto" data-purpose="intel-summary">
       {items.map((it) => (
         <div key={it.label} className="min-w-[150px] flex-1 px-3.5 py-2 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{it.label}</div>
@@ -59,6 +61,7 @@ export const IntelligenceSummaryBar: React.FC<Props> = ({ disasters, reports, ai
           <div className="text-[10px] text-slate-500 dark:text-slate-400">{it.sub}</div>
         </div>
       ))}
+      {children}
       <div className="hidden xl:block text-[10px] text-slate-400 font-medium px-2 whitespace-nowrap">
         MOCK + AI-PROCESSSED — bukan feed resmi BNPB/BMKG
       </div>

@@ -23,6 +23,7 @@ import {
   Check,
   ExternalLink,
   RefreshCw,
+  X,
 } from 'lucide-react';
 import { DisasterIncident, DisasterCategory } from '../types';
 import type { EarthquakeEvent } from '../services/bmkg';
@@ -265,6 +266,9 @@ const OSMMapRenderer: React.FC<{
 
   const [calloutPos, setCalloutPos] = useState<{ x: number; y: number } | null>(null);
   const activeData = disasters[activeDisasterKey];
+  // User can dismiss the callout with the X button; re-opens on next marker click.
+  const [calloutClosed, setCalloutClosed] = useState(false);
+  useEffect(() => setCalloutClosed(false), [activeDisasterKey]);
   // Bumped every time the Leaflet map is (re)created so imperative layers
   // (BMKG) re-render without any user action after a map reset.
   const [mapEpoch, setMapEpoch] = useState(0);
@@ -413,6 +417,7 @@ const OSMMapRenderer: React.FC<{
       });
 
       m.on('click', () => {
+        setCalloutClosed(false);
         onSelectDisaster(incident.id);
         map.flyTo([lat, lng], Math.max(map.getZoom(), 7), { duration: 1.0 });
       });
@@ -451,7 +456,7 @@ const OSMMapRenderer: React.FC<{
         zIndexOffset: 500,
         title: `BMKG M${mag} — ${e.region}`,
       });
-      m.bindPopup(buildBmkgPopupHtml(e), { maxWidth: 300 });
+      m.bindPopup(buildBmkgPopupHtml(e), { maxWidth: 300, closeButton: true, className: 'bmkg-popup' });
       bGroup.addLayer(m);
     });
   }, [bmkgEvents, showBmkg, bmkgStatus, mapEpoch]);
@@ -497,7 +502,7 @@ const OSMMapRenderer: React.FC<{
   return (
     <>
       <div ref={containerRef} className="w-full h-full absolute inset-0 z-0" />
-      {calloutPos && activeData && (activeCategory === 'all' || activeData.category === activeCategory) && (
+      {calloutPos && !calloutClosed && activeData && (activeCategory === 'all' || activeData.category === activeCategory) && (
         <div
           id="activeCallout"
           style={{
@@ -510,8 +515,22 @@ const OSMMapRenderer: React.FC<{
         >
           <div className="text-sm font-bold text-white tracking-tight leading-snug mb-0.5 flex items-center justify-between">
             <span className="truncate pr-2">{activeData.name}</span>
-            <span className="text-[10px] text-cyan-300 font-mono font-medium">
-              {activeData.coords.lat.toFixed(2)}°, {activeData.coords.lng.toFixed(2)}°
+            <span className="flex items-center gap-1.5">
+              <span className="text-[10px] text-cyan-300 font-mono font-medium">
+                {activeData.coords.lat.toFixed(2)}°, {activeData.coords.lng.toFixed(2)}°
+              </span>
+              <button
+                type="button"
+                aria-label="Tutup popup"
+                title="Tutup"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCalloutClosed(true);
+                }}
+                className="w-5 h-5 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
             </span>
           </div>
           <div className="text-[11px] text-slate-300 mb-1.5">{activeData.province}</div>
@@ -596,6 +615,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
   const [showBmkg, setShowBmkg] = useState(true);
   const [selectedBmkgId, setSelectedBmkgId] = useState<string | null>(null);
+  const [gCalloutClosed, setGCalloutClosed] = useState(false);
+  useEffect(() => setGCalloutClosed(false), [activeDisasterKey]);
   // Coordinates to pan/fly to when user clicks "Fokus Peta" in WeatherDetailSidebar
   const [weatherFocusCoords, setWeatherFocusCoords] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -842,10 +863,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     key={incident.id}
                     position={{ lat, lng }}
                     zIndex={isSelected ? 9999 : 20}
-                    onClick={() => onSelectDisaster(incident.id)}
+                    onClick={() => {
+                      setGCalloutClosed(false);
+                      onSelectDisaster(incident.id);
+                    }}
                   >
                     <div className="relative flex items-center justify-center">
-                      {isSelected && (
+                      {isSelected && !gCalloutClosed && (
                         <div
                           id="activeCallout"
                           className="pointer-events-auto absolute bottom-12 left-1/2 -translate-x-1/2 z-50 min-w-[280px] map-glass-callout rounded-2xl p-3.5 shadow-2xl border border-white/20 text-white animate-fadeIn"
@@ -853,8 +877,22 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                         >
                           <div className="text-sm font-bold text-white tracking-tight leading-snug mb-0.5 flex items-center justify-between">
                             <span className="truncate pr-2">{incident.name}</span>
-                            <span className="text-[10px] text-cyan-300 font-mono font-medium">
-                              {incident.coords.lat.toFixed(2)}°, {incident.coords.lng.toFixed(2)}°
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-cyan-300 font-mono font-medium">
+                                {incident.coords.lat.toFixed(2)}°, {incident.coords.lng.toFixed(2)}°
+                              </span>
+                              <button
+                                type="button"
+                                aria-label="Tutup popup"
+                                title="Tutup"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setGCalloutClosed(true);
+                                }}
+                                className="w-5 h-5 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
                             </span>
                           </div>
                           <div className="text-[11px] text-slate-300 mb-1.5">{incident.province}</div>
@@ -955,7 +993,21 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                             className="pointer-events-auto absolute bottom-10 left-1/2 -translate-x-1/2 z-50 min-w-[260px] rounded-2xl p-3 shadow-2xl border border-cyan-300/40 bg-slate-900/95 text-white"
                             onClick={(ev) => ev.stopPropagation()}
                           >
-                            <div className="text-xs font-black tracking-wide">EARTHQUAKE</div>
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs font-black tracking-wide">EARTHQUAKE</div>
+                              <button
+                                type="button"
+                                aria-label="Tutup popup"
+                                title="Tutup"
+                                onClick={(ev) => {
+                                  ev.stopPropagation();
+                                  setSelectedBmkgId(null);
+                                }}
+                                className="w-5 h-5 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
                             <div className="text-[11px] text-slate-300">Source: <b>BMKG</b></div>
                             <div className="text-[11px]">Magnitude: <b>M{e.magnitude}</b> • Depth: <b>{e.depthKm} km</b></div>
                             <div className="text-[11px]">Location: <b>{e.region}</b></div>
