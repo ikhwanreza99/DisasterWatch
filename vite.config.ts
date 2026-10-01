@@ -28,6 +28,20 @@ export default defineConfig(({mode}) => {
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/api\/bmkg/, ''),
         },
+        // Dev proxy for Darwin VAAC volcanic-ash advisories (BOM). BOM returns 403 when an
+        // Origin header is present, so strip it server-side.
+        '/api/vaac': {
+          target: 'https://www.bom.gov.au',
+          changeOrigin: true,
+          rewrite: (p) => p.replace(/^\/api\/vaac/, ''),
+          configure: (proxy) => {
+            proxy.on('proxyReq', (req) => {
+              req.removeHeader('origin');
+              req.removeHeader('referer');
+              req.setHeader('user-agent', 'Mozilla/5.0 (DisasterWatch dev proxy)');
+            });
+          },
+        },
         '/api/firms': {
           target: 'https://firms.modaps.eosdis.nasa.gov',
           changeOrigin: true,

@@ -42,6 +42,41 @@ import {
   type MagmaData,
   type Volcano,
 } from '../services/magma';
+import { useVaac, VAAC_SOURCE_URL, type AshAdvisory } from '../services/vaac';
+
+const ASH_FILL = '#64748b';
+const ASH_FCST = '#94a3b8';
+
+function formatUtc(iso: string): string {
+  const t = Date.parse(iso);
+  return Number.isFinite(t)
+    ? new Date(t).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : iso;
+}
+
+/** FL070 → "±2,1 km" (flight level = hundreds of feet). */
+function flToKm(levels: string | null): string {
+  const m = levels?.match(/FL(\d{3})$/);
+  return m ? ` (±${((Number(m[1]) * 100 * 0.3048) / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} km)` : '';
+}
+
+function ashPopupHtml(a: AshAdvisory): string {
+  const c = a.current;
+  return (
+    `<div style="font-size:12px;line-height:1.45;max-width:270px">` +
+    `<div style="font-weight:800">🌫 ABU VULKANIK — G. ${escHtml(a.volcano)}</div>` +
+    (a.terminated
+      ? `<div><b>Advisory diakhiri</b> (abu diperkirakan sudah hilang)</div>`
+      : c && c.polygon.length >= 3
+        ? `<div>Awan abu (${c.label === 'OBS' ? 'teramati' : 'estimasi'}): <b>${escHtml(c.levels ?? '-')}</b>${flToKm(c.levels)}${c.movement ? ` • ${escHtml(c.movement)}` : ''}</div>`
+        : `<div>Awan abu tidak teridentifikasi di citra satelit</div>`) +
+    (a.forecasts.length ? `<div style="color:#64748b">Prakiraan sebaran: ${a.forecasts.map((f) => escHtml(f.label)).join(', ')} (garis putus-putus)</div>` : '') +
+    `<div style="color:#64748b">Diterbitkan: ${formatUtc(a.issuedAt)}${a.advisoryNr ? ` • No. ${escHtml(a.advisoryNr)}` : ''}</div>` +
+    (a.infoSource ? `<div style="color:#64748b;font-size:11px">Info: ${escHtml(a.infoSource)}</div>` : '') +
+    `<a href="${VAAC_SOURCE_URL}" target="_blank" rel="noopener noreferrer" style="color:#475569">Source: Darwin VAAC (BOM)</a>` +
+    `</div>`
+  );
+}
 
 /** Triangle volcano icon colored by PVMBG activity level; pulsing ring when erupting. */
 function volcanoMarkerHtml(v: Volcano): string {
@@ -367,6 +402,8 @@ const OSMMapRenderer: React.FC<{
   cityWeather?: CityWeather[];
   magma?: MagmaData | null;
   showMagma?: boolean;
+  ashAdvisories?: AshAdvisory[];
+  showAsh?: boolean;
 }> = ({
   disasters,
   activeDisasterKey,
@@ -394,6 +431,8 @@ const OSMMapRenderer: React.FC<{
   cityWeather = [],
   magma = null,
   showMagma = false,
+  ashAdvisories = [],
+  showAsh = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -406,6 +445,7 @@ const OSMMapRenderer: React.FC<{
   const weatherLayerRef = useRef<L.LayerGroup | null>(null);
   const cityWeatherLayerRef = useRef<L.LayerGroup | null>(null);
   const magmaLayerRef = useRef<L.LayerGroup | null>(null);
+  const ashLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
 
@@ -485,6 +525,7 @@ const OSMMapRenderer: React.FC<{
     weatherLayerRef.current = wGroup;
     cityWeatherLayerRef.current = L.layerGroup().addTo(map);
     magmaLayerRef.current = L.layerGroup().addTo(map);
+    ashLayerRef.current = L.layerGroup().addTo(map);
 
     map.on('move', updatePos);
     map.on('zoomend', () => {
@@ -708,6 +749,38 @@ const OSMMapRenderer: React.FC<{
     });
   }, [magma, showMagma, mapEpoch]);
 
+  // Darwin VAAC volcanic-ash clouds: current (filled) + forecasts (dashed)
+  useEffect(() => {
+    const g = ashLayerRef.current;
+    if (!mapRef.current || !g) return;
+    g.clearLayers();
+    if (!showAsh) return;
+    ashAdvisories.forEach((a) => {
+      const html = ashPopupHtml(a);
+      a.forecasts.forEach((f) =>
+        L.polygon(f.polygon, { color: ASH_FCST, weight: 1.5, dashArray: '5, 6', fillOpacity: 0.05 })
+          .bindPopup(html, { maxWidth: 290, closeButton: true, className: 'bmkg-popup' })
+          .addTo(g),
+      );
+      if (a.current && a.current.polygon.length >= 3) {
+        L.polygon(a.current.polygon, { color: '#334155', weight: 2, fillColor: ASH_FILL, fillOpacity: 0.4 })
+          .bindPopup(html, { maxWidth: 290, closeButton: true, className: 'bmkg-popup' })
+          .addTo(g);
+      }
+      L.marker(a.summit, {
+        icon: L.divIcon({
+          html: `<div class="w-6 h-6 rounded-full bg-slate-700 border-2 border-white shadow flex items-center justify-center text-[11px] transform -translate-x-1/2 -translate-y-1/2 cursor-pointer${a.terminated ? ' opacity-50' : ''}">🌫</div>`,
+          className: 'ash-summit-marker',
+          iconSize: [0, 0],
+        }),
+        zIndexOffset: 450,
+        title: `Abu vulkanik — G. ${a.volcano}`,
+      })
+        .bindPopup(html, { maxWidth: 290, closeButton: true, className: 'bmkg-popup' })
+        .addTo(g);
+    });
+  }, [ashAdvisories, showAsh, mapEpoch]);
+
   // Route drawing
   useEffect(() => {
     if (!mapRef.current || !routeLayerRef.current) return;
@@ -889,6 +962,11 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const [selectedMagma, setSelectedMagma] = useState<
     { kind: 'volcano'; v: Volcano } | { kind: 'landslide'; l: LandslideReport } | null
   >(null);
+  // Darwin VAAC volcanic ash: off by default; fetched only when toggled ON.
+  const [showAsh, setShowAsh] = useState(false);
+  const ash = useVaac(showAsh);
+  const [selectedAsh, setSelectedAsh] = useState<AshAdvisory | null>(null);
+  const activeAshCount = ash.advisories.filter((a) => !a.terminated).length;
   const magmaCounts = useMemo(() => {
     const vs = magmaFeed.data?.volcanoes ?? [];
     return { total: vs.length, elevated: vs.filter((v) => v.level >= 2).length };
@@ -1377,6 +1455,99 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   }),
                 )}
 
+              {/* Darwin VAAC volcanic-ash clouds: current (filled) + forecasts (dashed outline) */}
+              {showAsh &&
+                ash.advisories.flatMap((a) => [
+                  ...a.forecasts.map((f) => (
+                    <Polygon
+                      key={`ashf-${a.id}-${f.label}`}
+                      paths={f.polygon.map(([lat, lng]) => ({ lat, lng }))}
+                      strokeColor={ASH_FCST}
+                      strokeOpacity={0.9}
+                      strokeWeight={1.5}
+                      fillColor={ASH_FCST}
+                      fillOpacity={0.05}
+                      onClick={() => setSelectedAsh(a)}
+                    />
+                  )),
+                  ...(a.current && a.current.polygon.length >= 3
+                    ? [
+                        <Polygon
+                          key={`ashc-${a.id}`}
+                          paths={a.current.polygon.map(([lat, lng]) => ({ lat, lng }))}
+                          strokeColor="#334155"
+                          strokeOpacity={1}
+                          strokeWeight={2}
+                          fillColor={ASH_FILL}
+                          fillOpacity={0.4}
+                          onClick={() => setSelectedAsh(a)}
+                        />,
+                      ]
+                    : []),
+                  <AdvancedMarker
+                    key={`ashm-${a.id}`}
+                    position={{ lat: a.summit[0], lng: a.summit[1] }}
+                    zIndex={45}
+                    title={`Abu vulkanik — G. ${a.volcano}`}
+                    onClick={() => setSelectedAsh(a)}
+                  >
+                    <div
+                      className={`w-6 h-6 rounded-full bg-slate-700 border-2 border-white shadow flex items-center justify-center text-[11px] cursor-pointer ${a.terminated ? 'opacity-50' : ''}`}
+                    >
+                      🌫
+                    </div>
+                  </AdvancedMarker>,
+                ])}
+              {showAsh && selectedAsh && (
+                <AdvancedMarker position={{ lat: selectedAsh.summit[0], lng: selectedAsh.summit[1] }} zIndex={9994}>
+                  <div
+                    className="pointer-events-auto mb-7 min-w-[250px] max-w-[290px] rounded-2xl p-3 shadow-2xl border border-slate-300/40 bg-slate-900/95 text-white"
+                    data-purpose="ash-popup"
+                    onClick={(ev) => ev.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-xs font-black tracking-wide">🌫 ABU VULKANIK — G. {selectedAsh.volcano}</div>
+                      <button
+                        type="button"
+                        aria-label="Tutup popup"
+                        title="Tutup"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setSelectedAsh(null);
+                        }}
+                        className="w-5 h-5 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    {selectedAsh.terminated ? (
+                      <div className="text-[11px]"><b>Advisory diakhiri</b> (abu diperkirakan sudah hilang)</div>
+                    ) : selectedAsh.current && selectedAsh.current.polygon.length >= 3 ? (
+                      <div className="text-[11px]">
+                        Awan abu ({selectedAsh.current.label === 'OBS' ? 'teramati' : 'estimasi'}): <b>{selectedAsh.current.levels ?? '-'}</b>
+                        {flToKm(selectedAsh.current.levels)}
+                        {selectedAsh.current.movement ? ` • ${selectedAsh.current.movement}` : ''}
+                      </div>
+                    ) : (
+                      <div className="text-[11px]">Awan abu tidak teridentifikasi di citra satelit</div>
+                    )}
+                    {selectedAsh.forecasts.length > 0 && (
+                      <div className="text-[10px] text-slate-400">
+                        Prakiraan sebaran: {selectedAsh.forecasts.map((f) => f.label).join(', ')} (garis putus-putus)
+                      </div>
+                    )}
+                    <div className="text-[10px] text-slate-400">
+                      Diterbitkan: {formatUtc(selectedAsh.issuedAt)}
+                      {selectedAsh.advisoryNr ? ` • No. ${selectedAsh.advisoryNr}` : ''}
+                    </div>
+                    {selectedAsh.infoSource && <div className="text-[10px] text-slate-400">Info: {selectedAsh.infoSource}</div>}
+                    <a href={VAAC_SOURCE_URL} target="_blank" rel="noopener noreferrer" className="text-[11px] text-slate-300 underline">
+                      Source: Darwin VAAC (BOM)
+                    </a>
+                  </div>
+                </AdvancedMarker>
+              )}
+
               {/* MAGMA (PVMBG): gerakan tanah + volcano activity levels */}
               {showMagma &&
                 magmaFeed.data?.landslides.map((l) => (
@@ -1616,6 +1787,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             cityWeather={cityWx.cities}
             magma={magmaFeed.data}
             showMagma={showMagma}
+            ashAdvisories={ash.advisories}
+            showAsh={showAsh}
           />
         )}
       </div>
@@ -1725,6 +1898,40 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                       : 'MAGMA…'}
               </span>
               <span className="text-[9px] opacity-80">{showMagma ? 'ON' : 'OFF'}</span>
+            </button>
+          </div>
+
+          {/* Darwin VAAC volcanic-ash layer toggle */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowAsh((v) => !v);
+                setSelectedAsh(null);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border shadow-md cursor-pointer transition-all active:scale-95 ${
+                showAsh
+                  ? 'bg-slate-700 text-white border-slate-600'
+                  : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
+              }`}
+              title={
+                ash.status.state === 'unavailable'
+                  ? `Abu vulkanik tidak tersedia: ${ash.status.reason}`
+                  : 'Awan abu vulkanik — Volcanic Ash Advisory dari Darwin VAAC (BOM), pusat resmi ICAO untuk wilayah Indonesia'
+              }
+              data-purpose="ash-layer-toggle"
+              aria-pressed={showAsh}
+            >
+              <span>🌫</span>
+              <span>
+                {!showAsh
+                  ? 'ABU VULKANIK'
+                  : ash.status.state === 'unavailable'
+                    ? 'ABU N/A'
+                    : ash.status.state === 'ready'
+                      ? `ABU: ${activeAshCount} aktif`
+                      : 'ABU…'}
+              </span>
+              <span className="text-[9px] opacity-80">{showAsh ? 'ON' : 'OFF'}</span>
             </button>
           </div>
 
