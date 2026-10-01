@@ -19,6 +19,7 @@ import {
 import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
 import { AidGapCard } from './AidGapCard';
+import { WeatherCard } from './WeatherCard';
 import { estimateImpact } from '../services/intelligence/impactEngine';
 
 interface DisasterDetailViewProps {
@@ -204,6 +205,14 @@ export const DisasterDetailView: React.FC<DisasterDetailViewProps> = ({
             </div>
           </div>
         </article>
+
+        {/* Live Weather Situation (Google Maps Platform Weather API) */}
+        <WeatherCard
+          lat={disaster.coords.lat}
+          lng={disaster.coords.lng}
+          locationName={disaster.name}
+          disasterCategory={disaster.category}
+        />
 
         {/* 3 Metric Cards: Titik Panas, Kerugian, Personel SAR */}
         <div className="grid grid-cols-3 gap-2">

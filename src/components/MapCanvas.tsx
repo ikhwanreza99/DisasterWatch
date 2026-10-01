@@ -27,6 +27,7 @@ import {
 import { DisasterIncident, DisasterCategory } from '../types';
 import type { EarthquakeEvent } from '../services/bmkg';
 import { buildBmkgPopupHtml } from './map/bmkgPopup';
+import { WeatherCard } from './WeatherCard';
 
 interface MapCanvasProps {
   disasters: Record<string, DisasterIncident>;
@@ -1177,6 +1178,23 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               </div>
             )}
           </div>
+
+          {/* Google Weather Live Pill for Currently Selected Incident */}
+          {activeData && typeof activeData.coords?.lat === 'number' && (
+            <div
+              className="cursor-pointer transition-transform hover:scale-105 active:scale-95 hidden md:block"
+              onClick={onOpenDetail}
+              title={`Cuaca lapangan Google di ${activeData.name} (Klik untuk buka detail situasi)`}
+            >
+              <WeatherCard
+                lat={activeData.coords.lat}
+                lng={activeData.coords.lng}
+                locationName={activeData.name}
+                disasterCategory={activeData.category}
+                compact={true}
+              />
+            </div>
+          )}
         </div>
 
         {/* Floating Restore Pill on the top right when sidebar is minimized AND NO panel is open */}

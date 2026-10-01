@@ -18,6 +18,7 @@ export const ArchitectureBadge: React.FC = () => {
     ['Firebase Auth', 'anonymous session', fb.configured, 'LIVE', 'MOCK user'],
     ['Firebase AI Logic + Gemini', 'ekstraksi + asisten', ai.available, 'GEMINI', 'HEURISTIK lokal'],
     ['Google Maps Platform', 'provider peta', map === 'google', 'GOOGLE', 'LEAFLET/OSM'],
+    ['Google Weather Platform', 'cuaca MetNet AI riil-time', map === 'google', 'GOOGLE LIVE', 'MOCK fallback'],
     ['App Hosting', 'deploy target', false, 'LIVE', 'BELUM DEPLOY'],
   ];
   return (
