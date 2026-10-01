@@ -6,6 +6,7 @@ import {
   extractFirst,
   extractTagBlocks,
   getBmkgWeatherWarnings,
+  getWeatherWarningAccess,
   normalizeCapAlert,
   parseCapPolygon,
   parseWeatherRss,
@@ -265,6 +266,13 @@ const okResp = (text: string): StubRoute => ({ ok: true, status: 200, text });
     NOW,
   );
   check('17 bad CAP → CAP_PARSE_ERROR', res.ok === false && res.errorType === 'CAP_PARSE_ERROR', res.errorType);
+}
+
+// 18. Browser capability gate: known-blocked endpoints must not be fetched
+// by the hook path. The constant is the single source of truth; the adapter
+// itself stays fully functional (proven above) for future/server use.
+{
+  check('18 capability is BROWSER_ACCESS_BLOCKED', getWeatherWarningAccess() === 'BROWSER_ACCESS_BLOCKED', String(getWeatherWarningAccess()));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

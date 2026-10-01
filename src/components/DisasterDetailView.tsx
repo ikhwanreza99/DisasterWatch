@@ -19,6 +19,8 @@ import {
 import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
 import { AidGapCard } from './AidGapCard';
+import { BmkgForecastPanel } from './BmkgForecastPanel';
+import { resolveForecastAdm4 } from '../services/bmkg/bmkgWeatherForecast';
 import { estimateImpact } from '../services/intelligence/impactEngine';
 
 interface DisasterDetailViewProps {
@@ -319,6 +321,9 @@ export const DisasterDetailView: React.FC<DisasterDetailViewProps> = ({
           )}
           <AidGapCard disasterId={disaster.id} reports={intelReports} aid={aidRecords} />
         </article>
+
+        {/* BMKG Weather Forecast (contextual; NO_LOCATION until adm4 exists) */}
+        <BmkgForecastPanel adm4={resolveForecastAdm4(disaster)} locationLabel={`${disaster.name}, ${disaster.province}`} />
 
         {/* Panduan Mitigasi & Radius Aman */}
         <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-[11px] space-y-1.5">

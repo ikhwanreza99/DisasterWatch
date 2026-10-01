@@ -3,7 +3,7 @@
 // auto-refresh requires >= 5 minutes (BMKG limit: 60 req/min/IP, and one
 // refresh already fans out to 1 RSS + N CAP requests).
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getBmkgWeatherWarnings } from './bmkgWeatherWarning';
+import { getBmkgWeatherWarnings, getWeatherWarningAccess } from './bmkgWeatherWarning';
 import type { BmkgWeatherErrorType } from './bmkgWeatherWarning';
 import type { BmkgWeatherWarning } from './bmkgTypes';
 import type { BmkgStatus } from './bmkgTypes';
@@ -39,6 +39,18 @@ export function useBmkgWeatherWarnings(options: { autoRefreshMs?: number } = {})
 
   useEffect(() => {
     let cancelled = false;
+    // Capability gate: the nowcast endpoints are known browser-blocked, so do
+    // NOT attempt the request (avoids the CORS console error entirely).
+    // The RSS/CAP parser + transport stay intact for future/server use.
+    if (getWeatherWarningAccess() === 'BROWSER_ACCESS_BLOCKED') {
+      setWarnings([]);
+      setErrorType('RSS_CORS_BLOCKED');
+      setStatus({ state: 'unavailable', reason: 'Official BMKG source exists; browser access restricted.' });
+      setRefreshing(false);
+      return () => {
+        cancelled = true;
+      };
+    }
     setRefreshing(true);
     setStatus((s) => (s.state === 'ready' ? s : { state: 'loading' }));
     getBmkgWeatherWarnings()

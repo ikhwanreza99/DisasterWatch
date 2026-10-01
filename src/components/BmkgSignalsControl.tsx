@@ -5,6 +5,8 @@
 import React, { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { BMKG_SOURCE_URL, BMKG_WEATHER_FEED_ID } from '../services/bmkg';
+import { BMKG_FORECAST_INFO_URL } from '../services/bmkg/bmkgWeatherForecast';
+import type { BmkgForecastState } from '../services/bmkg/bmkgWeatherForecast';
 
 interface Props {
   quakeCount: number;
@@ -17,6 +19,10 @@ interface Props {
   weatherReady: boolean;
   weatherRefreshing: boolean;
   onRefreshWeather: () => void;
+  /** Forecast for the selected location (null adm4 → NO_LOCATION, neutral). */
+  forecastState: BmkgForecastState;
+  forecastSummary: string | null;
+  forecastLocation: string | null;
 }
 
 export const BmkgSignalsControl: React.FC<Props> = ({
@@ -30,8 +36,12 @@ export const BmkgSignalsControl: React.FC<Props> = ({
   weatherReady,
   weatherRefreshing,
   onRefreshWeather,
+  forecastState,
+  forecastSummary,
+  forecastLocation,
 }) => {
   const [open, setOpen] = useState(false);
+  const forecastLive = forecastState === 'READY';
   return (
     <div className="absolute top-[3.75rem] left-1/2 -translate-x-1/2 z-30" data-purpose="bmkg-signals">
       <button
@@ -87,6 +97,45 @@ export const BmkgSignalsControl: React.FC<Props> = ({
                 <RefreshCw className={`h-3 w-3 ${quakeRefreshing ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
+            </div>
+          </div>
+
+          {/* Weather forecast */}
+          <div className="pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-sky-700 dark:text-sky-300">
+                BMKG Weather Forecast
+              </span>
+              <span
+                className={`rounded-full border px-1.5 py-px text-[9px] font-bold ${
+                  forecastLive
+                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                    : 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400'
+                }`}
+              >
+                {forecastLive ? 'LIVE' : forecastState.replace('_', ' ')}
+              </span>
+            </div>
+            {forecastLive && forecastSummary ? (
+              <div className="text-xs font-semibold text-slate-800 dark:text-slate-100">{forecastSummary}</div>
+            ) : (
+              <div className="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+                {forecastState === 'NO_LOCATION'
+                  ? 'Prakiraan BMKG belum tersedia untuk lokasi ini.'
+                  : forecastState === 'LOADING'
+                    ? 'Memuat prakiraan BMKG…'
+                    : 'Prakiraan BMKG sementara tidak dapat dimuat.'}
+              </div>
+            )}
+            <div className="flex items-center justify-between mt-1.5">
+              <a
+                href={BMKG_FORECAST_INFO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-slate-400 underline hover:text-sky-600"
+              >
+                Source: BMKG · Prakiraan Cuaca{forecastLocation ? ` · ${forecastLocation}` : ''}
+              </a>
             </div>
           </div>
 

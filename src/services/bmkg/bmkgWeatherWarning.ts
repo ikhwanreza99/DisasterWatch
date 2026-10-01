@@ -16,6 +16,21 @@ export const FETCH_TIMEOUT_MS = 15000;
 /** Upper bound on CAP detail docs per refresh (1 RSS + N CAP stays < 60 req/min). */
 export const MAX_CAP_DETAILS = 20;
 
+/**
+ * Browser capability for the nowcast RSS/CAP endpoints.
+ * Verified 2026-10-01 with real headless-Chrome evidence from the production
+ * origin: www.bmkg.go.id serves NO Access-Control-Allow-Origin, so browser
+ * fetch is blocked before JS ever sees a response. Flip to AVAILABLE only
+ * after re-verified browser evidence (never from curl alone).
+ */
+export type WeatherWarningAccess = 'AVAILABLE' | 'BROWSER_ACCESS_BLOCKED' | 'UNKNOWN';
+
+export const BMKG_WEATHER_BROWSER_ACCESS: WeatherWarningAccess = 'BROWSER_ACCESS_BLOCKED';
+
+export function getWeatherWarningAccess(): WeatherWarningAccess {
+  return BMKG_WEATHER_BROWSER_ACCESS;
+}
+
 export interface BmkgRssItem {
   title: string;
   link: string;

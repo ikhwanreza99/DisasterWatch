@@ -15,6 +15,8 @@ import { IntelligenceSummaryBar } from './components/IntelligenceSummaryBar';
 import { ArchitectureBadge } from './components/ArchitectureBadge';
 import { BmkgSignalsControl } from './components/BmkgSignalsControl';
 import { useBmkgEarthquakes, useBmkgWeatherWarnings } from './services/bmkg';
+import { useBmkgWeatherForecast } from './services/bmkg/useBmkgWeatherForecast';
+import { resolveForecastAdm4 } from './services/bmkg/bmkgWeatherForecast';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
 import { loadDisasters } from './services/store/disasterStore';
@@ -50,6 +52,14 @@ export default function App() {
   const bmkgWx = useBmkgWeatherWarnings();
 
   const activeDisaster = disasters[activeDisasterKey] || disasters['padang'];
+
+  // BMKG forecast follows the selected disaster; adm4 absent → NO_LOCATION.
+  const activeAdm4 = resolveForecastAdm4(activeDisaster);
+  const bmkgFc = useBmkgWeatherForecast(activeAdm4);
+  const forecastSummary = (() => {
+    const s = bmkgFc.forecast?.days[0]?.slots[0];
+    return s ? `${s.temperatureC}°C • ${s.weatherDesc}` : null;
+  })();
 
   const handleToggleTheme = () => {
     setIsDarkMode((prev) => !prev);
@@ -278,6 +288,9 @@ export default function App() {
             weatherReady={bmkgWx.status.state === 'ready'}
             weatherRefreshing={bmkgWx.refreshing}
             onRefreshWeather={bmkgWx.refresh}
+            forecastState={bmkgFc.state}
+            forecastSummary={forecastSummary}
+            forecastLocation={activeAdm4 ? `${activeDisaster.name}` : null}
           />
           {/* Left Category Filter Dock */}
           <CategoryFilterBar
