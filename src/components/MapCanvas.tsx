@@ -2001,7 +2001,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     : magmaFeed.status.state === 'ready'
                       ? eruptions.status.state === 'loading'
                         ? `MAGMA ${eruptions.range.label}: memuat erupsi…`
-                        : `MAGMA ${eruptions.range.label}: ${magmaCounts.eruptions} erupsi • ${magmaCounts.elevated} ≥ Waspada`
+                        : `MAGMA ${eruptions.range.label}: ${magmaCounts.eruptions}${eruptions.truncated ? '+' : ''} erupsi • ${magmaCounts.elevated} ≥ Waspada`
                       : 'MAGMA…'}
               </span>
               <span className="text-[9px] opacity-80">{showMagma ? 'ON' : 'OFF'}</span>
@@ -2293,7 +2293,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             </ul>
             <div className="flex items-center gap-2 pt-1.5 border-t border-slate-200/80 dark:border-slate-700/60">
               <span className="w-4 h-4 rounded bg-amber-800 border border-white shadow-xs flex items-center justify-center text-[8px]" aria-hidden="true">⛰</span>
-              <span>Laporan gerakan tanah</span>
+              <span>
+                Laporan gerakan tanah{' '}
+                <span className="text-[10px] text-slate-400">(data Jun 2022 – Mei 2023: {visibleLandslides.length} di rentang ini)</span>
+              </span>
             </div>
           </div>
         )}

@@ -1,15 +1,30 @@
 // Shared date-range selection for the header date control.
-// The selection stays a plain string (App state + props unchanged):
+// A selection is a plain string:
 //   presets: 'Today' | 'Hari ini (24 Jam)' | '7 Hari Terakhir' | '30 Hari Terakhir'
 //   custom:  'custom:YYYY-MM-DD:YYYY-MM-DD' (inclusive, local calendar days)
-// Every data layer (FIRMS, MAGMA, …) resolves it with resolveDateRange() so they stay in sync.
+// FIRMS and MAGMA each have their own selection (the header toggles which one is being edited),
+// because their sources reach back very differently.
 
 export const DATE_PRESETS = ['Hari ini (24 Jam)', '7 Hari Terakhir', '30 Hari Terakhir'] as const;
 
-/** Oldest selectable day for a custom range (FIRMS NRT + MAGMA paging limit). */
-export const MAX_LOOKBACK_DAYS = 60;
-/** Longest custom range (keeps downloads reasonable). */
-export const MAX_RANGE_DAYS = 31;
+export type DateTarget = 'firms' | 'magma';
+
+export interface RangeLimits {
+  /** Oldest selectable day (YYYY-MM-DD), or relative lookback in days. */
+  minDay?: string;
+  lookbackDays?: number;
+  /** Longest custom range in days. */
+  maxSpanDays: number;
+  /** Human description for the picker hint. */
+  hint: string;
+}
+
+export const RANGE_LIMITS: Record<DateTarget, RangeLimits> = {
+  // NASA FIRMS near-real-time data covers roughly the last 2 months.
+  firms: { lookbackDays: 60, maxSpanDays: 31, hint: 'Maks. 31 hari, dalam 60 hari terakhir (batas data NRT NASA).' },
+  // MAGMA eruption archive starts May 2018; landslide reports cover 2022–2023.
+  magma: { minDay: '2018-05-01', maxSpanDays: 366, hint: 'Maks. 1 tahun, sejak Mei 2018 (arsip MAGMA).' },
+};
 
 export type RangeKey = 'today' | '24h' | '7d' | '30d' | 'custom';
 
@@ -19,9 +34,9 @@ export interface ResolvedRange {
   id: string;
   start: Date;
   end: Date;
-  /** Calendar days covered (1 for today/24h). */
+  /** Calendar days covered (1 for today, 2 for 24h). */
   days: number;
-  /** Short label for chips, e.g. "7 hari", "1–10 Sep". */
+  /** Short label for chips, e.g. "7 hari", "1–10 Sep 2022". */
   label: string;
 }
 
@@ -44,6 +59,13 @@ function parseIsoDay(s: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Oldest selectable day for a target, as YYYY-MM-DD. */
+export function minSelectableDay(limits: RangeLimits, now = new Date()): string {
+  if (limits.minDay) return limits.minDay;
+  const t = startOfDay(now);
+  return toIsoDay(new Date(t.getFullYear(), t.getMonth(), t.getDate() - (limits.lookbackDays ?? 0)));
+}
+
 export function makeCustomSelection(from: string, to: string): string {
   return `custom:${from}:${to}`;
 }
@@ -52,37 +74,40 @@ export function isCustomSelection(sel: string): boolean {
   return sel.startsWith('custom:');
 }
 
-function shortDay(d: Date): string {
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+function shortDay(d: Date, withYear: boolean): string {
+  return d.toLocaleDateString('id-ID', withYear ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' });
 }
 
 /** Validate a custom range; returns an error message (Indonesian) or null. */
-export function validateCustomRange(from: string, to: string, now = new Date()): string | null {
+export function validateCustomRange(from: string, to: string, limits: RangeLimits, now = new Date()): string | null {
   const a = parseIsoDay(from);
   const b = parseIsoDay(to);
   if (!a || !b) return 'Isi tanggal mulai dan selesai.';
   if (a > b) return 'Tanggal mulai harus sebelum tanggal selesai.';
-  const today = startOfDay(now);
-  if (b > today) return 'Tanggal selesai tidak boleh melewati hari ini.';
-  if ((today.getTime() - a.getTime()) / DAY_MS > MAX_LOOKBACK_DAYS) {
-    return `Data hanya tersedia ${MAX_LOOKBACK_DAYS} hari terakhir.`;
+  if (b > startOfDay(now)) return 'Tanggal selesai tidak boleh melewati hari ini.';
+  const min = parseIsoDay(minSelectableDay(limits, now))!;
+  if (a < min) {
+    return limits.minDay
+      ? `Data paling awal: ${shortDay(min, true)}.`
+      : `Data hanya tersedia ${limits.lookbackDays} hari terakhir.`;
   }
-  if (Math.round((b.getTime() - a.getTime()) / DAY_MS) + 1 > MAX_RANGE_DAYS) {
-    return `Rentang maksimal ${MAX_RANGE_DAYS} hari.`;
+  if (Math.round((b.getTime() - a.getTime()) / DAY_MS) + 1 > limits.maxSpanDays) {
+    return `Rentang maksimal ${limits.maxSpanDays} hari.`;
   }
   return null;
 }
 
-export function resolveDateRange(sel: string, now = new Date()): ResolvedRange {
+export function resolveDateRange(sel: string, limits: RangeLimits = RANGE_LIMITS.firms, now = new Date()): ResolvedRange {
   const today = startOfDay(now);
   if (isCustomSelection(sel)) {
     const [, from, to] = sel.split(':');
     const a = parseIsoDay(from ?? '');
     const b = parseIsoDay(to ?? '');
-    if (a && b && !validateCustomRange(from!, to!, now)) {
+    if (a && b && !validateCustomRange(from!, to!, limits, now)) {
       const end = new Date(b.getTime() + DAY_MS - 1);
       const days = Math.round((b.getTime() - a.getTime()) / DAY_MS) + 1;
-      const label = days === 1 ? shortDay(a) : `${shortDay(a)}–${shortDay(b)}`;
+      const withYear = a.getFullYear() !== now.getFullYear() || b.getFullYear() !== now.getFullYear();
+      const label = days === 1 ? shortDay(a, withYear) : `${shortDay(a, false)}–${shortDay(b, withYear)}`;
       return { key: 'custom', id: sel, start: a, end: end > now ? now : end, days, label };
     }
     // Invalid/expired custom value → fall back to today.
@@ -100,9 +125,8 @@ export function resolveDateRange(sel: string, now = new Date()): ResolvedRange {
   return { key: 'today', id: 'today', start: today, end: now, days: 1, label: 'hari ini' };
 }
 
-/** Human label for the header button. */
-export function selectionLabel(sel: string): string {
-  if (!isCustomSelection(sel)) return sel;
-  const r = resolveDateRange(sel);
-  return r.key === 'custom' ? r.label : 'Today';
+/** Short label for a selection, e.g. "Today", "7 hari", "1 Jun–30 Jun 2022". */
+export function selectionLabel(sel: string, limits: RangeLimits): string {
+  if (sel === 'Today') return 'Today';
+  return resolveDateRange(sel, limits).label;
 }

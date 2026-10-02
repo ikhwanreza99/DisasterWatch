@@ -2,11 +2,11 @@
 // Source: https://magma.esdm.go.id/v1/gunung-api/informasi-letusan (public HTML timeline, CORS *,
 // 15 notices per page, newest first). Pages are fetched until the range start is reached.
 import { useEffect, useState } from 'react';
-import { resolveDateRange, type ResolvedRange } from '../../domain/dateRange';
+import { RANGE_LIMITS, resolveDateRange, type ResolvedRange } from '../../domain/dateRange';
 
 export const MAGMA_ERUPTIONS_URL = 'https://magma.esdm.go.id/v1/gunung-api/informasi-letusan';
-/** ~1.3 pages per day today; 90 pages ≈ 60+ days (the date picker's lookback limit). */
-const MAX_PAGES = 90;
+/** Max pages read for one range (15 notices each; ~1–2 pages/day in active periods ≈ 3 months). */
+const MAX_PAGES = 120;
 const CONCURRENCY = 4;
 const PAGE_TTL_MS = 10 * 60_000;
 
@@ -74,36 +74,74 @@ export function parseEruptionPage(html: string): EruptionNotice[] {
 }
 
 const pageCache = new Map<number, { at: number; items: EruptionNotice[] }>();
+let lastPage = 0;
 
 async function fetchPage(n: number, signal?: AbortSignal): Promise<EruptionNotice[]> {
   const hit = pageCache.get(n);
   if (hit && Date.now() - hit.at < PAGE_TTL_MS) return hit.items;
   const res = await fetch(`${MAGMA_ERUPTIONS_URL}?page=${n}`, { signal, headers: { Accept: 'text/html' } });
   if (!res.ok) throw new Error(`MAGMA letusan HTTP ${res.status}`);
-  const items = parseEruptionPage(await res.text());
+  const html = await res.text();
+  const items = parseEruptionPage(html);
+  // Pagination links reveal the last page number (used by the binary search).
+  for (const m of html.matchAll(/informasi-letusan\?page=(\d+)/g)) lastPage = Math.max(lastPage, Number(m[1]));
   pageCache.set(n, { at: Date.now(), items });
   return items;
 }
 
-/** All notices with start <= at <= end, paging newest→oldest until past `start`. */
-export async function fetchEruptions(range: ResolvedRange, signal?: AbortSignal): Promise<EruptionNotice[]> {
+function oldestOf(items: EruptionNotice[]): string {
+  return items.reduce((min, x) => (x.at < min ? x.at : min), '9999');
+}
+
+export interface EruptionResult {
+  notices: EruptionNotice[];
+  /** True when the range had more pages than MAX_PAGES (only the newest part was loaded). */
+  truncated: boolean;
+}
+
+/**
+ * All notices with start <= at <= end. The archive is newest-first, so the first page touching
+ * `end` is found by binary search (~11 requests even for 2018), then pages are read forward
+ * until past `start` (capped at MAX_PAGES).
+ */
+export async function fetchEruptions(range: ResolvedRange, signal?: AbortSignal): Promise<EruptionResult> {
   const from = range.start.toISOString();
   const to = range.end.toISOString();
+
+  const first = await fetchPage(1, signal);
+  if (first.length === 0) throw new Error('MAGMA page format changed (no eruption notices)');
+
+  // Smallest page whose oldest notice is <= `to` (pages beyond the end are empty → treated as old).
+  let startPage = 1;
+  if (oldestOf(first) > to) {
+    let lo = 2;
+    let hi = Math.max(lastPage, 2);
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const items = await fetchPage(mid, signal);
+      if (items.length === 0 || oldestOf(items) <= to) hi = mid;
+      else lo = mid + 1;
+    }
+    startPage = lo;
+  }
+
   const all: EruptionNotice[] = [];
-  for (let page = 1; page <= MAX_PAGES; page += CONCURRENCY) {
-    const batch = await Promise.all(
-      Array.from({ length: Math.min(CONCURRENCY, MAX_PAGES - page + 1) }, (_, i) => fetchPage(page + i, signal)),
-    );
+  let truncated = false;
+  for (let page = startPage; ; page += CONCURRENCY) {
+    if (page - startPage >= MAX_PAGES) {
+      truncated = true;
+      break;
+    }
+    const batch = await Promise.all(Array.from({ length: CONCURRENCY }, (_, i) => fetchPage(page + i, signal)));
     const items = batch.flat();
-    if (page === 1 && items.length === 0) throw new Error('MAGMA page format changed (no eruption notices)');
     all.push(...items);
-    const oldest = items.reduce((min, x) => (x.at < min ? x.at : min), '9999');
-    if (items.length === 0 || oldest < from) break;
+    if (items.length === 0 || oldestOf(items) < from || (lastPage && page + CONCURRENCY > lastPage)) break;
   }
   const seen = new Set<string>();
-  return all
+  const notices = all
     .filter((x) => x.at >= from && x.at <= to && !seen.has(x.id) && (seen.add(x.id), true))
     .sort((a, b) => b.at.localeCompare(a.at));
+  return { notices, truncated };
 }
 
 export type EruptionStatus =
@@ -113,8 +151,9 @@ export type EruptionStatus =
 
 /** Eruption notices for the header date selection; fetched only while `enabled`. */
 export function useMagmaEruptions(enabled: boolean, selectedDate: string) {
-  const range = resolveDateRange(selectedDate);
+  const range = resolveDateRange(selectedDate, RANGE_LIMITS.magma);
   const [notices, setNotices] = useState<EruptionNotice[]>([]);
+  const [truncated, setTruncated] = useState(false);
   const [status, setStatus] = useState<EruptionStatus>({ state: 'idle' });
 
   useEffect(() => {
@@ -122,9 +161,10 @@ export function useMagmaEruptions(enabled: boolean, selectedDate: string) {
     const ctrl = new AbortController();
     setStatus({ state: 'loading' });
     fetchEruptions(range, ctrl.signal)
-      .then((list) => {
+      .then((res) => {
         if (ctrl.signal.aborted) return;
-        setNotices(list);
+        setNotices(res.notices);
+        setTruncated(res.truncated);
         setStatus({ state: 'ready' });
       })
       .catch((e: unknown) => {
@@ -136,5 +176,5 @@ export function useMagmaEruptions(enabled: boolean, selectedDate: string) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, range.id]);
 
-  return { notices, status, range };
+  return { notices, truncated, status, range };
 }

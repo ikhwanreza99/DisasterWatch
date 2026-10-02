@@ -32,7 +32,9 @@ export default function App() {
   const [storeNotice, setStoreNotice] = useState<string>('Mode demo lokal — Firestore fallback aktif.');
   const [currentUser, setCurrentUser] = useState<UserIdentity>(mockUser());
   const [activeCategory, setActiveCategory] = useState<DisasterCategory | 'all'>('all');
+  // Separate date selections: FIRMS (NRT, last 60 days) and MAGMA (archive since 2018).
   const [selectedDate, setSelectedDate] = useState<string>('Today');
+  const [magmaDate, setMagmaDate] = useState<string>('Today');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
   // Exclusive single-window panel states: strictly at most ONE panel open at any time
@@ -272,8 +274,8 @@ export default function App() {
       <Header
           isDarkMode={isDarkMode}
           onToggleTheme={handleToggleTheme}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
+          dates={{ firms: selectedDate, magma: magmaDate }}
+          onSelectDate={(target, value) => (target === 'magma' ? setMagmaDate(value) : setSelectedDate(value))}
           onOpenReportModal={() => setIsReportModalOpen(true)}
         />
 
@@ -350,7 +352,7 @@ export default function App() {
             firmsHotspots={firms.hotspots}
             firmsStatus={firms.status.state}
             firmsRangeLabel={firms.range.label}
-            selectedDate={selectedDate}
+            selectedDate={magmaDate}
             firmsSensors={firmsSensorsLabel(firms.range)}
             bmkgWeather={bmkgWx.warnings}
             weatherStatus={
