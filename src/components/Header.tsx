@@ -32,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const presets = DATE_PRESETS;
   // Which layer the picker edits: FIRMS (last 60 days) or MAGMA (archive since 2018).
-  const [target, setTarget] = useState<DateTarget>('firms');
+  const [target, setTarget] = useState<DateTarget>('bmkg');
   const selectedDate = dates[target];
   const limits = RANGE_LIMITS[target];
   const now = new Date();
@@ -53,8 +53,10 @@ export const Header: React.FC<HeaderProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, isCalendarOpen]);
   const customError = validateCustomRange(customFrom, customTo, limits);
+  const bmkgLabel = selectionLabel(dates.bmkg, RANGE_LIMITS.bmkg);
   const firmsLabel = selectionLabel(dates.firms, RANGE_LIMITS.firms);
   const magmaLabel = selectionLabel(dates.magma, RANGE_LIMITS.magma);
+  const allSame = bmkgLabel === firmsLabel && firmsLabel === magmaLabel;
 
   return (
     <header className="relative z-40 flex items-center justify-between gap-2 px-3 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0b1329]/80 backdrop-blur-xl transition-colors duration-300">
@@ -106,11 +108,11 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2 bg-slate-50 dark:bg-[#0f1b38]/70 hover:bg-slate-100 dark:hover:bg-[#14234b] active:scale-95 transition-all text-slate-700 dark:text-slate-200 px-2.5 sm:px-5 py-2 rounded-full font-medium text-xs sm:text-sm shadow-xs border border-slate-200/80 dark:border-slate-700/70"
           >
             <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-cyan-400" />
-            {firmsLabel === magmaLabel ? (
+            {allSame ? (
               <span className="truncate max-w-[64px] sm:max-w-none">{firmsLabel}</span>
             ) : (
-              <span className="truncate max-w-[96px] sm:max-w-[260px]" title={`FIRMS: ${firmsLabel} • MAGMA: ${magmaLabel}`}>
-                🔥 {firmsLabel} · 🌋 {magmaLabel}
+              <span className="truncate max-w-[96px] sm:max-w-[260px]" title={`BMKG: ${bmkgLabel} • FIRMS: ${firmsLabel} • MAGMA: ${magmaLabel}`}>
+                🌐 {bmkgLabel} · 🔥 {firmsLabel} · 🌋 {magmaLabel}
               </span>
             )}
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -127,9 +129,10 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Which layer this selection applies to */}
               <div className="mb-2">
                 <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Berlaku untuk</div>
-                <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80" role="radiogroup" aria-label="Layer tanggal">
+                <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80" role="radiogroup" aria-label="Layer tanggal">
                   {(
                     [
+                      ['bmkg', '🌐 BMKG', bmkgLabel],
                       ['firms', '🔥 FIRMS', firmsLabel],
                       ['magma', '🌋 MAGMA', magmaLabel],
                     ] as const
@@ -227,7 +230,9 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="text-[11px] text-slate-400 text-center py-1 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-100 dark:border-slate-800">
                 {target === 'magma'
                   ? 'Erupsi & gerakan tanah MAGMA. Laporan gerakan tanah tersedia Jun 2022 – Mei 2023.'
-                  : 'Titik panas NASA FIRMS.'}
+                  : target === 'bmkg'
+                    ? 'Gempa BMKG di peta (M5+ & gempa dirasakan).'
+                    : 'Titik panas NASA FIRMS.'}
               </div>
             </div>
           )}
@@ -236,12 +241,13 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Today Preset Button */}
         <button
           onClick={() => {
+            onSelectDate('bmkg', 'Today');
             onSelectDate('firms', 'Today');
             onSelectDate('magma', 'Today');
             setIsCalendarOpen(false);
           }}
           className={`hidden min-[400px]:inline-flex px-3 sm:px-5 py-2 rounded-full font-medium text-xs sm:text-sm transition-all shadow-xs border ${
-            dates.firms === 'Today' && dates.magma === 'Today'
+            dates.bmkg === 'Today' && dates.firms === 'Today' && dates.magma === 'Today'
               ? 'bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950 font-bold border-transparent'
               : 'bg-slate-50 dark:bg-[#0f1b38]/70 hover:bg-slate-100 dark:hover:bg-[#14234b] text-slate-800 dark:text-cyan-300 border-slate-200/80 dark:border-slate-700/70'
           }`}

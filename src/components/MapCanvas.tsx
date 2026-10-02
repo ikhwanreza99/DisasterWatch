@@ -270,6 +270,8 @@ interface MapCanvasProps {
   bmkgEvents?: EarthquakeEvent[];
   bmkgStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
   /** NASA FIRMS active-fire hotspots (satellite detections, not verified incidents). */
+  /** Label of the BMKG date selection, e.g. "hari ini" (bmkgEvents are already filtered to it). */
+  bmkgRangeLabel?: string;
   firmsHotspots?: FireHotspot[];
   firmsStatus?: FirmsStatus['state'];
   /** Short label of the active FIRMS range, e.g. "7 hari". */
@@ -1008,6 +1010,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   onCloseWeather,
   bmkgEvents = [],
   bmkgStatus = 'idle',
+  bmkgRangeLabel = 'hari ini',
   firmsHotspots = [],
   firmsStatus = 'idle',
   firmsRangeLabel = '',
@@ -1086,7 +1089,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   useEffect(() => { if (selectedCityId) closeOtherPopups('city'); }, [selectedCityId, closeOtherPopups]);
   // Compact summary of the layers that are ON (shown next to the Layer button).
   const activeLayerChips = [
-    showBmkg && { key: 'bmkg', icon: '🌐', value: String(bmkgEvents.length), title: `Gempa BMKG: ${bmkgEvents.length}` },
+    showBmkg && {
+      key: 'bmkg',
+      icon: '🌐',
+      value: String(bmkgEvents.length),
+      title: `Gempa BMKG (${bmkgRangeLabel}): ${bmkgEvents.length}`,
+    },
     showFirms && {
       key: 'firms',
       icon: '🔥',
@@ -2070,7 +2078,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                       {bmkgStatus === 'unavailable'
                         ? 'BMKG N/A'
                         : bmkgStatus === 'ready'
-                          ? `BMKG: ${bmkgEvents.length}`
+                          ? `BMKG ${bmkgRangeLabel}: ${bmkgEvents.length} gempa`
                           : 'BMKG…'}
                     </span>
                     <span className="text-[9px] opacity-80">{showBmkg ? 'ON' : 'OFF'}</span>

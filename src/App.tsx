@@ -18,6 +18,7 @@ import { useBmkgEarthquakes, useBmkgWeatherWarnings } from './services/bmkg';
 import { useBmkgWeatherForecast } from './services/bmkg/useBmkgWeatherForecast';
 import { resolveForecastAdm4 } from './services/bmkg/bmkgWeatherForecast';
 import { firmsSensorsLabel, useFirmsHotspots } from './services/firms';
+import { RANGE_LIMITS, resolveDateRange } from './domain/dateRange';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
 import { loadDisasters } from './services/store/disasterStore';
@@ -32,9 +33,10 @@ export default function App() {
   const [storeNotice, setStoreNotice] = useState<string>('Mode demo lokal — Firestore fallback aktif.');
   const [currentUser, setCurrentUser] = useState<UserIdentity>(mockUser());
   const [activeCategory, setActiveCategory] = useState<DisasterCategory | 'all'>('all');
-  // Separate date selections: FIRMS (NRT, last 60 days) and MAGMA (archive since 2018).
+  // Separate date selections: BMKG quakes (~latest 30), FIRMS (NRT, last 60 days), MAGMA (archive since 2018).
   const [selectedDate, setSelectedDate] = useState<string>('Today');
   const [magmaDate, setMagmaDate] = useState<string>('Today');
+  const [bmkgDate, setBmkgDate] = useState<string>('Today');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
   // Exclusive single-window panel states: strictly at most ONE panel open at any time
@@ -52,6 +54,12 @@ export default function App() {
   // BMKG V1: official feed → React state → map/UI. No Firestore, no auto-disaster.
   // Fetch on load + manual refresh only (no aggressive polling).
   const bmkg = useBmkgEarthquakes();
+  // Earthquakes shown on the map follow the BMKG date selection (e.g. Today = only today's quakes).
+  const bmkgRange = resolveDateRange(bmkgDate, RANGE_LIMITS.bmkg);
+  const bmkgEventsInRange = bmkg.events.filter((e) => {
+    const t = Date.parse(e.eventTime);
+    return Number.isFinite(t) && t >= bmkgRange.start.getTime() && t <= bmkgRange.end.getTime();
+  });
   // NASA FIRMS hotspots via server-side proxy (MAP_KEY never reaches the browser).
   // Range follows the header date selector (Today / 24 jam / 7 hari / 30 hari).
   const firms = useFirmsHotspots(selectedDate);
@@ -274,15 +282,17 @@ export default function App() {
       <Header
           isDarkMode={isDarkMode}
           onToggleTheme={handleToggleTheme}
-          dates={{ firms: selectedDate, magma: magmaDate }}
-          onSelectDate={(target, value) => (target === 'magma' ? setMagmaDate(value) : setSelectedDate(value))}
+          dates={{ bmkg: bmkgDate, firms: selectedDate, magma: magmaDate }}
+          onSelectDate={(target, value) =>
+            target === 'magma' ? setMagmaDate(value) : target === 'bmkg' ? setBmkgDate(value) : setSelectedDate(value)
+          }
           onOpenReportModal={() => setIsReportModalOpen(true)}
         />
 
         <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords} />
         {/* Compact status row: system status (incl. data-store notice) + BMKG official signals */}
         {/* z-[35]: popovers open above the map overlays (z-30) but below the header menus (z-40) */}
-        <div className="relative z-[35] px-3 sm:px-6 pt-1.5 flex items-center gap-2">
+        <div className="relative z-[35] px-3 sm:px-6 pt-1.5 pb-2 flex items-center gap-2 border-b border-slate-200/80 dark:border-slate-800/80">
           <ArchitectureBadge
             notice={
               <>
@@ -346,7 +356,8 @@ export default function App() {
             isWeatherOpen={isWeatherOpen}
             onOpenWeather={handleOpenWeather}
             onCloseWeather={handleCloseWeather}
-            bmkgEvents={bmkg.events}
+            bmkgEvents={bmkgEventsInRange}
+            bmkgRangeLabel={bmkgRange.label}
             bmkgStatus={
               bmkg.status.state === 'ready'
                 ? 'ready'

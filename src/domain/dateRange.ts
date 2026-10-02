@@ -7,7 +7,7 @@
 
 export const DATE_PRESETS = ['Hari ini (24 Jam)', '7 Hari Terakhir', '30 Hari Terakhir'] as const;
 
-export type DateTarget = 'firms' | 'magma';
+export type DateTarget = 'bmkg' | 'firms' | 'magma';
 
 export interface RangeLimits {
   /** Oldest selectable day (YYYY-MM-DD), or relative lookback in days. */
@@ -20,6 +20,12 @@ export interface RangeLimits {
 }
 
 export const RANGE_LIMITS: Record<DateTarget, RangeLimits> = {
+  // BMKG public feeds only list the latest ~30 events (M5+ and felt quakes), roughly the last 3–4 weeks.
+  bmkg: {
+    lookbackDays: 30,
+    maxSpanDays: 31,
+    hint: 'BMKG hanya menyediakan ±30 gempa terbaru (M5+ & dirasakan), kira-kira 3–4 minggu terakhir.',
+  },
   // NASA FIRMS near-real-time data covers roughly the last 2 months.
   firms: { lookbackDays: 60, maxSpanDays: 31, hint: 'Maks. 31 hari, dalam 60 hari terakhir (batas data NRT NASA).' },
   // MAGMA eruption archive starts May 2018; landslide reports cover 2022–2023.
