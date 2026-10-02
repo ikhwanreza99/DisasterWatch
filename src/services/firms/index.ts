@@ -1,7 +1,8 @@
 // NASA FIRMS active-fire hotspots, fetched via backend proxy (MAP_KEY stays server-side, see vite.config.ts).
-// Follows the app's date selector: Today / 24 jam / 7 hari / 30 hari.
+// Follows the app's date selector: Today / 24 jam / 7 hari / 30 hari / custom range (<=31 days).
 // FIRMS area API allows max 5 days per request, so longer ranges are split into dated chunks.
 import { useCallback, useEffect, useState } from 'react';
+import { resolveDateRange, type ResolvedRange } from '../../domain/dateRange';
 
 export const FIRMS_SOURCE_URL = 'https://firms.modaps.eosdis.nasa.gov/map/';
 const INDONESIA_BBOX = '92,-13.5,143,9'; // west,south,east,north
@@ -38,26 +39,18 @@ export type FirmsStatus =
   | { state: 'ready'; count: number; updatedAt: string }
   | { state: 'unavailable'; reason: string };
 
-export interface FirmsRange {
-  key: 'today' | '24h' | '7d' | '30d';
-  label: string; // short label for UI
-  days: number;
+export interface FirmsRange extends ResolvedRange {
   sources: FirmsSource[];
 }
 
-/** Map the header date selector label to a FIRMS query plan. */
+/** Map the header date selection (preset or custom range) to a FIRMS query plan. */
 export function firmsRangeFromSelection(selected: string): FirmsRange {
-  const s = selected.toLowerCase();
-  if (s.startsWith('30')) {
-    // 30 days × all satellites would be ~60 MB of CSV; S-NPP alone keeps it usable.
-    return { key: '30d', label: '30 hari', days: 30, sources: ['VIIRS_SNPP_NRT'] };
-  }
-  if (s.startsWith('7')) {
-    return { key: '7d', label: '7 hari', days: 7, sources: ['VIIRS_SNPP_NRT', 'VIIRS_NOAA21_NRT'] };
-  }
+  const r = resolveDateRange(selected);
   const all: FirmsSource[] = ['VIIRS_SNPP_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT', 'MODIS_NRT'];
-  if (s.includes('24')) return { key: '24h', label: '24 jam', days: 2, sources: all };
-  return { key: 'today', label: 'hari ini', days: 1, sources: all };
+  // Many days x all satellites is tens of MB of CSV; use fewer sensors for longer ranges.
+  const sources: FirmsSource[] =
+    r.days <= 2 ? all : r.days <= 7 ? ['VIIRS_SNPP_NRT', 'VIIRS_NOAA21_NRT'] : ['VIIRS_SNPP_NRT'];
+  return { ...r, sources };
 }
 
 export function firmsSensorsLabel(range: FirmsRange): string {
@@ -105,20 +98,16 @@ export function parseFirmsCsv(csv: string, sensor: string): FireHotspot[] {
   return out;
 }
 
-function utcDate(offsetDays: number): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
-}
+const DAY_MS = 86_400_000;
 
-/** Split "last N days ending today" into ≤5-day chunks: [{days, startDate}]. */
-function planChunks(days: number): { days: number; start: string }[] {
+/** Split the UTC calendar days touched by [start, end] into <=5-day chunks: [{days, startDate}]. */
+function planChunks(start: Date, end: Date): { days: number; start: string }[] {
+  const first = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  const last = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
   const chunks: { days: number; start: string }[] = [];
-  let startOffset = -(days - 1);
-  while (startOffset <= 0) {
-    const len = Math.min(MAX_DAYS_PER_REQUEST, 1 - startOffset);
-    chunks.push({ days: len, start: utcDate(startOffset) });
-    startOffset += len;
+  for (let t = first; t <= last; t += MAX_DAYS_PER_REQUEST * DAY_MS) {
+    const len = Math.min(MAX_DAYS_PER_REQUEST, Math.round((last - t) / DAY_MS) + 1);
+    chunks.push({ days: len, start: new Date(t).toISOString().slice(0, 10) });
   }
   return chunks;
 }
@@ -170,10 +159,10 @@ function aggregate(list: FireHotspot[]): FireHotspot[] {
 const cache = new Map<string, { at: number; data: FireHotspot[] }>();
 
 export async function fetchFirmsHotspots(range: FirmsRange, signal?: AbortSignal): Promise<FireHotspot[]> {
-  const hit = cache.get(range.key);
+  const hit = cache.get(range.id);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
 
-  const jobs = range.sources.flatMap((src) => planChunks(range.days).map((c) => fetchChunk(src, c.days, c.start, signal)));
+  const jobs = range.sources.flatMap((src) => planChunks(range.start, range.end).map((c) => fetchChunk(src, c.days, c.start, signal)));
   const settled = await Promise.allSettled(jobs);
   const ok = settled.filter((r): r is PromiseFulfilledResult<FireHotspot[]> => r.status === 'fulfilled');
   if (ok.length === 0) {
@@ -181,12 +170,16 @@ export async function fetchFirmsHotspots(range: FirmsRange, signal?: AbortSignal
     throw first && first.status === 'rejected' ? first.reason : new Error('FIRMS unavailable');
   }
 
-  const cutoff = range.key === '24h' ? new Date(Date.now() - 24 * 3600_000).toISOString() : '';
-  let list = ok.flatMap((r) => r.value).filter((h) => h.confidence !== 'low' && h.acquiredAt >= cutoff);
+  // Keep only detections inside the selected window (chunks are whole UTC days).
+  const from = range.start.toISOString();
+  const to = range.end.toISOString();
+  let list = ok
+    .flatMap((r) => r.value)
+    .filter((h) => h.confidence !== 'low' && h.acquiredAt >= from && h.acquiredAt <= to);
   if (list.length > AGGREGATE_THRESHOLD) list = aggregate(list);
   list.sort((a, b) => b.frp - a.frp); // strongest first
 
-  cache.set(range.key, { at: Date.now(), data: list });
+  cache.set(range.id, { at: Date.now(), data: list });
   return list;
 }
 
@@ -217,7 +210,7 @@ export function useFirmsHotspots(selectedDate: string) {
       });
     return () => ctrl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range.key, nonce]);
+  }, [range.id, nonce]);
 
   const refresh = useCallback(() => {
     cache.clear();

@@ -43,6 +43,8 @@ import {
   type Volcano,
 } from '../services/magma';
 import { useVaac, VAAC_SOURCE_URL, type AshAdvisory } from '../services/vaac';
+import { useMagmaEruptions, MAGMA_ERUPTIONS_URL, type EruptionNotice } from '../services/magma/eruptions';
+import type { ResolvedRange } from '../domain/dateRange';
 
 const ASH_FILL = '#64748b';
 const ASH_FCST = '#94a3b8';
@@ -78,32 +80,83 @@ function ashPopupHtml(a: AshAdvisory): string {
   );
 }
 
-/** Triangle volcano icon colored by PVMBG activity level; pulsing ring when erupting. */
-function volcanoMarkerHtml(v: Volcano): string {
+/**
+ * Triangle volcano icon colored by PVMBG activity level (current status).
+ * Pulsing ring + count badge = eruption notices inside the selected date range.
+ */
+function volcanoMarkerHtml(v: Volcano, eruptionCount = 0): string {
   const c = VOLCANO_LEVEL_COLOR[v.level];
   const size = v.level >= 3 ? 22 : v.level === 2 ? 18 : 14;
-  const ring = v.erupting
-    ? `<span class="absolute inset-0 -m-1 rounded-full animate-ping" style="background:${c};opacity:.35"></span>`
-    : '';
+  const ring =
+    eruptionCount > 0
+      ? `<span class="absolute inset-0 -m-1 rounded-full animate-ping" style="background:${c};opacity:.35"></span>`
+      : '';
+  const badge =
+    eruptionCount > 0
+      ? `<span class="absolute -top-2 -right-3 min-w-4 h-4 px-1 rounded-full bg-rose-600 border border-white text-white text-[9px] font-black leading-[14px] text-center">${eruptionCount > 99 ? '99+' : eruptionCount}</span>`
+      : '';
   return (
     `<div class="relative flex items-center justify-center cursor-pointer transform -translate-x-1/2 -translate-y-1/2" style="width:${size}px;height:${size}px">` +
     ring +
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="position:relative;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))">` +
     `<path d="M12 3 L22 21 H2 Z" fill="${c}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>` +
+    badge +
     `</div>`
   );
 }
 
-function volcanoPopupHtml(v: Volcano): string {
+function formatEruptionDay(iso: string): string {
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? new Date(t).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : iso;
+}
+
+/** "N erupsi (7 hari)" + latest few notices. */
+function eruptionListHtml(notices: EruptionNotice[], rangeLabel: string): string {
+  if (notices.length === 0) return `<div style="color:#64748b">Tidak ada laporan erupsi (${escHtml(rangeLabel)})</div>`;
+  const rows = notices
+    .slice(0, 5)
+    .map(
+      (n) =>
+        `<li>${formatEruptionDay(n.at)} ${escHtml(n.localTime)}${n.ashColumnM ? ` • kolom abu ±${n.ashColumnM.toLocaleString('id-ID')} m` : ''}</li>`,
+    )
+    .join('');
+  return (
+    `<div style="margin-top:2px"><b style="color:#e11d48">${notices.length} erupsi</b> (${escHtml(rangeLabel)})</div>` +
+    `<ul style="margin:2px 0 0 14px;padding:0;list-style:disc;color:#475569">${rows}</ul>` +
+    (notices.length > 5 ? `<div style="color:#64748b">+${notices.length - 5} lainnya</div>` : '')
+  );
+}
+
+function volcanoPopupHtml(v: Volcano, notices: EruptionNotice[] = [], rangeLabel = ''): string {
   return (
     `<div style="font-size:12px;line-height:1.45">` +
     `<div style="font-weight:800">🌋 G. ${escHtml(v.name)}</div>` +
-    `<div>Status: <b style="color:${VOLCANO_LEVEL_COLOR[v.level]}">${VOLCANO_LEVEL_LABEL[v.level]}</b>${v.erupting ? ' • <b>erupsi terkini</b>' : ''}</div>` +
+    `<div>Status: <b style="color:${VOLCANO_LEVEL_COLOR[v.level]}">${VOLCANO_LEVEL_LABEL[v.level]}</b></div>` +
     `<div>${escHtml(v.regency)}, ${escHtml(v.province)}${v.elevationM ? ` • ${v.elevationM} mdpl` : ''}</div>` +
+    eruptionListHtml(notices, rangeLabel) +
     (v.noticeNumber ? `<div style="color:#64748b">Laporan: ${escHtml(v.noticeNumber)}${v.hasVona ? ' • VONA tersedia' : ''}</div>` : '') +
-    `<a href="${MAGMA_VOLCANO_URL}" target="_blank" rel="noopener noreferrer" style="color:#b45309">Source: MAGMA Indonesia (PVMBG)</a>` +
+    `<a href="${notices.length ? MAGMA_ERUPTIONS_URL : MAGMA_VOLCANO_URL}" target="_blank" rel="noopener noreferrer" style="color:#b45309">Source: MAGMA Indonesia (PVMBG)</a>` +
     `</div>`
   );
+}
+
+/** Group eruption notices by volcano name (case-insensitive). */
+// `Map` in this file is the Google Maps component, so use the built-in explicitly.
+function groupEruptions(notices: EruptionNotice[]): globalThis.Map<string, EruptionNotice[]> {
+  const m = new globalThis.Map<string, EruptionNotice[]>();
+  for (const n of notices) {
+    const k = n.volcano.toLowerCase();
+    const arr = m.get(k);
+    if (arr) arr.push(n);
+    else m.set(k, [n]);
+  }
+  return m;
+}
+
+/** True when a landslide report date (YYYY-MM-DD, local) falls inside the range. */
+function landslideInRange(l: LandslideReport, start: Date, end: Date): boolean {
+  const t = new Date(`${l.date}T12:00:00`).getTime();
+  return Number.isFinite(t) && t >= start.getTime() - 12 * 3600_000 && t <= end.getTime() + 12 * 3600_000;
 }
 
 function landslidePopupHtml(l: LandslideReport): string {
@@ -211,6 +264,8 @@ interface MapCanvasProps {
   firmsStatus?: FirmsStatus['state'];
   /** Short label of the active FIRMS range, e.g. "7 hari". */
   firmsRangeLabel?: string;
+  /** Header date selection; MAGMA eruption notices follow it. */
+  selectedDate?: string;
   firmsSensors?: string;
   /** BMKG weather warnings (only ACTIVE rendered on the primary map layer). */
   bmkgWeather?: BmkgWeatherWarning[];
@@ -404,6 +459,8 @@ const OSMMapRenderer: React.FC<{
   showMagma?: boolean;
   ashAdvisories?: AshAdvisory[];
   showAsh?: boolean;
+  magmaEruptions?: EruptionNotice[];
+  magmaRange?: ResolvedRange | null;
 }> = ({
   disasters,
   activeDisasterKey,
@@ -433,6 +490,8 @@ const OSMMapRenderer: React.FC<{
   showMagma = false,
   ashAdvisories = [],
   showAsh = false,
+  magmaEruptions = [],
+  magmaRange = null,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -725,7 +784,8 @@ const OSMMapRenderer: React.FC<{
     if (!mapRef.current || !g) return;
     g.clearLayers();
     if (!showMagma || !magma) return;
-    magma.landslides.forEach((l) => {
+    const byVolcano = groupEruptions(magmaEruptions);
+    magma.landslides.filter((l) => !magmaRange || landslideInRange(l, magmaRange.start, magmaRange.end)).forEach((l) => {
       L.marker([l.latitude, l.longitude], {
         icon: L.divIcon({
           html: `<div class="w-5 h-5 rounded-md bg-amber-800 border-2 border-white shadow flex items-center justify-center text-[10px] transform -translate-x-1/2 -translate-y-1/2 cursor-pointer">⛰</div>`,
@@ -739,15 +799,16 @@ const OSMMapRenderer: React.FC<{
         .addTo(g);
     });
     magma.volcanoes.forEach((v) => {
+      const notices = byVolcano.get(v.name.toLowerCase()) ?? [];
       L.marker([v.latitude, v.longitude], {
-        icon: L.divIcon({ html: volcanoMarkerHtml(v), className: 'magma-volcano-marker', iconSize: [0, 0] }),
-        zIndexOffset: 400 + v.level * 10,
-        title: `G. ${v.name} — ${VOLCANO_LEVEL_LABEL[v.level]}`,
+        icon: L.divIcon({ html: volcanoMarkerHtml(v, notices.length), className: 'magma-volcano-marker', iconSize: [0, 0] }),
+        zIndexOffset: 400 + v.level * 10 + (notices.length ? 50 : 0),
+        title: `G. ${v.name} — ${VOLCANO_LEVEL_LABEL[v.level]}${notices.length ? ` • ${notices.length} erupsi` : ''}`,
       })
-        .bindPopup(volcanoPopupHtml(v), { maxWidth: 280, closeButton: true, className: 'bmkg-popup' })
+        .bindPopup(volcanoPopupHtml(v, notices, magmaRange?.label ?? ''), { maxWidth: 280, closeButton: true, className: 'bmkg-popup' })
         .addTo(g);
     });
-  }, [magma, showMagma, mapEpoch]);
+  }, [magma, showMagma, mapEpoch, magmaEruptions, magmaRange]);
 
   // Darwin VAAC volcanic-ash clouds: current (filled) + forecasts (dashed)
   useEffect(() => {
@@ -933,6 +994,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   firmsStatus = 'idle',
   firmsRangeLabel = '',
   firmsSensors = '',
+  selectedDate = 'Today',
   bmkgWeather = [],
   weatherStatus = 'idle',
 }) => {
@@ -967,10 +1029,23 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const ash = useVaac(showAsh);
   const [selectedAsh, setSelectedAsh] = useState<AshAdvisory | null>(null);
   const activeAshCount = ash.advisories.filter((a) => !a.terminated).length;
+  // MAGMA eruption notices ("Informasi Letusan") follow the header date range.
+  const eruptions = useMagmaEruptions(showMagma, selectedDate);
+  const eruptionsByVolcano = useMemo(() => groupEruptions(eruptions.notices), [eruptions.notices]);
   const magmaCounts = useMemo(() => {
     const vs = magmaFeed.data?.volcanoes ?? [];
-    return { total: vs.length, elevated: vs.filter((v) => v.level >= 2).length };
-  }, [magmaFeed.data]);
+    return {
+      total: vs.length,
+      elevated: vs.filter((v) => v.level >= 2).length,
+      eruptions: eruptions.notices.length,
+      eruptingVolcanoes: eruptionsByVolcano.size,
+    };
+  }, [magmaFeed.data, eruptions.notices.length, eruptionsByVolcano]);
+  const visibleLandslides = useMemo(
+    () => (magmaFeed.data?.landslides ?? []).filter((l) => landslideInRange(l, eruptions.range.start, eruptions.range.end)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [magmaFeed.data, eruptions.range.id],
+  );
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
 
   // Engine state: start with 'google' if apiKey present, but auto-fallback to 'osm' on RefererNotAllowedMapError
@@ -1550,7 +1625,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
               {/* MAGMA (PVMBG): gerakan tanah + volcano activity levels */}
               {showMagma &&
-                magmaFeed.data?.landslides.map((l) => (
+                visibleLandslides.map((l) => (
                   <AdvancedMarker
                     key={`ls-${l.id}`}
                     position={{ lat: l.latitude, lng: l.longitude }}
@@ -1573,7 +1648,14 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     onClick={() => setSelectedMagma({ kind: 'volcano', v })}
                   >
                     {/* Marker HTML is built from parsed numeric/enum fields only (no free text). */}
-                    <div dangerouslySetInnerHTML={{ __html: volcanoMarkerHtml(v).replace('transform -translate-x-1/2 -translate-y-1/2', '') }} />
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: volcanoMarkerHtml(v, eruptionsByVolcano.get(v.name.toLowerCase())?.length ?? 0).replace(
+                          'transform -translate-x-1/2 -translate-y-1/2',
+                          '',
+                        ),
+                      }}
+                    />
                   </AdvancedMarker>
                 ))}
               {showMagma && selectedMagma && (
@@ -1612,12 +1694,33 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                         <div className="text-[11px]">
                           Status:{' '}
                           <b style={{ color: VOLCANO_LEVEL_COLOR[selectedMagma.v.level] }}>{VOLCANO_LEVEL_LABEL[selectedMagma.v.level]}</b>
-                          {selectedMagma.v.erupting && <> • <b>erupsi terkini</b></>}
                         </div>
                         <div className="text-[11px]">
                           {selectedMagma.v.regency}, {selectedMagma.v.province}
                           {selectedMagma.v.elevationM ? ` • ${selectedMagma.v.elevationM} mdpl` : ''}
                         </div>
+                        {(() => {
+                          const list = eruptionsByVolcano.get(selectedMagma.v.name.toLowerCase()) ?? [];
+                          if (list.length === 0) {
+                            return (
+                              <div className="text-[10px] text-slate-400">Tidak ada laporan erupsi ({eruptions.range.label})</div>
+                            );
+                          }
+                          return (
+                            <div className="text-[11px] mt-0.5">
+                              <b className="text-rose-400">{list.length} erupsi</b> ({eruptions.range.label})
+                              <ul className="list-disc ml-4 text-[10px] text-slate-300">
+                                {list.slice(0, 5).map((n) => (
+                                  <li key={n.id}>
+                                    {formatEruptionDay(n.at)} {n.localTime}
+                                    {n.ashColumnM ? ` • kolom abu ±${n.ashColumnM.toLocaleString('id-ID')} m` : ''}
+                                  </li>
+                                ))}
+                              </ul>
+                              {list.length > 5 && <div className="text-[10px] text-slate-400">+{list.length - 5} lainnya</div>}
+                            </div>
+                          );
+                        })()}
                         {selectedMagma.v.noticeNumber && (
                           <div className="text-[10px] text-slate-400">
                             Laporan: {selectedMagma.v.noticeNumber}
@@ -1789,6 +1892,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             showMagma={showMagma}
             ashAdvisories={ash.advisories}
             showAsh={showAsh}
+            magmaEruptions={eruptions.notices}
+            magmaRange={eruptions.range}
           />
         )}
       </div>
@@ -1894,7 +1999,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   : magmaFeed.status.state === 'unavailable'
                     ? 'MAGMA N/A'
                     : magmaFeed.status.state === 'ready'
-                      ? `MAGMA: ${magmaCounts.total} gunung • ${magmaCounts.elevated} ≥ Waspada`
+                      ? eruptions.status.state === 'loading'
+                        ? `MAGMA ${eruptions.range.label}: memuat erupsi…`
+                        : `MAGMA ${eruptions.range.label}: ${magmaCounts.eruptions} erupsi • ${magmaCounts.elevated} ≥ Waspada`
                       : 'MAGMA…'}
               </span>
               <span className="text-[9px] opacity-80">{showMagma ? 'ON' : 'OFF'}</span>
@@ -2172,7 +2279,16 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   <span className="absolute inset-0 rounded-full bg-orange-500/40 animate-ping"></span>
                   <span className="h-2 w-2 rounded-full bg-orange-500"></span>
                 </span>
-                <span>Lingkaran berdenyut = erupsi terkini</span>
+                <span>Berdenyut = ada erupsi ({eruptions.range.label})</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span
+                  className="min-w-4 h-4 px-1 rounded-full bg-rose-600 border border-white text-white text-[9px] font-black leading-[14px] text-center"
+                  aria-hidden="true"
+                >
+                  3
+                </span>
+                <span>Jumlah laporan erupsi</span>
               </li>
             </ul>
             <div className="flex items-center gap-2 pt-1.5 border-t border-slate-200/80 dark:border-slate-700/60">

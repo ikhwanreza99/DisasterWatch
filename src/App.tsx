@@ -350,6 +350,7 @@ export default function App() {
             firmsHotspots={firms.hotspots}
             firmsStatus={firms.status.state}
             firmsRangeLabel={firms.range.label}
+            selectedDate={selectedDate}
             firmsSensors={firmsSensorsLabel(firms.range)}
             bmkgWeather={bmkgWx.warnings}
             weatherStatus={
