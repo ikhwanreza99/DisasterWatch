@@ -4,7 +4,7 @@ import { aiBackendStatus } from '../lib/firebase/ai';
 import { firebaseStatus } from '../lib/firebase/config';
 import { resolveMapProvider } from './map/mapTypes';
 
-export const ArchitectureBadge: React.FC = () => {
+export const ArchitectureBadge: React.FC<{ notice?: React.ReactNode }> = ({ notice }) => {
   const [open, setOpen] = useState(false);
   const fb = firebaseStatus();
   const ai = aiBackendStatus();
@@ -24,7 +24,7 @@ export const ArchitectureBadge: React.FC = () => {
   ];
   const liveCount = rows.filter(([, , live]) => live).length;
   return (
-    <div className="relative px-4 sm:px-6 pt-1.5" data-purpose="arch-badge">
+    <div className="relative" data-purpose="arch-badge">
       <button
         onClick={() => setOpen((v) => !v)}
         className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer active:scale-95"
@@ -35,13 +35,18 @@ export const ArchitectureBadge: React.FC = () => {
         <span className="uppercase tracking-wider">System Status · {liveCount}/{rows.length}</span>
       </button>
       {open && (
-        <div className="absolute left-4 sm:left-6 top-full mt-1 z-50 bg-white dark:bg-[#0b1329] border border-slate-200 dark:border-slate-700 rounded-2xl p-2 shadow-2xl min-w-[280px] animate-fadeIn">
+        <div className="absolute left-0 top-full mt-1 z-50 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#0b1329] border border-slate-200 dark:border-slate-700 rounded-2xl p-2 shadow-2xl min-w-[280px] animate-fadeIn">
           {rows.map(([name, role, live, a, b]) => (
             <div key={name} title={role} className="flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
               <span>{name}</span>
               {pill(live, a, b)}
             </div>
           ))}
+          {notice && (
+            <div className="mt-1 px-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] leading-snug text-slate-500 dark:text-slate-400">
+              {notice}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -23,6 +23,8 @@ interface Props {
   forecastState: BmkgForecastState;
   forecastSummary: string | null;
   forecastLocation: string | null;
+  /** Render inside the header status row instead of floating over the map. */
+  inline?: boolean;
 }
 
 export const BmkgSignalsControl: React.FC<Props> = ({
@@ -39,14 +41,15 @@ export const BmkgSignalsControl: React.FC<Props> = ({
   forecastState,
   forecastSummary,
   forecastLocation,
+  inline = false,
 }) => {
   const [open, setOpen] = useState(false);
   const forecastLive = forecastState === 'READY';
   return (
-    <div className="absolute top-[3.75rem] left-1/2 -translate-x-1/2 z-30" data-purpose="bmkg-signals">
+    <div className={inline ? 'relative' : 'absolute top-[3.75rem] left-1/2 -translate-x-1/2 z-30'} data-purpose="bmkg-signals">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-white/95 dark:bg-[#0b1329]/95 border border-slate-200/90 dark:border-slate-700/80 shadow-md text-[11px] font-bold text-slate-800 dark:text-slate-100 cursor-pointer active:scale-95 backdrop-blur-md"
+        className={`flex items-center gap-1.5 ${inline ? 'h-7 px-3 text-[10px]' : 'h-8 px-3.5 text-[11px]'} rounded-full bg-white/95 dark:bg-[#0b1329]/95 border border-slate-200/90 dark:border-slate-700/80 ${inline ? '' : 'shadow-md'} font-bold text-slate-800 dark:text-slate-100 cursor-pointer active:scale-95 backdrop-blur-md`}
         aria-expanded={open}
         title="BMKG Official Signals"
       >
@@ -58,7 +61,7 @@ export const BmkgSignalsControl: React.FC<Props> = ({
       </button>
 
       {open && (
-        <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-[320px] max-w-[90vw] bg-white dark:bg-[#0b1329] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-3 z-50 animate-fadeIn">
+        <div className={`absolute ${inline ? 'right-0 sm:left-0 sm:right-auto' : 'left-1/2 -translate-x-1/2'} mt-2 w-[320px] max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#0b1329] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-3 z-50 animate-fadeIn`}>
           {/* Earthquake */}
           <div className="pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between mb-1">

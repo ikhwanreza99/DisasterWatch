@@ -15,7 +15,7 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
 }) => {
   return (
     <div
-      className="absolute left-3 sm:left-6 top-[6.5rem] sm:top-24 z-30 flex flex-col gap-1.5 sm:gap-2.5 p-1.5 sm:p-2 bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-700/70 shadow-xl pointer-events-auto select-none transition-colors duration-300"
+      className="absolute left-3 sm:left-6 top-[3.75rem] sm:top-16 z-30 flex flex-col gap-1.5 sm:gap-2.5 p-1.5 sm:p-2 bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-700/70 shadow-xl pointer-events-auto select-none transition-colors duration-300"
       data-purpose="category-filter-bar"
     >
       {/* All */}

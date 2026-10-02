@@ -107,7 +107,10 @@ export function resolveDateRange(sel: string, limits: RangeLimits = RANGE_LIMITS
       const end = new Date(b.getTime() + DAY_MS - 1);
       const days = Math.round((b.getTime() - a.getTime()) / DAY_MS) + 1;
       const withYear = a.getFullYear() !== now.getFullYear() || b.getFullYear() !== now.getFullYear();
-      const label = days === 1 ? shortDay(a, withYear) : `${shortDay(a, false)}–${shortDay(b, withYear)}`;
+      // Show the start year too when the range crosses years (e.g. "2 Jan 2022–2 Jan 2023").
+      const crossYear = a.getFullYear() !== b.getFullYear();
+      const label =
+        days === 1 ? shortDay(a, withYear) : `${shortDay(a, crossYear)}–${shortDay(b, withYear || crossYear)}`;
       return { key: 'custom', id: sel, start: a, end: end > now ? now : end, days, label };
     }
     // Invalid/expired custom value → fall back to today.

@@ -280,16 +280,19 @@ export default function App() {
         />
 
         <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords} />
-        <ArchitectureBadge />
-        <div className="px-4 sm:px-6 pt-1 text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
-          <span className="font-semibold">{storeNotice}</span>
-          <span className="ml-2">• Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
-        </div>
-
-        {/* Main Work Area — map-first workspace (min 60vh desktop) */}
-        <main className="relative flex-1 grid grid-cols-12 overflow-hidden min-h-[60vh]">
-          {/* Floating BMKG official-signals control (compact, over map) */}
+        {/* Compact status row: system status (incl. data-store notice) + BMKG official signals */}
+        {/* z-[35]: popovers open above the map overlays (z-30) but below the header menus (z-40) */}
+        <div className="relative z-[35] px-3 sm:px-6 pt-1.5 flex items-center gap-2">
+          <ArchitectureBadge
+            notice={
+              <>
+                <span className="font-semibold">{storeNotice}</span>
+                <span className="block">Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
+              </>
+            }
+          />
           <BmkgSignalsControl
+            inline
             quakeCount={bmkg.events.length}
             quakeLatestText={
               bmkg.latest
@@ -308,6 +311,10 @@ export default function App() {
             forecastSummary={forecastSummary}
             forecastLocation={activeAdm4 ? `${activeDisaster.name}` : null}
           />
+        </div>
+
+        {/* Main Work Area — map-first workspace (min 60vh desktop) */}
+        <main className="relative flex-1 grid grid-cols-12 overflow-hidden min-h-[60vh]">
           {/* Left Category Filter Dock */}
           <CategoryFilterBar
             activeCategory={activeCategory}
