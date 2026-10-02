@@ -55,7 +55,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 
   return (
     <aside
-      className="absolute top-0 right-0 z-30 h-full w-[420px] max-w-[92vw] p-5 flex flex-col justify-between overflow-y-auto pointer-events-auto transition-all duration-300 ease-in-out bg-white/85 dark:bg-[#0b1329]/90 backdrop-blur-xl border-l border-slate-200/90 dark:border-slate-800/80 shadow-2xl"
+      className="absolute top-0 right-0 z-30 h-full w-full sm:w-[420px] sm:max-w-[92vw] p-5 flex flex-col justify-between overflow-y-auto pointer-events-auto transition-all duration-300 ease-in-out bg-white/85 dark:bg-[#0b1329]/90 backdrop-blur-xl border-l border-slate-200/90 dark:border-slate-800/80 shadow-2xl"
       id="slimHomepageSidebar"
     >
       <div className="space-y-4">

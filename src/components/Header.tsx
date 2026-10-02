@@ -21,7 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   const presets = ['Hari ini (24 Jam)', '7 Hari Terakhir', '30 Hari Terakhir'];
 
   return (
-    <header className="relative z-30 flex items-center justify-between px-4 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0b1329]/80 backdrop-blur-xl transition-colors duration-300">
+    <header className="relative z-30 flex items-center justify-between gap-2 px-3 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0b1329]/80 backdrop-blur-xl transition-colors duration-300">
       {/* Brand Identifier (Top-Left) */}
       <div className="flex items-center gap-2.5 pointer-events-auto">
         <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-orange-500 flex items-center justify-center shadow-md shadow-orange-500/20 text-white shrink-0">
@@ -29,10 +29,10 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-base sm:text-xl font-black tracking-tight text-slate-900 dark:text-white">
               DisasterWatch
             </h1>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-cyan-950/60 text-slate-700 dark:text-cyan-300 border border-slate-200 dark:border-cyan-500/30">
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-cyan-950/60 text-slate-700 dark:text-cyan-300 border border-slate-200 dark:border-cyan-500/30">
               ver.1.0
             </span>
             <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-600/30 tracking-wider uppercase">
@@ -43,11 +43,11 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Date Filter Toolbar & Controls (Top-Right) */}
-      <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
+      <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto shrink-0">
         {/* Dark / Light Mode Toggle */}
         <button
           onClick={onToggleTheme}
-          className="flex items-center gap-2 px-3 py-2 rounded-full border border-slate-200/90 dark:border-slate-700/70 bg-slate-50 hover:bg-slate-100 dark:bg-[#0f1b38]/70 dark:hover:bg-[#14234b] text-slate-700 dark:text-slate-200 shadow-xs transition-all text-xs font-semibold cursor-pointer active:scale-95"
+          className="flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-full border border-slate-200/90 dark:border-slate-700/70 bg-slate-50 hover:bg-slate-100 dark:bg-[#0f1b38]/70 dark:hover:bg-[#14234b] text-slate-700 dark:text-slate-200 shadow-xs transition-all text-xs font-semibold cursor-pointer active:scale-95"
           title="Ganti Mode Gelap / Terang"
         >
           {isDarkMode ? (
@@ -67,15 +67,15 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="relative">
           <button
             onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-            className="flex items-center gap-2 bg-slate-50 dark:bg-[#0f1b38]/70 hover:bg-slate-100 dark:hover:bg-[#14234b] active:scale-95 transition-all text-slate-700 dark:text-slate-200 px-3.5 sm:px-5 py-2 rounded-full font-medium text-xs sm:text-sm shadow-xs border border-slate-200/80 dark:border-slate-700/70"
+            className="flex items-center gap-2 bg-slate-50 dark:bg-[#0f1b38]/70 hover:bg-slate-100 dark:hover:bg-[#14234b] active:scale-95 transition-all text-slate-700 dark:text-slate-200 px-2.5 sm:px-5 py-2 rounded-full font-medium text-xs sm:text-sm shadow-xs border border-slate-200/80 dark:border-slate-700/70"
           >
             <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-cyan-400" />
-            <span className="truncate max-w-[80px] sm:max-w-none">{selectedDate}</span>
+            <span className="truncate max-w-[64px] sm:max-w-none">{selectedDate}</span>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </button>
 
           {isCalendarOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-[#0b1329] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 p-4 z-50 text-xs transition-all">
+            <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#0b1329] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 p-4 z-50 text-xs transition-all">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 font-semibold text-slate-700 dark:text-slate-200">
                 <span>Pilih Rentang Waktu</span>
                 <span className="text-[10px] text-slate-400 dark:text-cyan-400">Sept 2026</span>
@@ -111,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
             onSelectDate('Today');
             setIsCalendarOpen(false);
           }}
-          className={`px-4 sm:px-5 py-2 rounded-full font-medium text-xs sm:text-sm transition-all shadow-xs border ${
+          className={`hidden min-[400px]:inline-flex px-3 sm:px-5 py-2 rounded-full font-medium text-xs sm:text-sm transition-all shadow-xs border ${
             selectedDate === 'Today'
               ? 'bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950 font-bold border-transparent'
               : 'bg-slate-50 dark:bg-[#0f1b38]/70 hover:bg-slate-100 dark:hover:bg-[#14234b] text-slate-800 dark:text-cyan-300 border-slate-200/80 dark:border-slate-700/70'

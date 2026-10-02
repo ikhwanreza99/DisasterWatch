@@ -1794,8 +1794,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       </div>
 
       {/* Top Left Header Overlay: Active Engine Pill & Layer Switcher */}
-      <div className="relative z-30 pt-4 px-6 pointer-events-auto flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="relative z-30 pt-3 sm:pt-4 px-3 sm:px-6 pointer-events-auto flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0 overflow-x-auto no-scrollbar [&>*]:shrink-0 -mx-1 px-1 py-1">
           {/* Active Engine Indicator Pill */}
           <div className="flex items-center gap-2 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-200/90 dark:border-slate-700/80 shadow-md">
             <span
@@ -1806,7 +1806,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             <span className="text-[11px] font-bold text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-1.5">
               <span>{mapEngine === 'google' && !hasAuthError ? 'Google Maps API' : 'OpenStreetMap Live'}</span>
               <span
-                className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${
+                className={`hidden lg:inline text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${
                   mapEngine === 'google' && !hasAuthError
                     ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20'
                     : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
@@ -1986,7 +1986,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             </button>
 
             {showLayerSelector && (
-              <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-[#0b1329] border border-slate-200 dark:border-slate-700 rounded-2xl p-2 shadow-2xl z-50 animate-fadeIn">
+              <div className="fixed sm:absolute left-3 sm:left-0 mt-2 w-56 max-h-[60vh] overflow-y-auto bg-white dark:bg-[#0b1329] border border-slate-200 dark:border-slate-700 rounded-2xl p-2 shadow-2xl z-50 animate-fadeIn">
                 {/* Google Maps Section */}
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
                   Google Maps Platform
@@ -2133,22 +2133,22 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           !isReportsOpen && (
             <button
               onClick={onToggleSidebar}
-              className="flex items-center gap-2 bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-800 dark:text-slate-200 px-4 py-2 rounded-full font-bold text-xs shadow-xl border border-slate-200/90 dark:border-slate-700/70 backdrop-blur-md transition-all active:scale-95 group cursor-pointer hover:shadow-2xl animate-fadeIn"
+              className="shrink-0 flex items-center gap-2 bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-800 dark:text-slate-200 px-3 md:px-4 py-2 rounded-full font-bold text-xs shadow-xl border border-slate-200/90 dark:border-slate-700/70 backdrop-blur-md transition-all active:scale-95 group cursor-pointer hover:shadow-2xl animate-fadeIn"
               title="Buka / Tampilkan Sidebar Menu"
             >
               <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
-              <span>Buka Menu Sidebar</span>
+              <span className="hidden md:inline">Buka Menu Sidebar</span>
               <PanelRightOpen className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:translate-x-0.5 transition-transform" />
             </button>
           )}
       </div>
 
       {/* Bottom Bar: Controls & Quick Action Buttons */}
-      <div className="relative z-30 flex items-center justify-between px-6 sm:px-8 pb-6 pointer-events-auto">
+      <div className="relative z-30 flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-end sm:justify-between px-3 sm:px-6 lg:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-6 pointer-events-auto">
         {/* MAGMA legend — bottom-left, directly above the zoom controls (only while MAGMA is ON) */}
         {showMagma && (
           <div
-            className="absolute left-6 sm:left-8 bottom-full mb-2 w-56 rounded-2xl border border-slate-200/90 dark:border-slate-700/70 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md p-3 shadow-lg text-[11px] text-slate-700 dark:text-slate-200 animate-fadeIn"
+            className="absolute left-3 sm:left-6 lg:left-8 bottom-full mb-2 w-48 sm:w-56 max-h-[45vh] overflow-y-auto rounded-2xl border border-slate-200/90 dark:border-slate-700/70 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md p-3 shadow-lg text-[11px] text-slate-700 dark:text-slate-200 animate-fadeIn"
             data-purpose="magma-legend"
             role="region"
             aria-label="Legenda MAGMA"
@@ -2227,10 +2227,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
         {/* Bottom Action Pill: Detail Bencana, Rute Distribusi, Laporan Warga & AI Helpdesk */}
         {!isExpanded && (
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2.5">
             <button
               onClick={onToggleDetail || onExpandView}
-              className={`flex items-center gap-1.5 sm:gap-2 px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
                 isDetailOpen
                   ? 'bg-amber-500 text-white border-amber-400 ring-2 ring-amber-400/40 shadow-amber-500/30'
                   : 'bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-900 dark:text-white border-slate-200/90 dark:border-slate-700/70'
@@ -2242,7 +2242,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   isDetailOpen ? 'text-white fill-white' : 'text-amber-500 fill-amber-500'
                 }`}
               />
-              <span>Detail Bencana</span>
+              <span className="hidden md:inline">Detail Bencana</span>
               {isDetailOpen && (
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
               )}
@@ -2250,7 +2250,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
             <button
               onClick={onToggleRoute}
-              className={`flex items-center gap-1.5 sm:gap-2 px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
                 isRouteOpen
                   ? 'bg-orange-500 text-white border-orange-400 ring-2 ring-orange-400/40 shadow-orange-500/30'
                   : 'bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-900 dark:text-white border-slate-200/90 dark:border-slate-700/70'
@@ -2260,7 +2260,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               <Compass
                 className={`w-4 h-4 ${isRouteOpen ? 'text-white' : 'text-orange-500'}`}
               />
-              <span>Rute Distribusi</span>
+              <span className="hidden md:inline">Rute Distribusi</span>
               {isRouteOpen && (
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
               )}
@@ -2268,7 +2268,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
             <button
               onClick={onToggleReports}
-              className={`flex items-center gap-1.5 sm:gap-2 px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
                 isReportsOpen
                   ? 'bg-emerald-600 text-white border-emerald-500 ring-2 ring-emerald-500/40 shadow-emerald-600/30'
                   : 'bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-900 dark:text-white border-slate-200/90 dark:border-slate-700/70'
@@ -2278,7 +2278,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               <Camera
                 className={`w-4 h-4 ${isReportsOpen ? 'text-white' : 'text-emerald-500'}`}
               />
-              <span>Laporan Warga</span>
+              <span className="hidden md:inline">Laporan Warga</span>
               {isReportsOpen && (
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
               )}
@@ -2286,10 +2286,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
             <button
               onClick={onOpenAIHelpdesk}
-              className="flex items-center gap-1.5 sm:gap-2 px-4 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white shadow-lg transition-all active:scale-95 text-xs font-bold cursor-pointer border border-white/10"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white shadow-lg transition-all active:scale-95 text-xs font-bold cursor-pointer border border-white/10"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>AI Helpdesk & Lapor</span>
+              <span><span className="md:hidden">AI Lapor</span><span className="hidden md:inline">AI Helpdesk & Lapor</span></span>
             </button>
           </div>
         )}

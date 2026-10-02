@@ -122,3 +122,20 @@
 .bmkg-popup .leaflet-popup-content {
   margin-right: 30px;
 }
+
+/* Swipeable rows (map layer toggles on phones/tablets) without a visible scrollbar */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Leaflet popups never wider than the screen on phones */
+@media (max-width: 640px) {
+  .leaflet-popup-content {
+    max-width: calc(100vw - 4rem) !important;
+  }
+}

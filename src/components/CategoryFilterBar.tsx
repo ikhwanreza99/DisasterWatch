@@ -15,13 +15,13 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
 }) => {
   return (
     <div
-      className="absolute left-6 top-24 z-30 flex flex-col gap-2.5 p-2 bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-700/70 shadow-xl pointer-events-auto select-none transition-colors duration-300"
+      className="absolute left-3 sm:left-6 top-[6.5rem] sm:top-24 z-30 flex flex-col gap-1.5 sm:gap-2.5 p-1.5 sm:p-2 bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-700/70 shadow-xl pointer-events-auto select-none transition-colors duration-300"
       data-purpose="category-filter-bar"
     >
       {/* All */}
       <button
         onClick={() => onSelectCategory('all')}
-        className={`cat-filter-btn group relative w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-xs ${
+        className={`cat-filter-btn group relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-xs ${
           activeCategory === 'all'
             ? 'bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950 font-bold shadow-md'
             : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/50'
@@ -37,7 +37,7 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
       {/* Fire */}
       <button
         onClick={() => onSelectCategory('fire')}
-        className={`cat-filter-btn group relative w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-xs ${
+        className={`cat-filter-btn group relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-xs ${
           activeCategory === 'fire'
             ? 'bg-amber-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-amber-400'
             : 'bg-slate-50 hover:bg-orange-50 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 hover:text-orange-500 dark:text-slate-300 dark:hover:text-amber-400 border border-slate-200/80 dark:border-slate-700/50'
@@ -53,7 +53,7 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
       {/* Flood */}
       <button
         onClick={() => onSelectCategory('flood')}
-        className={`cat-filter-btn group relative w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-xs ${
+        className={`cat-filter-btn group relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-xs ${
           activeCategory === 'flood'
             ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-400'
             : 'bg-slate-50 hover:bg-blue-50 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 hover:text-blue-500 dark:text-slate-300 dark:hover:text-blue-400 border border-slate-200/80 dark:border-slate-700/50'
@@ -69,7 +69,7 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
       {/* Earthquake */}
       <button
         onClick={() => onSelectCategory('earthquake')}
-        className={`cat-filter-btn group relative w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-xs ${
+        className={`cat-filter-btn group relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-xs ${
           activeCategory === 'earthquake'
             ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/30 ring-2 ring-rose-400'
             : 'bg-slate-50 hover:bg-rose-50 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 hover:text-rose-500 dark:text-slate-300 dark:hover:text-rose-400 border border-slate-200/80 dark:border-slate-700/50'

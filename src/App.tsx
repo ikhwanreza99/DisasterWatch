@@ -263,7 +263,7 @@ export default function App() {
 
   return (
     <div
-      className={`w-screen h-screen overflow-hidden flex flex-col transition-colors duration-300 ${
+      className={`w-screen h-screen h-[100dvh] overflow-hidden flex flex-col transition-colors duration-300 ${
         isDarkMode ? 'bg-[#070d18] text-slate-100 dark' : 'bg-white text-slate-800'
       }`}
       data-purpose="app-container"
