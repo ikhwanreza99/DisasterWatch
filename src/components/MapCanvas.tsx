@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   APIProvider,
   Map,
@@ -1118,6 +1119,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const [showLayerSelector, setShowLayerSelector] = useState(false);
   const [showLayerPanel, setShowLayerPanel] = useState(false);
   const [mapTypeMenuPos, setMapTypeMenuPos] = useState<{ top: number; left: number } | null>(null);
+  // Popover menus are portalled out of the horizontally scrolling toggle row: on iOS Safari a
+  // scrolling container clips even position:fixed children. The app container keeps `.dark`.
+  const overlayHost =
+    typeof document !== 'undefined'
+      ? document.querySelector<HTMLElement>('[data-purpose="app-container"]') ?? document.body
+      : null;
   // The toggle row scrolls horizontally (overflow clips absolute children), so the panel is
   // position:fixed and anchored to the clicked button's on-screen rect.
   const [layerPanelPos, setLayerPanelPos] = useState<{ top: number; left: number } | null>(null);
@@ -2033,7 +2040,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               <span>Layer</span>
               <span className="min-w-4 h-4 px-1 rounded-full bg-orange-500 text-white text-[9px] leading-4 text-center">{activeLayerChips.length}</span>
             </button>
-            {showLayerPanel && (
+            {showLayerPanel &&
+              overlayHost &&
+              createPortal(
               <>
                 {/* click-away backdrop */}
                 <button
@@ -2211,7 +2220,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   </button>
                 </div>
                 </div>
-              </>
+              </>,
+              overlayHost,
             )}
           </div>
           {/* Active layers summary (tap to open the panel) */}
@@ -2257,7 +2267,16 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               </span>
             </button>
 
-            {showLayerSelector && (
+            {showLayerSelector &&
+              overlayHost &&
+              createPortal(
+              <>
+              <button
+                type="button"
+                aria-label="Tutup menu peta"
+                className="fixed inset-0 z-40 cursor-default bg-transparent"
+                onClick={() => setShowLayerSelector(false)}
+              />
               <div
                 style={mapTypeMenuPos ? { top: mapTypeMenuPos.top, left: mapTypeMenuPos.left } : undefined}
                 className="fixed w-56 max-h-[60vh] overflow-y-auto bg-white dark:bg-[#0b1329] border border-slate-200 dark:border-slate-700 rounded-2xl p-2 shadow-2xl z-50 animate-fadeIn">
@@ -2378,6 +2397,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   )}
                 </button>
               </div>
+              </>,
+              overlayHost,
             )}
           </div>
 

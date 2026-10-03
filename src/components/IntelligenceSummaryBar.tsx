@@ -51,7 +51,8 @@ export const IntelligenceSummaryBar: React.FC<Props> = ({ disasters, reports, ai
   ];
 
   return (
-    <div className="px-4 sm:px-6 pt-1.5 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap" data-purpose="intel-summary">
+    // Hidden on very short screens (phone landscape) so the map keeps enough height.
+    <div className="px-4 sm:px-6 pt-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar whitespace-nowrap [@media(max-height:480px)]:hidden" data-purpose="intel-summary">
       {items.map((it) => (
         <div
           key={it.label}
