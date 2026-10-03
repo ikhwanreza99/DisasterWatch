@@ -2,11 +2,27 @@ export type DisasterCategory = 'fire' | 'flood' | 'earthquake';
 
 export interface DisasterCheckpoint {
   id: number;
-  title: string;
-  subtitle: string;
-  tag: string;
-  tagClass: string;
-  badgeColor: string;
+
+  // Posko bantuan fields
+  name?: string;
+  location?: string;
+  capacity?: {
+    used: number;
+    total: number;
+  };
+  capacityStatus?: 'Tersedia' | 'Padat' | 'Hampir Penuh' | 'Penuh' | 'Belum Ada Data';
+  aid?: {
+    name: string;
+    quantity: string;
+  }[];
+  googleMapsUrl?: string;
+
+  // Legacy route fields kept optional so existing disaster data remains compatible.
+  title?: string;
+  subtitle?: string;
+  tag?: string;
+  tagClass?: string;
+  badgeColor?: string;
   lat?: number;
   lng?: number;
 }
@@ -42,6 +58,12 @@ export interface DisasterGuide {
   evacRoute: string;
 }
 
+export interface RecoveryService {
+  type: 'water' | 'electricity' | 'access' | 'telecommunication';
+  recovery: number;
+  status: 'Terganggu' | 'Dalam Pemulihan' | 'Hampir Pulih' | 'Pulih';
+}
+
 export interface DisasterIncident {
   id: string;
   category: DisasterCategory;
@@ -55,6 +77,7 @@ export interface DisasterIncident {
   cost: string;
   gapRecovery: string;
   recoveryPct: number;
+  recoveryServices: RecoveryService[];
   coords: { top?: string; left?: string; lat: number; lng: number };
   timestamp: string;
   photoUrl: string;
@@ -79,3 +102,4 @@ export interface DisasterIncident {
   };
   reports: CitizenReport[];
 }
+

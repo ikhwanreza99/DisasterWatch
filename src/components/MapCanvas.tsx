@@ -4,7 +4,6 @@ import {
   Map,
   AdvancedMarker,
   Circle,
-  Polyline,
   useMap,
 } from '@vis.gl/react-google-maps';
 import L from 'leaflet';
@@ -175,7 +174,7 @@ const GoogleMapCameraController: React.FC<{
   }, [map, activeDisaster?.id]);
 
   useEffect(() => {
-    if (!map || !isRouteOpen || routePoints.length < 2) return;
+    if (!map || !isRouteOpen || routePoints.length < 1) return;
     const bounds = new google.maps.LatLngBounds();
     routePoints.forEach((pt) => bounds.extend(pt));
     map.fitBounds(bounds, { top: 90, bottom: 90, left: 90, right: 90 });
@@ -554,7 +553,8 @@ const OSMMapRenderer: React.FC<{
       circleRef.current = null;
     }
 
-    Object.values(disasters).forEach((incident) => {
+    if (!isRouteOpen) {
+      Object.values(disasters).forEach((incident) => {
       const isVisible = activeCategory === 'all' || incident.category === activeCategory;
       if (!isVisible) return;
       const { lat, lng } = incident.coords;
@@ -714,10 +714,11 @@ const OSMMapRenderer: React.FC<{
           dashArray: '6, 8',
         }).addTo(map);
       }
-    });
+      });
+    }
 
     updatePos();
-  }, [disasters, activeCategory, activeDisasterKey, onSelectDisaster, updatePos]);
+  }, [disasters, activeCategory, activeDisasterKey, onSelectDisaster, updatePos, isRouteOpen]);
 
   // Route drawing
   useEffect(() => {
@@ -741,7 +742,7 @@ const OSMMapRenderer: React.FC<{
 
       const cpMarker = L.marker([lat, lng], {
         icon: L.divIcon({
-          html: `<div class="flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2"><div class="w-6 h-6 rounded-full bg-slate-900 border-2 border-orange-400 text-orange-300 font-black text-[10px] flex items-center justify-center shadow-lg">${idx + 1}</div></div>`,
+          html: `<div class="flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2"><div class="w-6 h-6 rounded-full bg-slate-900 border-2 border-cyan-400 text-cyan-200 font-black text-[10px] flex items-center justify-center shadow-lg">${idx + 1}</div></div>`,
           iconSize: [24, 24],
           iconAnchor: [12, 12],
         }),
@@ -750,9 +751,7 @@ const OSMMapRenderer: React.FC<{
       rGroup.addLayer(cpMarker);
     });
 
-    if (pts.length >= 2) {
-      rGroup.addLayer(L.polyline(pts, { color: '#ea580c', weight: 8, opacity: 0.35 }));
-      rGroup.addLayer(L.polyline(pts, { color: '#f97316', weight: 3.5, opacity: 0.95, dashArray: '8, 8' }));
+    if (pts.length >= 1) {
       map.fitBounds(L.latLngBounds(pts), { padding: [90, 90], animate: true, duration: 1.0 });
     }
   }, [isRouteOpen, activeData]);
@@ -760,7 +759,8 @@ const OSMMapRenderer: React.FC<{
   return (
     <>
       <div ref={containerRef} className="w-full h-full absolute inset-0 z-0" />
-      {calloutPos &&
+      {!isRouteOpen &&
+        calloutPos &&
         activeData &&
         (activeCategory === 'all' || activeData.category === activeCategory) && (
           <DisasterCallout
@@ -971,7 +971,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               />
 
               {/* Hazard Impact Perimeter */}
-              {activeData &&
+              {!isRouteOpen &&
+                activeData &&
                 (activeCategory === 'all' || activeData.category === activeCategory) && (
                   <Circle
                     center={{
@@ -999,25 +1000,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   />
                 )}
 
-              {/* Evacuation / Distribution Route Polyline */}
-              {isRouteOpen && googleRoutePoints.length >= 2 && (
+              {/* Aid-post markers: no route line in Posko Bantuan mode */}
+              {isRouteOpen && googleRoutePoints.length >= 1 && (
                 <>
-                  <Polyline
-                    path={googleRoutePoints}
-                    strokeColor="#ea580c"
-                    strokeOpacity={0.4}
-                    strokeWeight={8}
-                  />
-                  <Polyline
-                    path={googleRoutePoints}
-                    strokeColor="#f97316"
-                    strokeOpacity={0.95}
-                    strokeWeight={4}
-                  />
                   {googleRoutePoints.map((pt, idx) => (
                     <AdvancedMarker key={`gcp-${idx}`} position={pt} zIndex={500}>
                       <div className="flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 cursor-pointer">
-                        <div className="w-6 h-6 rounded-full bg-slate-900 border-2 border-orange-400 text-orange-300 font-black text-[10px] flex items-center justify-center shadow-xl">
+                        <div className="w-7 h-7 rounded-full bg-slate-900/95 border-2 border-cyan-400 text-cyan-200 font-black text-[10px] flex items-center justify-center shadow-[0_0_18px_rgba(34,211,238,0.28)] backdrop-blur-md">
                           {idx + 1}
                         </div>
                       </div>
@@ -1027,7 +1016,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               )}
 
               {/* Disaster Incident Advanced Markers */}
-              {Object.values(disasters).map((incident) => {
+              {!isRouteOpen && Object.values(disasters).map((incident) => {
                 const isVisible =
                   activeCategory === 'all' || incident.category === activeCategory;
                 if (!isVisible) return null;
