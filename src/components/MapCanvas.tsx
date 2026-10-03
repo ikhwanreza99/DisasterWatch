@@ -12,17 +12,15 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  Zap,
-  Compass,
-  Camera,
-  PanelRightOpen,
-  Layers,
   MapPin,
   AlertTriangle,
   Copy,
   Check,
   ExternalLink,
   RefreshCw,
+  Waves,
+  Flame,
+  Mountain,
 } from 'lucide-react';
 import { DisasterIncident, DisasterCategory } from '../types';
 
@@ -46,6 +44,7 @@ interface MapCanvasProps {
   isReportsOpen?: boolean;
   onToggleReports?: () => void;
   onOpenReports?: () => void;
+  onOpenSidebar?: () => void;
 }
 
 type MapEngine = 'google' | 'osm';
@@ -197,6 +196,213 @@ const GoogleMapCameraController: React.FC<{
   return null;
 };
 
+const DisasterCallout: React.FC<{
+  incident: DisasterIncident;
+  className?: string;
+  style?: React.CSSProperties;
+}> = ({ incident, className = '', style }) => {
+  return (
+    <div
+      id="activeCallout"
+      style={{
+        ...style,
+        background:
+          'linear-gradient(135deg, rgba(15, 35, 64, 0.72) 0%, rgba(18, 46, 82, 0.62) 55%, rgba(11, 30, 55, 0.70) 100%)',
+        backdropFilter: 'blur(20px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+        boxShadow:
+          '0 16px 40px rgba(2, 12, 27, 0.25), inset 0 1px 0 rgba(255,255,255,0.14)',
+      }}
+      className={`
+        pointer-events-auto
+        z-40
+        min-w-[300px]
+        rounded-2xl
+        p-4
+        border border-white/20
+        text-white
+        animate-fadeIn
+        overflow-visible
+        ${className}
+      `}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Glass highlight */}
+      <div
+        className="
+          pointer-events-none
+          absolute inset-[1px]
+          rounded-[15px]
+          bg-gradient-to-br
+          from-white/[0.08]
+          via-white/[0.02]
+          to-transparent
+        "
+      />
+
+      <div className="relative z-10">
+        {/* Location */}
+        <div className="flex items-start justify-between gap-4">
+          <span className="text-sm font-bold text-white tracking-tight leading-snug">
+            {incident.name}
+          </span>
+
+          <span className="shrink-0 text-[10px] text-cyan-300/90 font-mono font-medium">
+            {incident.coords.lat.toFixed(2)}°, {incident.coords.lng.toFixed(2)}°
+          </span>
+        </div>
+
+        {/* Province */}
+        <div className="mt-1 text-[11px] text-slate-300/90">
+          {incident.province}
+        </div>
+
+        {/* Disaster + urgency */}
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="text-xs font-semibold text-amber-300">
+            {incident.fullName}
+          </span>
+
+          <span
+            className="
+              shrink-0
+              inline-flex items-center
+              px-2.5 py-1
+              rounded-full
+              text-[10px] font-bold
+              bg-rose-500/20
+              text-rose-200
+              border border-rose-400/35
+            "
+          >
+            {incident.urgency}
+          </span>
+        </div>
+
+        {/* Divider */}
+        <div className="my-3 h-px bg-gradient-to-r from-white/20 via-white/10 to-transparent" />
+
+        {/* Timestamp */}
+        <div className="flex items-center gap-2 text-[10px] font-medium text-slate-300">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.65)]" />
+          <span>{incident.timestamp}</span>
+        </div>
+      </div>
+
+      {/* Pointer */}
+      <div
+        className="
+          absolute
+          -bottom-[7px]
+          left-1/2
+          -translate-x-1/2
+          w-3.5 h-3.5
+          rotate-45
+          border-r border-b border-white/20
+        "
+        style={{
+          background: 'rgba(15, 35, 64, 0.70)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      />
+    </div>
+  );
+};
+
+const DisasterMarker: React.FC<{
+  category: DisasterIncident['category'];
+  isSelected?: boolean;
+}> = ({ category, isSelected = false }) => {
+  const config = {
+    flood: {
+      Icon: Waves,
+      accent: 'text-sky-300',
+      background: 'bg-sky-500',
+      ring: 'border-sky-400',
+      glow: 'shadow-[0_0_18px_rgba(56,189,248,0.45)]',
+    },
+    fire: {
+      Icon: Flame,
+      accent: 'text-orange-200',
+      background: 'bg-orange-500',
+      ring: 'border-orange-400',
+      glow: 'shadow-[0_0_18px_rgba(251,146,60,0.45)]',
+    },
+    earthquake: {
+      Icon: Mountain,
+      accent: 'text-rose-200',
+      background: 'bg-rose-500',
+      ring: 'border-rose-400',
+      glow: 'shadow-[0_0_18px_rgba(251,113,133,0.45)]',
+    },
+  };
+
+  const current =
+    config[category as keyof typeof config] ?? config.earthquake;
+
+  const Icon = current.Icon;
+
+  return (
+    <div className="relative flex items-center justify-center">
+      {isSelected && (
+        <>
+          <span
+            className={`
+              absolute
+              h-11 w-11
+              rounded-full
+              border
+              ${current.ring}
+              opacity-30
+              animate-ping
+            `}
+          />
+
+          <span
+            className={`
+              absolute
+              h-10 w-10
+              rounded-full
+              border
+              ${current.ring}
+              bg-slate-950/20
+              backdrop-blur-md
+            `}
+          />
+        </>
+      )}
+
+      <div
+        className={`
+          relative
+          z-10
+          flex items-center justify-center
+          rounded-full
+          border-2 border-white/80
+          ${current.background}
+          ${current.glow}
+          transition-all duration-200
+          ${
+            isSelected
+              ? 'h-8 w-8 scale-110'
+              : 'h-7 w-7 hover:scale-110'
+          }
+        `}
+      >
+        <Icon
+          className={`
+            ${isSelected ? 'h-4 w-4' : 'h-3.5 w-3.5'}
+            ${current.accent}
+          `}
+          strokeWidth={2.5}
+        />
+      </div>
+    </div>
+  );
+};
+
+
 // OpenStreetMap Component
 const OSMMapRenderer: React.FC<{
   disasters: Record<string, DisasterIncident>;
@@ -230,6 +436,7 @@ const OSMMapRenderer: React.FC<{
   onToggleRoute,
   onOpenReports,
   onToggleReports,
+  
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -354,30 +561,140 @@ const OSMMapRenderer: React.FC<{
       if (typeof lat !== 'number' || typeof lng !== 'number') return;
 
       const isSelected = incident.id === activeDisasterKey;
-      let categoryBg = 'bg-rose-600';
-      let icon = '🌋';
-      if (incident.category === 'flood') {
-        categoryBg = 'bg-sky-500';
-        icon = '🌊';
-      } else if (incident.category === 'fire') {
-        categoryBg = 'bg-amber-500';
-        icon = '🔥';
-      }
 
-      const html = isSelected
-        ? `<div class="relative flex items-center justify-center cursor-pointer transform -translate-x-1/2 -translate-y-1/2">
-            <span class="w-10 h-10 rounded-full bg-amber-400/30 border-2 border-amber-400 flex items-center justify-center pulse-selected">
-              <span class="w-7 h-7 rounded-full bg-amber-500 border-2 border-slate-900 shadow-2xl flex items-center justify-center text-white font-bold text-xs">${icon}</span>
-            </span>
-            <span class="absolute -bottom-6 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-900/90 text-amber-300 border border-amber-400/40 shadow-md whitespace-nowrap pointer-events-none">${incident.name.split(',')[0]}</span>
-          </div>`
-        : `<div class="relative flex items-center justify-center cursor-pointer group transform -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform">
-            <span class="w-7 h-7 rounded-full ${categoryBg} border-2 border-white dark:border-slate-900 shadow-lg flex items-center justify-center text-white text-[11px] group-hover:ring-4 group-hover:ring-white/30 transition-all">${icon}</span>
-            <span class="opacity-0 group-hover:opacity-100 absolute -bottom-6 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-900/90 text-white border border-white/20 shadow-md whitespace-nowrap pointer-events-none transition-opacity">${incident.name.split(',')[0]}</span>
-          </div>`;
+      const markerConfig = {
+        flood: {
+          bg: '#0ea5e9',
+          stroke: '#7dd3fc',
+          icon: `
+            <svg viewBox="0 0 24 24" width="14" height="14"
+              fill="none" stroke="white" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 12c2.5 2 5 2 7.5 0s5-2 7.5 0 5 2 7 0"/>
+              <path d="M2 17c2.5 2 5 2 7.5 0s5-2 7.5 0 5 2 7 0"/>
+            </svg>
+          `,
+        },
+
+        fire: {
+          bg: '#f97316',
+          stroke: '#fdba74',
+          icon: `
+            <svg viewBox="0 0 24 24" width="14" height="14"
+              fill="none" stroke="white" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22c4 0 7-3 7-7
+                0-3-2-5-4-7
+                0 2-1 3-2 4
+                0-4-2-7-5-10
+                0 5-3 7-3 12
+                0 4 3 8 7 8z"/>
+            </svg>
+          `,
+        },
+
+        earthquake: {
+          bg: '#f43f5e',
+          stroke: '#fda4af',
+          icon: `
+            <svg viewBox="0 0 24 24" width="14" height="14"
+              fill="none" stroke="white" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 20l6-10 4 6 2-3 6 7H3z"/>
+            </svg>
+          `,
+        },
+      };
+
+      const marker =
+        markerConfig[
+          incident.category as keyof typeof markerConfig
+        ] ?? markerConfig.earthquake;
+
+      const html = `
+        <div
+          style="
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            width: 44px;
+            height: 44px;
+          "
+        >
+          ${
+            isSelected
+              ? `
+                <span
+                  style="
+                    position: absolute;
+                    width: 42px;
+                    height: 42px;
+                    border-radius: 9999px;
+                    border: 1px solid ${marker.stroke};
+                    background: ${marker.bg}22;
+                    box-shadow: 0 0 20px ${marker.bg}55;
+                  "
+                ></span>
+              `
+              : ''
+          }
+
+          <span
+            style="
+              position: relative;
+              z-index: 2;
+              width: ${isSelected ? '32px' : '28px'};
+              height: ${isSelected ? '32px' : '28px'};
+              border-radius: 9999px;
+              background: ${marker.bg};
+              border: 2px solid rgba(255,255,255,0.85);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 0 18px ${marker.bg}70;
+              transition: transform 180ms ease;
+            "
+          >
+            ${marker.icon}
+          </span>
+
+          ${
+            isSelected
+              ? `
+                <span
+                  style="
+                    position: absolute;
+                    top: 48px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    white-space: nowrap;
+                    padding: 4px 10px;
+                    border-radius: 9999px;
+                    background: rgba(2, 6, 23, 0.78);
+                    border: 1px solid rgba(255,255,255,0.15);
+                    color: white;
+                    font-size: 10px;
+                    font-weight: 700;
+                    backdrop-filter: blur(12px);
+                  "
+                >
+                  ${incident.name.split(',')[0]}
+                </span>
+              `
+              : ''
+          }
+        </div>
+      `;
 
       const m = L.marker([lat, lng], {
-        icon: L.divIcon({ html, className: 'disaster-osm-marker', iconSize: [32, 32], iconAnchor: [16, 16] }),
+        icon: L.divIcon({
+          html,
+          className: 'disaster-osm-marker',
+          iconSize: [44, 44],
+          iconAnchor: [22, 22],
+        }),
         zIndexOffset: isSelected ? 1000 : 100,
       });
 
@@ -443,72 +760,19 @@ const OSMMapRenderer: React.FC<{
   return (
     <>
       <div ref={containerRef} className="w-full h-full absolute inset-0 z-0" />
-      {calloutPos && activeData && (activeCategory === 'all' || activeData.category === activeCategory) && (
-        <div
-          id="activeCallout"
-          style={{
-            left: `${calloutPos.x}px`,
-            top: `${calloutPos.y}px`,
-            transform: 'translate(-50%, -125%)',
-          }}
-          className="pointer-events-auto absolute z-40 min-w-[280px] map-glass-callout rounded-2xl p-3.5 shadow-2xl border border-white/20 text-white animate-fadeIn"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="text-sm font-bold text-white tracking-tight leading-snug mb-0.5 flex items-center justify-between">
-            <span className="truncate pr-2">{activeData.name}</span>
-            <span className="text-[10px] text-cyan-300 font-mono font-medium">
-              {activeData.coords.lat.toFixed(2)}°, {activeData.coords.lng.toFixed(2)}°
-            </span>
-          </div>
-          <div className="text-[11px] text-slate-300 mb-1.5">{activeData.province}</div>
-          <div className="flex items-center justify-between text-xs font-medium mb-2">
-            <span className="text-amber-300 font-semibold">{activeData.fullName}</span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/25 text-rose-300 border border-rose-500/40 shadow-xs">
-              {activeData.urgency}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-2.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-            <span>{activeData.timestamp}</span>
-          </div>
-          <div className="pt-2 border-t border-white/15 flex items-center gap-1.5">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenDetail) onOpenDetail();
-                else onExpandView();
-              }}
-              className="flex-1 py-1.5 px-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              <Zap className="w-3 h-3 text-white fill-white" />
-              <span>Detail</span>
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenRoute) onOpenRoute();
-                else if (onToggleRoute) onToggleRoute();
-              }}
-              className="flex-1 py-1.5 px-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              <Compass className="w-3 h-3" />
-              <span>Rute</span>
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenReports) onOpenReports();
-                else if (onToggleReports) onToggleReports();
-              }}
-              className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              <Camera className="w-3 h-3" />
-              <span>Laporan</span>
-            </button>
-          </div>
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 map-glass-callout border-b border-r border-white/20 transform rotate-45"></div>
-        </div>
-      )}
+      {calloutPos &&
+        activeData &&
+        (activeCategory === 'all' || activeData.category === activeCategory) && (
+          <DisasterCallout
+            incident={activeData}
+            className="absolute"
+            style={{
+              left: `${calloutPos.x}px`,
+              top: `${calloutPos.y}px`,
+              transform: 'translate(-50%, -125%)',
+            }}
+          />
+        )}
     </>
   );
 };
@@ -533,6 +797,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   isReportsOpen = false,
   onToggleReports,
   onOpenReports,
+  onOpenSidebar,
 }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
@@ -540,8 +805,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const [mapEngine, setMapEngine] = useState<MapEngine>(apiKey ? 'google' : 'osm');
   const [googleMapType, setGoogleMapType] = useState<GoogleMapType>('roadmap');
   const [osmTileType, setOsmTileType] = useState<OSMTileType>('osm-standard');
-  const [showLayerSelector, setShowLayerSelector] = useState(false);
-  const [currentZoom, setCurrentZoom] = useState(5);
   const [zoomTrigger, setZoomTrigger] = useState<{
     action: 'in' | 'out' | 'reset';
     id: number;
@@ -605,9 +868,18 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     setZoomTrigger({ action, id: Date.now() });
   };
 
-  const handleZoomChange = useCallback((zoom: number) => {
-    setCurrentZoom(zoom);
+  const handleZoomChange = useCallback((_zoom: number) => {
+  // Reserved for future zoom-dependent UI
   }, []);
+
+  const handleSelectDisaster = useCallback(
+                  (id: string) => {
+                    onSelectDisaster(id);
+                    onOpenSidebar?.();
+                  },
+                  [onSelectDisaster, onOpenSidebar]
+                );
+
 
   return (
     <section
@@ -763,109 +1035,49 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 if (typeof lat !== 'number' || typeof lng !== 'number') return null;
 
                 const isSelected = incident.id === activeDisasterKey;
-                let categoryBg = 'bg-rose-600';
-                let categoryIcon = '🌋';
-                if (incident.category === 'flood') {
-                  categoryBg = 'bg-sky-500';
-                  categoryIcon = '🌊';
-                } else if (incident.category === 'fire') {
-                  categoryBg = 'bg-amber-500';
-                  categoryIcon = '🔥';
-                }
-
+          
                 return (
                   <AdvancedMarker
                     key={incident.id}
                     position={{ lat, lng }}
                     zIndex={isSelected ? 9999 : 20}
-                    onClick={() => onSelectDisaster(incident.id)}
+                    onClick={() => handleSelectDisaster(incident.id)}
                   >
                     <div className="relative flex items-center justify-center">
+
                       {isSelected && (
-                        <div
-                          id="activeCallout"
-                          className="pointer-events-auto absolute bottom-12 left-1/2 -translate-x-1/2 z-50 min-w-[280px] map-glass-callout rounded-2xl p-3.5 shadow-2xl border border-white/20 text-white animate-fadeIn"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="text-sm font-bold text-white tracking-tight leading-snug mb-0.5 flex items-center justify-between">
-                            <span className="truncate pr-2">{incident.name}</span>
-                            <span className="text-[10px] text-cyan-300 font-mono font-medium">
-                              {incident.coords.lat.toFixed(2)}°, {incident.coords.lng.toFixed(2)}°
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-slate-300 mb-1.5">{incident.province}</div>
-                          <div className="flex items-center justify-between text-xs font-medium mb-2">
-                            <span className="text-amber-300 font-semibold">{incident.fullName}</span>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/25 text-rose-300 border border-rose-500/40 shadow-xs">
-                              {incident.urgency}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300 mb-2.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                            <span>{incident.timestamp}</span>
-                          </div>
-                          <div className="pt-2 border-t border-white/15 flex items-center gap-1.5">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (onOpenDetail) onOpenDetail();
-                                else onExpandView();
-                              }}
-                              className="flex-1 py-1.5 px-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                            >
-                              <Zap className="w-3 h-3 text-white fill-white" />
-                              <span>Detail</span>
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (onOpenRoute) onOpenRoute();
-                                else if (onToggleRoute) onToggleRoute();
-                              }}
-                              className="flex-1 py-1.5 px-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                            >
-                              <Compass className="w-3 h-3" />
-                              <span>Rute</span>
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (onOpenReports) onOpenReports();
-                                else if (onToggleReports) onToggleReports();
-                              }}
-                              className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                            >
-                              <Camera className="w-3 h-3" />
-                              <span>Laporan</span>
-                            </button>
-                          </div>
-                          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 map-glass-callout border-b border-r border-white/20 transform rotate-45"></div>
-                        </div>
+                        <DisasterCallout
+                          incident={incident}
+                          className="absolute bottom-12 left-1/2 -translate-x-1/2 z-50"
+                        />
                       )}
 
-                      {isSelected ? (
-                        <div className="relative flex items-center justify-center cursor-pointer">
-                          <span className="w-10 h-10 rounded-full bg-amber-400/30 border-2 border-amber-400 flex items-center justify-center pulse-selected">
-                            <span className="w-7 h-7 rounded-full bg-amber-500 border-2 border-slate-900 shadow-2xl flex items-center justify-center text-white font-bold text-xs">
-                              {categoryIcon}
-                            </span>
-                          </span>
-                          <span className="absolute -bottom-6 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-900/90 text-amber-300 border border-amber-400/40 shadow-md whitespace-nowrap pointer-events-none">
-                            {incident.name.split(',')[0]}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="relative flex items-center justify-center cursor-pointer group hover:scale-110 transition-transform">
-                          <span
-                            className={`w-7 h-7 rounded-full ${categoryBg} border-2 border-white dark:border-slate-900 shadow-lg flex items-center justify-center text-white text-[11px] group-hover:ring-4 group-hover:ring-white/30 transition-all`}
-                          >
-                            {categoryIcon}
-                          </span>
-                          <span className="opacity-0 group-hover:opacity-100 absolute -bottom-6 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-900/90 text-white border border-white/20 shadow-md whitespace-nowrap pointer-events-none transition-opacity">
-                            {incident.name.split(',')[0]}
-                          </span>
-                        </div>
+                      <DisasterMarker
+                        category={incident.category}
+                        isSelected={isSelected}
+                      />
+
+                      {isSelected && (
+                        <span
+                          className="
+                            absolute
+                            top-full mt-2
+                            whitespace-nowrap
+                            rounded-full
+                            border border-white/15
+                            bg-slate-950/75
+                            px-2.5 py-1
+                            text-[10px] font-bold
+                            text-white
+                            shadow-lg
+                            backdrop-blur-md
+                            pointer-events-none
+                          "
+                        >
+                          {incident.name.split(',')[0]}
+                        </span>
                       )}
+
                     </div>
                   </AdvancedMarker>
                 );
@@ -876,7 +1088,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           <OSMMapRenderer
             disasters={disasters}
             activeDisasterKey={activeDisasterKey}
-            onSelectDisaster={onSelectDisaster}
+            onSelectDisaster={handleSelectDisaster}
             activeCategory={activeCategory}
             isDarkMode={isDarkMode}
             tileType={osmTileType}
@@ -893,307 +1105,82 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         )}
       </div>
 
-      {/* Top Left Header Overlay: Active Engine Pill & Layer Switcher */}
-      <div className="relative z-30 pt-4 px-6 pointer-events-auto flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {/* Active Engine Indicator Pill */}
-          <div className="flex items-center gap-2 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-200/90 dark:border-slate-700/80 shadow-md">
-            <span
-              className={`w-2 h-2 rounded-full animate-pulse ${
-                mapEngine === 'google' && !hasAuthError ? 'bg-blue-500' : 'bg-emerald-500'
-              }`}
-            ></span>
-            <span className="text-[11px] font-bold text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-1.5">
-              <span>{mapEngine === 'google' && !hasAuthError ? 'Google Maps API' : 'OpenStreetMap Live'}</span>
-              <span
-                className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${
-                  mapEngine === 'google' && !hasAuthError
-                    ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20'
-                    : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                }`}
-              >
-                {mapEngine === 'google' && !hasAuthError ? 'Satelit & Vektor' : 'Peta Cadangan Aman'}
-              </span>
-            </span>
-          </div>
-
-          {/* Engine & Layer Switcher Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowLayerSelector(!showLayerSelector)}
-              className="flex items-center gap-1.5 bg-white/95 dark:bg-[#0b1329]/95 hover:bg-white text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-full text-[11px] font-semibold border border-slate-200/90 dark:border-slate-700/80 shadow-md cursor-pointer transition-all active:scale-95"
-              title="Ganti Pilihan Mesin atau Lapisan Peta"
-            >
-              <Layers className="w-3.5 h-3.5 text-blue-500" />
-              <span>
-                {mapEngine === 'google' && !hasAuthError
-                  ? googleMapType === 'roadmap'
-                    ? 'Google: Peta Jalan'
-                    : googleMapType === 'hybrid'
-                    ? 'Google: Satelit'
-                    : 'Google: Medan'
-                  : osmTileType === 'osm-standard'
-                  ? 'OSM Standar'
-                  : osmTileType === 'osm-hot'
-                  ? 'OSM Bencana (HOT)'
-                  : 'OSM Mode Gelap'}
-              </span>
-            </button>
-
-            {showLayerSelector && (
-              <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-[#0b1329] border border-slate-200 dark:border-slate-700 rounded-2xl p-2 shadow-2xl z-50 animate-fadeIn">
-                {/* Google Maps Section */}
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
-                  Google Maps Platform
-                </div>
-                <button
-                  onClick={() => {
-                    setMapEngine('google');
-                    setGoogleMapType('roadmap');
-                    setHasAuthError(false);
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'google' && googleMapType === 'roadmap' && !hasAuthError
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>Peta Jalan (Roadmap)</span>
-                  {mapEngine === 'google' && googleMapType === 'roadmap' && !hasAuthError && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setMapEngine('google');
-                    setGoogleMapType('hybrid');
-                    setHasAuthError(false);
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'google' && googleMapType === 'hybrid' && !hasAuthError
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>Satelit Citra (Hybrid)</span>
-                  {mapEngine === 'google' && googleMapType === 'hybrid' && !hasAuthError && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setMapEngine('google');
-                    setGoogleMapType('terrain');
-                    setHasAuthError(false);
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'google' && googleMapType === 'terrain' && !hasAuthError
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>Peta Medan (Terrain)</span>
-                  {mapEngine === 'google' && googleMapType === 'terrain' && !hasAuthError && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                  )}
-                </button>
-
-                <div className="h-px bg-slate-200 dark:bg-slate-700/60 my-1.5"></div>
-
-                {/* OpenStreetMap Section */}
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
-                  OpenStreetMap (Cadangan Bebas Quota)
-                </div>
-                <button
-                  onClick={() => {
-                    setMapEngine('osm');
-                    setOsmTileType('osm-standard');
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'osm' && osmTileType === 'osm-standard'
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>OSM Standar</span>
-                  {mapEngine === 'osm' && osmTileType === 'osm-standard' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setMapEngine('osm');
-                    setOsmTileType('osm-hot');
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'osm' && osmTileType === 'osm-hot'
-                      ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>OSM Bencana (HOT)</span>
-                  {mapEngine === 'osm' && osmTileType === 'osm-hot' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setMapEngine('osm');
-                    setOsmTileType('osm-dark');
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'osm' && osmTileType === 'osm-dark'
-                      ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>OSM Mode Gelap</span>
-                  {mapEngine === 'osm' && osmTileType === 'osm-dark' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Floating Restore Pill on the top right when sidebar is minimized AND NO panel is open */}
-        {isSidebarMinimized &&
-          !isExpanded &&
-          !isRouteOpen &&
-          !isDetailOpen &&
-          !isReportsOpen && (
-            <button
-              onClick={onToggleSidebar}
-              className="flex items-center gap-2 bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-800 dark:text-slate-200 px-4 py-2 rounded-full font-bold text-xs shadow-xl border border-slate-200/90 dark:border-slate-700/70 backdrop-blur-md transition-all active:scale-95 group cursor-pointer hover:shadow-2xl animate-fadeIn"
-              title="Buka / Tampilkan Sidebar Menu"
-            >
-              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
-              <span>Buka Menu Sidebar</span>
-              <PanelRightOpen className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          )}
-      </div>
-
       {/* Bottom Bar: Controls & Quick Action Buttons */}
-      <div className="relative z-30 flex items-center justify-between px-6 sm:px-8 pb-6 pointer-events-auto">
-        {/* Bottom Left Map Controls (Zoom & Scale) */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="flex items-center bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md p-1.5 rounded-full border border-slate-200/90 dark:border-slate-700/70 shadow-md gap-1">
-            <button
-              onClick={() => handleZoomAction('in')}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-xs transition-all cursor-pointer"
-              title="Perbesar Peta (+)"
+      <div className="absolute bottom-0 left-0 right-0 z-30 flex items-end justify-between px-6 sm:px-8 pb-6 pointer-events-none">
+        {/* Bottom Left Map Controls */}
+          <div className="pointer-events-auto flex flex-col gap-2">
+            {/* Zoom Controls */}
+            <div
+              className="
+                flex flex-col
+                overflow-hidden
+                rounded-xl
+                border border-white/15
+                bg-slate-950/70
+                backdrop-blur-xl
+                shadow-[0_8px_24px_rgba(0,0,0,0.24)]
+              "
             >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => handleZoomAction('out')}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-xs transition-all cursor-pointer"
-              title="Perkecil Peta (-)"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
+              <button
+                onClick={() => handleZoomAction('in')}
+                className="
+                  flex h-9 w-9
+                  items-center justify-center
+                  text-slate-200
+                  transition-colors
+                  hover:bg-white/10
+                  hover:text-white
+                  active:bg-white/15
+                "
+                title="Perbesar Peta"
+                aria-label="Perbesar peta"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+
+              <div className="mx-2 h-px bg-white/10" />
+
+              <button
+                onClick={() => handleZoomAction('out')}
+                className="
+                  flex h-9 w-9
+                  items-center justify-center
+                  text-slate-200
+                  transition-colors
+                  hover:bg-white/10
+                  hover:text-white
+                  active:bg-white/15
+                "
+                title="Perkecil Peta"
+                aria-label="Perkecil peta"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Reset Map */}
             <button
               onClick={() => handleZoomAction('reset')}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center justify-center shadow-xs transition-all text-xs font-semibold ml-0.5 cursor-pointer"
-              title="Reset Peta ke Tampilan Penuh Indonesia"
+              className="
+                flex h-9 w-9
+                items-center justify-center
+                rounded-xl
+                border border-white/15
+                bg-slate-950/70
+                text-slate-300
+                backdrop-blur-xl
+                shadow-[0_8px_24px_rgba(0,0,0,0.24)]
+                transition-all
+                hover:bg-white/10
+                hover:text-white
+                active:scale-95
+              "
+              title="Reset ke Indonesia"
+              aria-label="Reset peta ke Indonesia"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="h-3.5 w-3.5" />
             </button>
           </div>
-
-          {/* Quick Zoom To Active Location / Center Info */}
-          <div className="hidden md:flex items-center bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200/90 dark:border-slate-700/70 shadow-md text-xs font-medium text-slate-600 dark:text-slate-300 gap-2">
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                mapEngine === 'google' && !hasAuthError ? 'bg-blue-400' : 'bg-emerald-400'
-              }`}
-            ></span>
-            <span>Zoom: {currentZoom}x</span>
-            {activeData && (
-              <span className="ml-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-amber-400" />
-                <span>{activeData.name.split(',')[0]}</span>
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Bottom Action Pill: Detail Bencana, Rute Distribusi, Laporan Warga & AI Helpdesk */}
-        {!isExpanded && (
-          <div className="flex items-center gap-2 sm:gap-2.5">
-            <button
-              onClick={onToggleDetail || onExpandView}
-              className={`flex items-center gap-1.5 sm:gap-2 px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
-                isDetailOpen
-                  ? 'bg-amber-500 text-white border-amber-400 ring-2 ring-amber-400/40 shadow-amber-500/30'
-                  : 'bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-900 dark:text-white border-slate-200/90 dark:border-slate-700/70'
-              }`}
-              title="Buka / Tutup Detail Bencana"
-            >
-              <Zap
-                className={`w-4 h-4 ${
-                  isDetailOpen ? 'text-white fill-white' : 'text-amber-500 fill-amber-500'
-                }`}
-              />
-              <span>Detail Bencana</span>
-              {isDetailOpen && (
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-              )}
-            </button>
-
-            <button
-              onClick={onToggleRoute}
-              className={`flex items-center gap-1.5 sm:gap-2 px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
-                isRouteOpen
-                  ? 'bg-orange-500 text-white border-orange-400 ring-2 ring-orange-400/40 shadow-orange-500/30'
-                  : 'bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-900 dark:text-white border-slate-200/90 dark:border-slate-700/70'
-              }`}
-              title="Buka / Tutup Halaman Rute Distribusi"
-            >
-              <Compass
-                className={`w-4 h-4 ${isRouteOpen ? 'text-white' : 'text-orange-500'}`}
-              />
-              <span>Rute Distribusi</span>
-              {isRouteOpen && (
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-              )}
-            </button>
-
-            <button
-              onClick={onToggleReports}
-              className={`flex items-center gap-1.5 sm:gap-2 px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
-                isReportsOpen
-                  ? 'bg-emerald-600 text-white border-emerald-500 ring-2 ring-emerald-500/40 shadow-emerald-600/30'
-                  : 'bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-900 dark:text-white border-slate-200/90 dark:border-slate-700/70'
-              }`}
-              title="Buka / Tutup Laporan Warga Lapangan"
-            >
-              <Camera
-                className={`w-4 h-4 ${isReportsOpen ? 'text-white' : 'text-emerald-500'}`}
-              />
-              <span>Laporan Warga</span>
-              {isReportsOpen && (
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-              )}
-            </button>
-
-            <button
-              onClick={onOpenAIHelpdesk}
-              className="flex items-center gap-1.5 sm:gap-2 px-4 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white shadow-lg transition-all active:scale-95 text-xs font-bold cursor-pointer border border-white/10"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>AI Helpdesk & Lapor</span>
-            </button>
-          </div>
-        )}
       </div>
     </section>
   );

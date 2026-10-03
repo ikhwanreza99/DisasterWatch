@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
 
-interface ExpandedDetailOverlayProps {
+interface ExpandedDetailContentProps {
   disaster: DisasterIncident;
   onClose: () => void;
   onOpenAIHelpdesk: () => void;
@@ -26,7 +26,7 @@ interface ExpandedDetailOverlayProps {
   onOpenDisasterBrief: () => void;
 }
 
-export const ExpandedDetailOverlay: React.FC<ExpandedDetailOverlayProps> = ({
+export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
   disaster,
   onClose,
   onOpenAIHelpdesk,
@@ -73,13 +73,7 @@ export const ExpandedDetailOverlay: React.FC<ExpandedDetailOverlayProps> = ({
   };
 
   return (
-    <div
-      className="absolute inset-0 z-40 p-4 sm:p-6 overflow-hidden flex flex-col justify-between pointer-events-auto transition-all duration-300 animate-fadeIn"
-      style={{
-        background: 'rgba(15, 23, 42, 0.65)',
-        backdropFilter: 'blur(14px)',
-      }}
-    >
+    <div className="h-full min-h-0 flex flex-col">
       {/* Top Bar with Standalone 'Tutup X' Button Outside Boxes at Top-Right */}
       <div className="relative z-50 flex items-center justify-between mb-3 px-2">
         <div className="flex items-center gap-2">

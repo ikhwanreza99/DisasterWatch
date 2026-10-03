@@ -402,7 +402,7 @@ export const disastersData: Record<string, DisasterIncident> = {
     fullName: 'Banjir Luapan Tanggul',
     fullTitleDisplay: 'Banjir Jebol Tanggul Sungai Wulan',
     urgency: 'Darurat Tinggi',
-    urgencyClass: 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/60 dark:text-rose-400 dark:border-rose-500/30',
+    urgencyClass: 'bg-rose-500 text-rose-800 border-rose-00 dark:bg-rose-950/60 dark:text-rose-400 dark:border-rose-500/30',
     impact: 'Area: Genangan 1.8 Meter',
     cost: 'Rp 4,5 Miliar',
     gapRecovery: '61% Terpenuhi',

@@ -24,6 +24,7 @@ export default function App() {
   const [isRouteOpen, setIsRouteOpen] = useState<boolean>(false);
   const [isReportsOpen, setIsReportsOpen] = useState<boolean>(false);
   const [isSidebarMinimized, setIsSidebarMinimized] = useState<boolean>(true);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState<boolean>(false);
   const [isAIOpen, setIsAIOpen] = useState<boolean>(false);
 
   // Modal overlays
@@ -58,7 +59,7 @@ export default function App() {
     setIsRouteOpen(false);
     setIsReportsOpen(false);
     setIsAIOpen(false);
-    setIsSidebarMinimized(true);
+    setIsSidebarMinimized(false);
     setIsDetailOpen(true);
   };
 
@@ -74,6 +75,7 @@ export default function App() {
     setIsDetailOpen(false);
     setIsReportsOpen(false);
     setIsAIOpen(false);
+    setIsSidebarExpanded(false);
     setIsSidebarMinimized(true);
     setIsRouteOpen(true);
   };
@@ -92,6 +94,7 @@ export default function App() {
     setIsAIOpen(false);
     setIsSidebarMinimized(true);
     setIsReportsOpen(true);
+    setIsSidebarExpanded(false);
   };
 
   const handleToggleReports = () => {
@@ -108,6 +111,7 @@ export default function App() {
     setIsReportsOpen(false);
     setIsSidebarMinimized(true);
     setIsAIOpen(true);
+    setIsSidebarExpanded(false);
   };
 
   const handleToggleSidebar = () => {
@@ -119,8 +123,23 @@ export default function App() {
       setIsAIOpen(false);
       setIsSidebarMinimized(false);
     } else {
+      setIsSidebarExpanded(false);
       setIsSidebarMinimized(true);
     }
+  };
+
+  const handleExpandSidebar = () => {
+    setIsDetailOpen(false);
+    setIsRouteOpen(false);
+    setIsReportsOpen(false);
+    setIsAIOpen(false);
+
+    setIsSidebarMinimized(false);
+    setIsSidebarExpanded(true);
+  };
+
+  const handleCollapseSidebar = () => {
+    setIsSidebarExpanded(false);
   };
 
   const handleOpenDisasterBrief = () => {
@@ -194,9 +213,9 @@ export default function App() {
             onSelectDisaster={handleSelectDisaster}
             activeCategory={activeCategory}
             isDarkMode={isDarkMode}
-            onExpandView={handleOpenDetail}
+            onExpandView={handleExpandSidebar}
             onOpenAIHelpdesk={handleOpenAI}
-            isExpanded={false}
+            isExpanded={isSidebarExpanded}
             isSidebarMinimized={isSidebarMinimized}
             onToggleSidebar={handleToggleSidebar}
             isDetailOpen={isDetailOpen}
@@ -208,16 +227,27 @@ export default function App() {
             isReportsOpen={isReportsOpen}
             onToggleReports={handleToggleReports}
             onOpenReports={handleOpenReports}
+            onOpenSidebar={() => setIsSidebarMinimized(false)}
           />
 
           {/* MODE 1: Compact Homepage Menu Sidebar (Only rendered when no other window is open and user un-minimizes sidebar) */}
           {!isDetailOpen && !isRouteOpen && !isReportsOpen && !isAIOpen && !isSidebarMinimized && (
             <SlimSidebar
               disaster={activeDisaster}
-              onExpandView={handleOpenDetail}
+
+              isExpanded={isSidebarExpanded}
+              onExpandView={handleExpandSidebar}
+              onCollapseView={handleCollapseSidebar}
+
               onOpenAIHelpdesk={handleOpenAI}
+              onOpenDonationModal={() => setIsDonationModalOpen(true)}
               onOpenDisasterBrief={handleOpenDisasterBrief}
-              onMinimize={() => setIsSidebarMinimized(true)}
+
+              onMinimize={() => {
+                setIsSidebarExpanded(false);
+                setIsSidebarMinimized(true);
+              }}
+
               onOpenRoute={handleOpenRoute}
               onOpenReports={handleOpenReports}
             />

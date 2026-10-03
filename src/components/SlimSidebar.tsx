@@ -1,26 +1,28 @@
 import React from 'react';
 import {
-  Maximize2,
   Compass,
   ArrowRight,
   Flame,
   Waves,
   Activity,
   Sparkles,
-  Headset,
   PanelRightClose,
-  Zap,
-  Droplets,
-  Lightbulb,
-  RadioTower
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
+import { ExpandedDetailContent } from './ExpandedDetailContent';
+
 
 interface SlimSidebarProps {
   disaster: DisasterIncident;
+  isExpanded: boolean;
+
   onExpandView: () => void;
+  onCollapseView: () => void;
+
   onOpenAIHelpdesk: () => void;
+  onOpenDonationModal: () => void;
   onOpenDisasterBrief: () => void;
+
   onMinimize: () => void;
   onOpenRoute?: () => void;
   onOpenReports?: () => void;
@@ -28,8 +30,11 @@ interface SlimSidebarProps {
 
 export const SlimSidebar: React.FC<SlimSidebarProps> = ({
   disaster,
+  isExpanded,
   onExpandView,
+  onCollapseView,
   onOpenAIHelpdesk,
+  onOpenDonationModal,
   onOpenDisasterBrief,
   onMinimize,
   onOpenRoute,
@@ -59,25 +64,58 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 
   return (
     <aside
-    className="
-      absolute top-0 right-0 z-30
-      h-full
-      w-[390px] max-w-[92vw]
-      px-6 py-5
-      flex flex-col justify-between
-      overflow-y-auto
+      id="slimHomepageSidebar"
+      className={`
+        absolute top-0 right-0 z-30
+        h-full
+        pointer-events-auto
 
-      bg-white/72
-      backdrop-blur-xl
-      backdrop-saturate-200
+        transition-[width,background-color,backdrop-filter]
+        duration-500
+        ease-[cubic-bezier(0.22,1,0.36,1)]
 
-      border-l border-white/50
-      shadow-[-12px_0_40px_rgba(15,23,42,0.10)]
+        ${
+          isExpanded
+            ? `
+              w-[calc(100%_-_24px)]
+              p-6
+              overflow-hidden
 
-      pointer-events-auto
-    "
-    id="slimHomepageSidebar"
-  >
+              bg-slate-900/55
+              backdrop-blur-xl
+              backdrop-saturate-150
+            `
+            : `
+              w-[390px]
+              max-w-[92vw]
+
+              px-6 py-5
+
+              flex flex-col
+              justify-between
+
+              overflow-y-auto
+
+              bg-white/72
+              backdrop-blur-xl
+              backdrop-saturate-200
+
+              border-l border-white/50
+              shadow-[-12px_0_40px_rgba(15,23,42,0.10)]
+            `
+        }
+      `}
+    >
+      {isExpanded ? (
+        <ExpandedDetailContent
+          disaster={disaster}
+          onClose={onCollapseView}
+          onOpenAIHelpdesk={onOpenAIHelpdesk}
+          onOpenDonationModal={onOpenDonationModal}
+          onOpenDisasterBrief={onOpenDisasterBrief}
+        />
+      ) : (
+        <>
       <div className="space-y-4">
         {/* Header with Expand Option */}
         <div className="flex items-center justify-between">
@@ -483,6 +521,8 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           <ArrowRight className="w-4 h-4 text-orange-400" />
         </button>
       </div>
+      </>
+    )}
     </aside>
   );
 };
