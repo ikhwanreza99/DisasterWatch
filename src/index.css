@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* `dark:` follows the app's Light/Dark toggle (`.dark` on the app container), not the OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer utilities {
   /* Subtle dot grid pattern on pure white canvas */
   .bg-grid-white {
