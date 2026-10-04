@@ -27,12 +27,17 @@ import {
   RefreshCw,
   X,
   Info,
+  LocateFixed,
+  Loader2,
 } from 'lucide-react';
 import { DisasterIncident, DisasterCategory } from '../types';
 import { uniqueAreaNames, type EarthquakeEvent, type BmkgWeatherWarning } from '../services/bmkg';
 import { buildBmkgPopupHtml, buildBmkgWeatherPopupHtml } from './map/bmkgPopup';
 import { FIRMS_SOURCE_URL, type FireHotspot, type FirmsStatus } from '../services/firms';
 import { GoogleFireOverlay } from './map/GoogleFireOverlay';
+import { MapSearch } from './map/MapSearch';
+import { DisasterCallout, DisasterMarker, disasterMarkerHtml } from './map/disasterMarkers';
+import type { PlaceResult } from '../services/places/placeSearch';
 import { useCityWeather, type CityWeather } from '../services/weather/cityWeather';
 import {
   useMagma,
@@ -153,6 +158,30 @@ function groupEruptions(notices: EruptionNotice[]): globalThis.Map<string, Erupt
     else m.set(k, [n]);
   }
   return m;
+}
+
+export interface FocusTarget {
+  lat: number;
+  lng: number;
+  zoom: number;
+  /** Bumped on every request so re-focusing the same point still pans. */
+  seq: number;
+}
+
+export interface MyLocation {
+  lat: number;
+  lng: number;
+  accuracyM: number;
+}
+
+function searchedPlacePopupHtml(p: PlaceResult): string {
+  return (
+    `<div style="font-size:12px;line-height:1.45">` +
+    `<div style="font-weight:800">📍 ${escHtml(p.name)}</div>` +
+    (p.address ? `<div style="color:#64748b">${escHtml(p.address)}</div>` : '') +
+    `<div style="color:#64748b;font-size:11px">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</div>` +
+    `</div>`
+  );
 }
 
 // Declutter at low zoom: city weather chips and Level I volcanoes only appear when zoomed in.
@@ -380,7 +409,8 @@ const GoogleMapCameraController: React.FC<{
   mapType: GoogleMapType;
   onZoomChange: (zoom: number) => void;
   weatherFocusCoords?: { lat: number; lng: number } | null;
-}> = ({ activeDisaster, isRouteOpen, routePoints, zoomTrigger, mapType, onZoomChange, weatherFocusCoords }) => {
+  focusTarget?: FocusTarget | null;
+}> = ({ activeDisaster, isRouteOpen, routePoints, zoomTrigger, mapType, onZoomChange, weatherFocusCoords, focusTarget }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -439,6 +469,13 @@ const GoogleMapCameraController: React.FC<{
     if (z < 9) map.setZoom(9);
   }, [map, weatherFocusCoords]);
 
+  // Pan/zoom to a searched place or the user's location
+  useEffect(() => {
+    if (!map || !focusTarget) return;
+    map.panTo({ lat: focusTarget.lat, lng: focusTarget.lng });
+    map.setZoom(focusTarget.zoom);
+  }, [map, focusTarget]);
+
   return null;
 };
 
@@ -476,6 +513,9 @@ const OSMMapRenderer: React.FC<{
   magmaRange?: ResolvedRange | null;
   /** Current map zoom (drives zoom-based decluttering). */
   zoomLevel?: number;
+  focusTarget?: FocusTarget | null;
+  searchedPlace?: PlaceResult | null;
+  myLocation?: MyLocation | null;
 }> = ({
   disasters,
   activeDisasterKey,
@@ -508,6 +548,9 @@ const OSMMapRenderer: React.FC<{
   magmaEruptions = [],
   magmaRange = null,
   zoomLevel = 5,
+  focusTarget = null,
+  searchedPlace = null,
+  myLocation = null,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -521,6 +564,7 @@ const OSMMapRenderer: React.FC<{
   const cityWeatherLayerRef = useRef<L.LayerGroup | null>(null);
   const magmaLayerRef = useRef<L.LayerGroup | null>(null);
   const ashLayerRef = useRef<L.LayerGroup | null>(null);
+  const placeLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
 
@@ -601,6 +645,7 @@ const OSMMapRenderer: React.FC<{
     cityWeatherLayerRef.current = L.layerGroup().addTo(map);
     magmaLayerRef.current = L.layerGroup().addTo(map);
     ashLayerRef.current = L.layerGroup().addTo(map);
+    placeLayerRef.current = L.layerGroup().addTo(map);
 
     map.on('move', updatePos);
     // The disaster callout floats above the map panes; hide it while a layer popup is open
@@ -660,30 +705,10 @@ const OSMMapRenderer: React.FC<{
       if (typeof lat !== 'number' || typeof lng !== 'number') return;
 
       const isSelected = incident.id === activeDisasterKey;
-      let categoryBg = 'bg-rose-600';
-      let icon = '🌋';
-      if (incident.category === 'flood') {
-        categoryBg = 'bg-sky-500';
-        icon = '🌊';
-      } else if (incident.category === 'fire') {
-        categoryBg = 'bg-amber-500';
-        icon = '🔥';
-      }
-
-      const html = isSelected
-        ? `<div class="relative flex items-center justify-center cursor-pointer transform -translate-x-1/2 -translate-y-1/2">
-            <span class="w-10 h-10 rounded-full bg-amber-400/30 border-2 border-amber-400 flex items-center justify-center pulse-selected">
-              <span class="w-7 h-7 rounded-full bg-amber-500 border-2 border-slate-900 shadow-2xl flex items-center justify-center text-white font-bold text-xs">${icon}</span>
-            </span>
-            <span class="absolute -bottom-6 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-900/90 text-amber-300 border border-amber-400/40 shadow-md whitespace-nowrap pointer-events-none">${incident.name.split(',')[0]}</span>
-          </div>`
-        : `<div class="relative flex items-center justify-center cursor-pointer group transform -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform">
-            <span class="w-7 h-7 rounded-full ${categoryBg} border-2 border-white dark:border-slate-900 shadow-lg flex items-center justify-center text-white text-[11px] group-hover:ring-4 group-hover:ring-white/30 transition-all">${icon}</span>
-            <span class="opacity-0 group-hover:opacity-100 absolute -bottom-6 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-900/90 text-white border border-white/20 shadow-md whitespace-nowrap pointer-events-none transition-opacity">${incident.name.split(',')[0]}</span>
-          </div>`;
+      const html = disasterMarkerHtml(incident, isSelected);
 
       const m = L.marker([lat, lng], {
-        icon: L.divIcon({ html, className: 'disaster-osm-marker', iconSize: [32, 32], iconAnchor: [16, 16] }),
+        icon: L.divIcon({ html, className: 'disaster-osm-marker', iconSize: [0, 0] }),
         zIndexOffset: isSelected ? 1000 : 100,
       });
 
@@ -831,6 +856,55 @@ const OSMMapRenderer: React.FC<{
     });
   }, [magma, showMagma, mapEpoch, magmaEruptions, magmaRange, zoomLevel]);
 
+  // Searched place + "my location" markers
+  useEffect(() => {
+    const g = placeLayerRef.current;
+    if (!mapRef.current || !g) return;
+    g.clearLayers();
+    if (myLocation) {
+      L.circle([myLocation.lat, myLocation.lng], {
+        radius: myLocation.accuracyM,
+        color: '#2563eb',
+        weight: 1,
+        fillColor: '#3b82f6',
+        fillOpacity: 0.12,
+      }).addTo(g);
+      L.marker([myLocation.lat, myLocation.lng], {
+        icon: L.divIcon({
+          html: '<span class="block w-4 h-4 rounded-full bg-blue-600 border-[3px] border-white shadow-lg transform -translate-x-1/2 -translate-y-1/2"></span>',
+          className: 'my-location-marker',
+          iconSize: [0, 0],
+        }),
+        zIndexOffset: 2000,
+        title: 'Lokasi saya',
+      })
+        .bindPopup(`<div style="font-size:12px"><b>Lokasi saya</b><br/>Akurasi ±${Math.round(myLocation.accuracyM)} m</div>`, {
+          closeButton: true,
+          className: 'bmkg-popup',
+        })
+        .addTo(g);
+    }
+    if (searchedPlace) {
+      L.marker([searchedPlace.lat, searchedPlace.lng], {
+        icon: L.divIcon({
+          html: '<span class="block text-2xl leading-none drop-shadow transform -translate-x-1/2 -translate-y-full">📍</span>',
+          className: 'searched-place-marker',
+          iconSize: [0, 0],
+        }),
+        zIndexOffset: 1900,
+        title: searchedPlace.name,
+      })
+        .bindPopup(searchedPlacePopupHtml(searchedPlace), { closeButton: true, className: 'bmkg-popup' })
+        .addTo(g);
+    }
+  }, [searchedPlace, myLocation, mapEpoch]);
+
+  // Fly to a searched place or the user's location
+  useEffect(() => {
+    if (!mapRef.current || !focusTarget) return;
+    mapRef.current.flyTo([focusTarget.lat, focusTarget.lng], focusTarget.zoom, { duration: 1.0 });
+  }, [focusTarget]);
+
   // Darwin VAAC volcanic-ash clouds: current (filled) + forecasts (dashed)
   useEffect(() => {
     const g = ashLayerRef.current;
@@ -905,82 +979,12 @@ const OSMMapRenderer: React.FC<{
     <>
       <div ref={containerRef} className="w-full h-full absolute inset-0 z-0" />
       {calloutPos && !calloutClosed && activeData && (activeCategory === 'all' || activeData.category === activeCategory) && (
-        <div
-          id="activeCallout"
-          style={{
-            left: `${calloutPos.x}px`,
-            top: `${calloutPos.y}px`,
-            transform: 'translate(-50%, -125%)',
-          }}
-          className="pointer-events-auto absolute z-40 min-w-[280px] map-glass-callout rounded-2xl p-3.5 shadow-2xl border border-white/20 text-white animate-fadeIn"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/25 text-rose-300 border border-rose-500/40 shadow-xs">
-              {activeData.urgency}
-            </span>
-            <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-              <span>{activeData.timestamp}</span>
-            </span>
-            <button
-              type="button"
-              aria-label="Tutup popup"
-              title="Tutup"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCalloutClosed(true);
-              }}
-              className="ml-2 w-5 h-5 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-          <div className="text-base font-black text-white tracking-tight leading-snug truncate">{activeData.name}</div>
-          <div className="text-[11px] text-slate-300 mb-1.5 flex items-center justify-between">
-            <span>{activeData.province}</span>
-            <span className="text-[10px] text-cyan-300 font-mono font-medium">
-              {activeData.coords.lat.toFixed(2)}°, {activeData.coords.lng.toFixed(2)}°
-            </span>
-          </div>
-          <div className="text-xs font-semibold text-amber-300 mb-2">{activeData.fullName}</div>
-          <div className="pt-2 border-t border-white/15 flex items-center gap-1.5">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenDetail) onOpenDetail();
-                else onExpandView();
-              }}
-              className="flex-1 py-1.5 px-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              <Zap className="w-3 h-3 text-white fill-white" />
-              <span>Detail</span>
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenRoute) onOpenRoute();
-                else if (onToggleRoute) onToggleRoute();
-              }}
-              className="flex-1 py-1.5 px-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              <Compass className="w-3 h-3" />
-              <span>Rute</span>
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenReports) onOpenReports();
-                else if (onToggleReports) onToggleReports();
-              }}
-              className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-            >
-              <Camera className="w-3 h-3" />
-              <span>Laporan</span>
-            </button>
-          </div>
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 map-glass-callout border-b border-r border-white/20 transform rotate-45"></div>
-        </div>
+        <DisasterCallout
+          incident={activeData}
+          onClose={() => setCalloutClosed(true)}
+          className="absolute z-40"
+          style={{ left: `${calloutPos.x}px`, top: `${calloutPos.y}px`, transform: 'translate(-50%, calc(-100% - 30px))' }}
+        />
       )}
     </>
   );
@@ -1119,6 +1123,60 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const [showLayerSelector, setShowLayerSelector] = useState(false);
   const [showLayerPanel, setShowLayerPanel] = useState(false);
   const [mapTypeMenuPos, setMapTypeMenuPos] = useState<{ top: number; left: number } | null>(null);
+  // Area search + "my location"
+  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
+  const [searchedPlace, setSearchedPlace] = useState<PlaceResult | null>(null);
+  const [myLocation, setMyLocation] = useState<MyLocation | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locateError, setLocateError] = useState<string | null>(null);
+  const [showPlacePopup, setShowPlacePopup] = useState(false);
+  const focusOn = useCallback((lat: number, lng: number, zoom: number) => {
+    setFocusTarget((prev) => ({ lat, lng, zoom, seq: (prev?.seq ?? 0) + 1 }));
+  }, []);
+  const handlePlaceSelect = useCallback(
+    (p: PlaceResult) => {
+      setSearchedPlace(p);
+      setShowPlacePopup(true);
+      focusOn(p.lat, p.lng, p.zoom);
+    },
+    [focusOn],
+  );
+  const locateMe = useCallback(() => {
+    if (!('geolocation' in navigator)) {
+      setLocateError('Browser tidak mendukung lokasi.');
+      return;
+    }
+    if (!window.isSecureContext) {
+      setLocateError('Lokasi butuh HTTPS (atau localhost).');
+      return;
+    }
+    setLocating(true);
+    setLocateError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracyM: pos.coords.accuracy };
+        setMyLocation(loc);
+        focusOn(loc.lat, loc.lng, pos.coords.accuracy > 2000 ? 11 : 14);
+        setLocating(false);
+      },
+      (err) => {
+        setLocating(false);
+        setLocateError(
+          err.code === err.PERMISSION_DENIED
+            ? 'Izin lokasi ditolak. Aktifkan izin lokasi untuk situs ini.'
+            : err.code === err.TIMEOUT
+              ? 'Waktu habis saat mencari lokasi.'
+              : 'Lokasi tidak tersedia.',
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    );
+  }, [focusOn]);
+  useEffect(() => {
+    if (!locateError) return;
+    const t = setTimeout(() => setLocateError(null), 6000);
+    return () => clearTimeout(t);
+  }, [locateError]);
   // Popover menus are portalled out of the horizontally scrolling toggle row: on iOS Safari a
   // scrolling container clips even position:fixed children. The app container keeps `.dark`.
   const overlayHost =
@@ -1303,6 +1361,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 mapType={googleMapType}
                 onZoomChange={handleZoomChange}
                 weatherFocusCoords={weatherFocusCoords}
+                focusTarget={focusTarget}
               />
 
               {/* Hazard Impact Perimeter */}
@@ -1370,16 +1429,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 if (typeof lat !== 'number' || typeof lng !== 'number') return null;
 
                 const isSelected = incident.id === activeDisasterKey;
-                let categoryBg = 'bg-rose-600';
-                let categoryIcon = '🌋';
-                if (incident.category === 'flood') {
-                  categoryBg = 'bg-sky-500';
-                  categoryIcon = '🌊';
-                } else if (incident.category === 'fire') {
-                  categoryBg = 'bg-amber-500';
-                  categoryIcon = '🔥';
-                }
-
                 return (
                   <AdvancedMarker
                     key={incident.id}
@@ -1393,102 +1442,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   >
                     <div className="relative flex items-center justify-center">
                       {isSelected && !gCalloutClosed && (
-                        <div
-                          id="activeCallout"
-                          className="pointer-events-auto absolute bottom-12 left-1/2 -translate-x-1/2 z-50 min-w-[280px] map-glass-callout rounded-2xl p-3.5 shadow-2xl border border-white/20 text-white animate-fadeIn"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/25 text-rose-300 border border-rose-500/40 shadow-xs">
-                              {incident.urgency}
-                            </span>
-                            <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                              <span>{incident.timestamp}</span>
-                            </span>
-                            <button
-                              type="button"
-                              aria-label="Tutup popup"
-                              title="Tutup"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setGCalloutClosed(true);
-                              }}
-                              className="ml-2 w-5 h-5 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                          <div className="text-base font-black text-white tracking-tight leading-snug truncate">{incident.name}</div>
-                          <div className="text-[11px] text-slate-300 mb-1.5 flex items-center justify-between">
-                            <span>{incident.province}</span>
-                            <span className="text-[10px] text-cyan-300 font-mono font-medium">
-                              {incident.coords.lat.toFixed(2)}°, {incident.coords.lng.toFixed(2)}°
-                            </span>
-                          </div>
-                          <div className="text-xs font-semibold text-amber-300 mb-2">{incident.fullName}</div>
-                          <div className="pt-2 border-t border-white/15 flex items-center gap-1.5">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (onOpenDetail) onOpenDetail();
-                                else onExpandView();
-                              }}
-                              className="flex-1 py-1.5 px-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                            >
-                              <Zap className="w-3 h-3 text-white fill-white" />
-                              <span>Detail</span>
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (onOpenRoute) onOpenRoute();
-                                else if (onToggleRoute) onToggleRoute();
-                              }}
-                              className="flex-1 py-1.5 px-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                            >
-                              <Compass className="w-3 h-3" />
-                              <span>Rute</span>
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (onOpenReports) onOpenReports();
-                                else if (onToggleReports) onToggleReports();
-                              }}
-                              className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                            >
-                              <Camera className="w-3 h-3" />
-                              <span>Laporan</span>
-                            </button>
-                          </div>
-                          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 map-glass-callout border-b border-r border-white/20 transform rotate-45"></div>
-                        </div>
+                        <DisasterCallout
+                          incident={incident}
+                          onClose={() => setGCalloutClosed(true)}
+                          className="absolute bottom-[3.25rem] left-1/2 -translate-x-1/2 z-50"
+                        />
                       )}
-
-                      {isSelected ? (
-                        <div className="relative flex items-center justify-center cursor-pointer">
-                          <span className="w-10 h-10 rounded-full bg-amber-400/30 border-2 border-amber-400 flex items-center justify-center pulse-selected">
-                            <span className="w-7 h-7 rounded-full bg-amber-500 border-2 border-slate-900 shadow-2xl flex items-center justify-center text-white font-bold text-xs">
-                              {categoryIcon}
-                            </span>
-                          </span>
-                          <span className="absolute -bottom-6 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-900/90 text-amber-300 border border-amber-400/40 shadow-md whitespace-nowrap pointer-events-none">
-                            {incident.name.split(',')[0]}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="relative flex items-center justify-center cursor-pointer group hover:scale-110 transition-transform">
-                          <span
-                            className={`w-7 h-7 rounded-full ${categoryBg} border-2 border-white dark:border-slate-900 shadow-lg flex items-center justify-center text-white text-[11px] group-hover:ring-4 group-hover:ring-white/30 transition-all`}
-                          >
-                            {categoryIcon}
-                          </span>
-                          <span className="opacity-0 group-hover:opacity-100 absolute -bottom-6 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-900/90 text-white border border-white/20 shadow-md whitespace-nowrap pointer-events-none transition-opacity">
-                            {incident.name.split(',')[0]}
-                          </span>
-                        </div>
-                      )}
+                      <DisasterMarker incident={incident} isSelected={isSelected} />
                     </div>
                   </AdvancedMarker>
                 );
@@ -1848,6 +1808,71 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 </AdvancedMarker>
               )}
 
+              {/* My location (blue dot + accuracy circle) */}
+              {myLocation && (
+                <>
+                  <Circle
+                    center={{ lat: myLocation.lat, lng: myLocation.lng }}
+                    radius={myLocation.accuracyM}
+                    strokeColor="#2563eb"
+                    strokeWeight={1}
+                    fillColor="#3b82f6"
+                    fillOpacity={0.12}
+                  />
+                  <AdvancedMarker position={{ lat: myLocation.lat, lng: myLocation.lng }} zIndex={10010} title="Lokasi saya">
+                    <span className="block w-4 h-4 rounded-full bg-blue-600 border-[3px] border-white shadow-lg" data-purpose="my-location-marker" />
+                  </AdvancedMarker>
+                </>
+              )}
+              {/* Searched place pin + popup */}
+              {searchedPlace && (
+                <AdvancedMarker
+                  position={{ lat: searchedPlace.lat, lng: searchedPlace.lng }}
+                  zIndex={10011}
+                  title={searchedPlace.name}
+                  onClick={() => setShowPlacePopup((v) => !v)}
+                >
+                  <div className="relative flex flex-col items-center" data-purpose="searched-place-marker">
+                    {showPlacePopup && (
+                      <div
+                        className="pointer-events-auto absolute bottom-9 left-1/2 -translate-x-1/2 min-w-[220px] max-w-[280px] rounded-2xl p-3 shadow-2xl border border-rose-300/40 bg-slate-900/95 text-white"
+                        onClick={(ev) => ev.stopPropagation()}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-xs font-black">📍 {searchedPlace.name}</div>
+                          <button
+                            type="button"
+                            aria-label="Tutup popup"
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              setShowPlacePopup(false);
+                            }}
+                            className="w-5 h-5 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                        {searchedPlace.address && <div className="text-[11px] text-slate-300">{searchedPlace.address}</div>}
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          {searchedPlace.lat.toFixed(4)}, {searchedPlace.lng.toFixed(4)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setSearchedPlace(null);
+                          }}
+                          className="mt-1 text-[10px] text-rose-300 underline"
+                        >
+                          Hapus penanda
+                        </button>
+                      </div>
+                    )}
+                    <span className="text-2xl leading-none drop-shadow cursor-pointer">📍</span>
+                  </div>
+                </AdvancedMarker>
+              )}
+
               {/* Major-city weather chips (CUACA layer ON only) */}
               {showWeather &&
                 currentZoom >= CITY_WEATHER_MIN_ZOOM &&
@@ -1993,6 +2018,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             magmaEruptions={eruptions.notices}
             magmaRange={eruptions.range}
             zoomLevel={currentZoom}
+            focusTarget={focusTarget}
+            searchedPlace={searchedPlace}
+            myLocation={myLocation}
           />
         )}
       </div>
@@ -2021,6 +2049,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             </span>
           </div>
 
+          {/* Area search (Google Places) */}
+          <MapSearch onSelect={handlePlaceSelect} />
           {/* Layer panel: one button instead of a row of toggles (no overlap with other overlays) */}
           <div className="relative">
             <button
@@ -2491,29 +2521,58 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             </div>
           </div>
         )}
+        {locateError && (
+          <div
+            role="status"
+            className="absolute left-3 sm:left-6 lg:left-8 bottom-full mb-2 z-40 max-w-[calc(100vw-1.5rem)] px-3 py-2 rounded-xl bg-slate-900/95 text-white text-[11px] shadow-lg animate-fadeIn"
+          >
+            📍 {locateError}
+          </div>
+        )}
         {/* Bottom Left Map Controls (Zoom & Scale) */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="flex items-center bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md p-1.5 rounded-full border border-slate-200/90 dark:border-slate-700/70 shadow-md gap-1">
+        <div className="flex items-end gap-3 sm:gap-4">
+          {/* Map controls: zoom group + reset / my location / MAGMA legend (glass, vertical) */}
+          <div className="flex flex-col gap-2" data-purpose="map-zoom-controls">
+            <div className="flex flex-col overflow-hidden rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)]">
+              <button
+                type="button"
+                onClick={() => handleZoomAction('in')}
+                className="flex h-9 w-9 items-center justify-center text-slate-200 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 cursor-pointer"
+                title="Perbesar peta"
+                aria-label="Perbesar peta"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+              <div className="mx-2 h-px bg-white/10" />
+              <button
+                type="button"
+                onClick={() => handleZoomAction('out')}
+                className="flex h-9 w-9 items-center justify-center text-slate-200 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 cursor-pointer"
+                title="Perkecil peta"
+                aria-label="Perkecil peta"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+            </div>
             <button
-              onClick={() => handleZoomAction('in')}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-xs transition-all cursor-pointer"
-              title="Perbesar Peta (+)"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => handleZoomAction('out')}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-xs transition-all cursor-pointer"
-              title="Perkecil Peta (-)"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <button
+              type="button"
               onClick={() => handleZoomAction('reset')}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center justify-center shadow-xs transition-all text-xs font-semibold ml-0.5 cursor-pointer"
-              title="Reset Peta ke Tampilan Penuh Indonesia"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer text-slate-300"
+              title="Reset ke Indonesia"
+              aria-label="Reset peta ke Indonesia"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={locateMe}
+              disabled={locating}
+              aria-label="Tampilkan lokasi saya"
+              title={locateError ?? 'Lokasi saya'}
+              data-purpose="locate-me"
+              className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer ${myLocation ? 'text-blue-300 ring-1 ring-blue-400/60' : 'text-slate-300'}`}
+            >
+              {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
             </button>
             {showMagma && (
               <button
@@ -2521,15 +2580,11 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 onClick={() => setShowMagmaLegend((v) => !v)}
                 aria-expanded={showMagmaLegend}
                 aria-controls="magma-legend"
-                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shadow-xs transition-all cursor-pointer active:scale-95 ml-0.5 ${
-                  showMagmaLegend
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-amber-700 dark:text-amber-300'
-                }`}
+                className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer ${showMagmaLegend ? 'text-amber-300 ring-1 ring-amber-400/60' : 'text-slate-300'}`}
                 title={showMagmaLegend ? 'Sembunyikan legenda MAGMA' : 'Tampilkan legenda MAGMA'}
                 data-purpose="magma-legend-toggle"
               >
-                <Info className="w-4 h-4" />
+                <Info className="h-4 w-4" />
               </button>
             )}
           </div>
