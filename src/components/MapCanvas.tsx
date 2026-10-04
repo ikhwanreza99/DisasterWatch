@@ -2469,7 +2469,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       </div>
 
       {/* Bottom Bar: Controls & Quick Action Buttons */}
-      <div className="relative z-30 flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-end sm:justify-between px-3 sm:px-6 lg:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-6 pointer-events-auto">
+      {/* Same row on every screen size: zoom column bottom-left, action buttons bottom-right (aligned to the bottom edge). */}
+      <div className="relative z-30 flex flex-row items-end justify-between gap-2 px-3 sm:px-6 lg:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-6 pointer-events-auto">
         {/* MAGMA legend — bottom-left above the zoom controls, toggled with the (i) button */}
         {showMagma && showMagmaLegend && (
           <div
