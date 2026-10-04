@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { DisasterTicker } from './DisasterTicker';
+import type { DisasterIncident } from '../types';
 import { Calendar, ChevronDown, Moon, Sun, Plus, Radio } from 'lucide-react';
 import {
   DATE_PRESETS,
@@ -19,6 +21,10 @@ interface HeaderProps {
   dates: Record<DateTarget, string>;
   onSelectDate: (target: DateTarget, value: string) => void;
   onOpenReportModal: () => void;
+  /** Incidents for the "Terkini" news ticker (from feat/homepage-slicing). */
+  disasters: Record<string, DisasterIncident>;
+  /** Ticker highlights the announced incident on the map. */
+  onHighlightDisaster: (id: string | null) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -27,6 +33,8 @@ export const Header: React.FC<HeaderProps> = ({
   dates,
   onSelectDate,
   onOpenReportModal,
+  disasters,
+  onHighlightDisaster,
 }) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -59,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
   const allSame = bmkgLabel === firmsLabel && firmsLabel === magmaLabel;
 
   return (
-    <header className="relative z-40 flex items-center justify-between gap-2 px-3 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0b1329]/80 backdrop-blur-xl transition-colors duration-300">
+    <header className="relative z-40 flex flex-wrap md:flex-nowrap items-center justify-between gap-2 px-3 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0b1329]/80 backdrop-blur-xl transition-colors duration-300">
       {/* Brand Identifier (Top-Left) */}
       <div className="flex items-center gap-2.5 pointer-events-auto">
         <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-orange-500 flex items-center justify-center shadow-md shadow-orange-500/20 text-white shrink-0">
@@ -73,11 +81,13 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-cyan-950/60 text-slate-700 dark:text-cyan-300 border border-slate-200 dark:border-cyan-500/30">
               ver.1.0
             </span>
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-600/30 tracking-wider uppercase">
-              SIAGA BENCANA
-            </span>
           </div>
         </div>
+      </div>
+
+      {/* Disaster news ticker — between brand and controls; own row on phones, hidden on very short screens */}
+      <div className="order-last w-full min-w-0 md:order-none md:w-auto md:flex-1 md:px-2 [@media(max-height:480px)]:hidden">
+        <DisasterTicker disasters={disasters} onHighlight={onHighlightDisaster} />
       </div>
 
       {/* Date Filter Toolbar & Controls (Top-Right) */}
@@ -237,23 +247,6 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
         </div>
-
-        {/* Today Preset Button */}
-        <button
-          onClick={() => {
-            onSelectDate('bmkg', 'Today');
-            onSelectDate('firms', 'Today');
-            onSelectDate('magma', 'Today');
-            setIsCalendarOpen(false);
-          }}
-          className={`hidden min-[400px]:inline-flex px-3 sm:px-5 py-2 rounded-full font-medium text-xs sm:text-sm transition-all shadow-xs border ${
-            dates.bmkg === 'Today' && dates.firms === 'Today' && dates.magma === 'Today'
-              ? 'bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950 font-bold border-transparent'
-              : 'bg-slate-50 dark:bg-[#0f1b38]/70 hover:bg-slate-100 dark:hover:bg-[#14234b] text-slate-800 dark:text-cyan-300 border-slate-200/80 dark:border-slate-700/70'
-          }`}
-        >
-          Today
-        </button>
 
         {/* Buat Laporan Action Button */}
         <button

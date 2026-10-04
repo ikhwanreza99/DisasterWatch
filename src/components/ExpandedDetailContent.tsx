@@ -15,10 +15,12 @@ import {
   Pill,
   Package,
   Camera,
+  Zap,
+  Radio,
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
 
-interface ExpandedDetailOverlayProps {
+interface ExpandedDetailContentProps {
   disaster: DisasterIncident;
   onClose: () => void;
   onOpenAIHelpdesk: () => void;
@@ -26,7 +28,7 @@ interface ExpandedDetailOverlayProps {
   onOpenDisasterBrief: () => void;
 }
 
-export const ExpandedDetailOverlay: React.FC<ExpandedDetailOverlayProps> = ({
+export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
   disaster,
   onClose,
   onOpenAIHelpdesk,
@@ -34,6 +36,56 @@ export const ExpandedDetailOverlay: React.FC<ExpandedDetailOverlayProps> = ({
   onOpenDisasterBrief,
 }) => {
   const [isRouteVisible, setIsRouteVisible] = useState(true);
+
+  const recoveryServiceConfig = {
+    water: {
+      label: 'Air & Sanitasi',
+      icon: Droplets,
+      accent: 'text-cyan-600',
+      iconBg: 'bg-cyan-50',
+      iconBorder: 'border-cyan-200',
+      progress: 'bg-cyan-500',
+    },
+    electricity: {
+      label: 'Listrik',
+      icon: Zap,
+      accent: 'text-amber-600',
+      iconBg: 'bg-amber-50',
+      iconBorder: 'border-amber-200',
+      progress: 'bg-amber-500',
+    },
+    access: {
+      label: 'Akses',
+      icon: Navigation,
+      accent: 'text-orange-600',
+      iconBg: 'bg-orange-50',
+      iconBorder: 'border-orange-200',
+      progress: 'bg-orange-500',
+    },
+    telecommunication: {
+      label: 'Telekomunikasi',
+      icon: Radio,
+      accent: 'text-violet-600',
+      iconBg: 'bg-violet-50',
+      iconBorder: 'border-violet-200',
+      progress: 'bg-violet-500',
+    },
+  } as const;
+
+  const getRecoveryBadgeClass = (status: string) => {
+    switch (status) {
+      case 'Terganggu':
+        return 'text-rose-700 bg-rose-50 border-rose-200';
+      case 'Dalam Pemulihan':
+        return 'text-amber-700 bg-amber-50 border-amber-200';
+      case 'Hampir Pulih':
+        return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+      case 'Pulih':
+        return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+      default:
+        return 'text-slate-700 bg-slate-50 border-slate-200';
+    }
+  };
 
   const getCategoryIcon = () => {
     switch (disaster.category) {
@@ -73,13 +125,7 @@ export const ExpandedDetailOverlay: React.FC<ExpandedDetailOverlayProps> = ({
   };
 
   return (
-    <div
-      className="absolute inset-0 z-40 p-4 sm:p-6 overflow-hidden flex flex-col justify-between pointer-events-auto transition-all duration-300 animate-fadeIn"
-      style={{
-        background: 'rgba(15, 23, 42, 0.65)',
-        backdropFilter: 'blur(14px)',
-      }}
-    >
+    <div className="h-full min-h-0 flex flex-col">
       {/* Top Bar with Standalone 'Tutup X' Button Outside Boxes at Top-Right */}
       <div className="relative z-50 flex items-center justify-between mb-3 px-2">
         <div className="flex items-center gap-2">
@@ -101,7 +147,7 @@ export const ExpandedDetailOverlay: React.FC<ExpandedDetailOverlayProps> = ({
       </div>
 
       {/* Multi-Column Grid (Aligned Top, Presisi) */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full items-start flex-1 overflow-hidden h-full pr-1">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full items-stretch flex-1 min-h-0 overflow-hidden h-full pr-1">
         {/* Left Column: Disaster Overview, Impact & Key Metrics */}
         <div className="xl:col-span-6 space-y-4 min-w-0 overflow-y-auto h-full pb-4">
           {/* Status Card */}
@@ -198,41 +244,53 @@ export const ExpandedDetailOverlay: React.FC<ExpandedDetailOverlayProps> = ({
             </div>
           </article>
 
-          {/* Stats Cards Row */}
-          <div className="grid grid-cols-3 gap-2.5">
-            <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs text-center hover:border-slate-300 transition-colors">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block">
-                Titik Panas
-              </span>
-              <div className="text-base font-bold text-slate-900 mt-0.5">
-                {disaster.stats.hotspots}
-              </div>
-              <span className="inline-flex items-center text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md mt-1">
-                {disaster.stats.hotspotsChange}
-              </span>
-            </div>
-            <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs text-center hover:border-slate-300 transition-colors">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block">
-                Kerugian Total
-              </span>
-              <div className="text-base font-bold text-slate-900 mt-0.5">
-                {disaster.stats.loss}
-              </div>
-              <span className="inline-flex items-center text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md mt-1">
-                {disaster.stats.lossChange}
-              </span>
-            </div>
-            <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs text-center hover:border-slate-300 transition-colors">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block">
-                Personel SAR
-              </span>
-              <div className="text-base font-bold text-slate-900 mt-0.5">
-                {disaster.stats.personnel}
-              </div>
-              <span className="inline-flex items-center text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md mt-1">
-                {disaster.stats.personnelChange}
-              </span>
-            </div>
+          {/* Primary Recovery Status Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+            {disaster.recoveryServices.map((service) => {
+              const config = recoveryServiceConfig[service.type];
+              const Icon = config.icon;
+
+              return (
+                <div
+                  key={service.type}
+                  className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all"
+                >
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div
+                      className={`w-8 h-8 rounded-xl border ${config.iconBg} ${config.iconBorder} ${config.accent} flex items-center justify-center shrink-0`}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </div>
+
+                    <span className="text-lg font-black text-slate-900 leading-none">
+                      {service.recovery}%
+                    </span>
+                  </div>
+
+                  <div className="min-w-0 mb-2.5">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block truncate">
+                      {config.label}
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-medium">
+                      Status Recovery
+                    </span>
+                  </div>
+
+                  <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden mb-2.5">
+                    <div
+                      className={`h-full rounded-full ${config.progress} transition-all duration-500`}
+                      style={{ width: `${service.recovery}%` }}
+                    />
+                  </div>
+
+                  <span
+                    className={`inline-flex items-center text-[9px] font-bold px-2 py-1 rounded-md border ${getRecoveryBadgeClass(service.status)}`}
+                  >
+                    {service.status}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           {/* Kebutuhan Paling Urgent Card */}
@@ -304,179 +362,72 @@ export const ExpandedDetailOverlay: React.FC<ExpandedDetailOverlayProps> = ({
           </article>
         </div>
 
-        {/* Right Column: Rute Distribusi & Laporan Warga */}
-        <div className="xl:col-span-6 min-w-0 flex flex-col space-y-4 overflow-y-auto h-full pr-1 pb-4">
-          {/* Card 1: Rute Distribusi Bantuan Terverifikasi */}
-          {isRouteVisible && (
-            <article
-              className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col transition-all"
-              id="routeDistributionCard"
-            >
-              <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-slate-100">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-orange-500 text-white flex items-center justify-center shadow-xs shrink-0">
-                    <Compass className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 tracking-tight uppercase">
-                      Rute Distribusi Bantuan Terverifikasi
-                    </h4>
-                    <span className="text-[10px] text-slate-400 font-medium block">
-                      Kawal Logistik, Jalur Aman & Pantauan Rute
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>{' '}
-                    {disaster.route.statusBadge}
-                  </span>
-                  <button
-                    onClick={() => setIsRouteVisible(false)}
-                    className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all"
-                    title="Tutup Rute Distribusi"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Estimated Duration, Distance & Convoy */}
-              <div className="p-3 bg-gradient-to-r from-orange-50 via-amber-50 to-slate-50 rounded-2xl border border-orange-200/70 flex items-center justify-between text-xs mb-3.5">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
-                  <span className="font-bold text-slate-800 text-[11px]">
-                    Estimasi Durasi & Jarak:
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-md bg-white font-bold text-orange-600 shadow-xs border border-orange-200 text-[11px]">
-                    {disaster.route.distance} • {disaster.route.duration}
-                  </span>
-                  <span className="text-[10px] font-semibold text-slate-500">
-                    {disaster.route.convoy}
-                  </span>
-                </div>
-              </div>
-
-              {/* Route Steps Timeline */}
-              <div className="space-y-2.5 overflow-y-auto pr-1 text-xs max-h-[300px]">
-                {disaster.route.checkpoints.map((cp, idx) => {
-                  const isLast = idx === disaster.route.checkpoints.length - 1;
-                  return (
-                    <div key={cp.id} className="flex items-start gap-3 relative">
-                      <div className="flex flex-col items-center shrink-0">
-                        <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] shadow-sm ring-4 ring-slate-100 ${cp.badgeColor}`}
-                        >
-                          {cp.id}
-                        </div>
-                        {!isLast && <div className="w-0.5 h-10 bg-slate-200 my-0.5"></div>}
-                      </div>
-                      <div className="flex-1 bg-slate-50/80 rounded-xl p-2.5 border border-slate-100 hover:border-slate-200 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900 text-[11px]">
-                            {cp.title}
-                          </span>
-                          <span
-                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${cp.tagClass}`}
-                          >
-                            {cp.tag}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
-                          {cp.subtitle}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Actions: Navigasi & Rute Offline */}
-              <div className="pt-3.5 mt-3 border-t border-slate-100 flex items-center gap-2">
-                <button
-                  onClick={() => alert('Membuka GPS Navigasi Taktis Tim TRC/SAR...')}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                >
-                  <Navigation className="w-3.5 h-3.5" />
-                  <span>Buka Navigasi Tim SAR</span>
-                </button>
-                <button
-                  onClick={() =>
-                    alert(
-                      'Mengunduh Peta Rute Offline PDF & Kontak Frekuensi Radio (145.200 MHz)...'
-                    )
-                  }
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-semibold text-xs flex items-center gap-1 border border-slate-200 transition-all cursor-pointer"
-                  title="Unduh Panduan Rute Off-grid"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Rute Offline</span>
-                </button>
-              </div>
-            </article>
-          )}
-
-          {/* Card 2: Laporan Warga & Relawan Terverifikasi */}
+        {/* Card 2: Laporan Warga & Relawan Terverifikasi */}
+        <div className="xl:col-span-6 min-w-0 flex flex-col h-full min-h-0 overflow-hidden pr-1 pb-4">
           <article
-            className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col transition-all hover:shadow-md"
+            className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col h-full min-h-0 transition-all hover:shadow-md"
             id="citizenReportsCard"
           >
-            <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center shadow-xs shrink-0">
                   <Camera className="w-4 h-4" />
                 </div>
+
                 <div>
                   <div className="flex items-center gap-2">
                     <h4 className="text-xs font-bold text-slate-900 tracking-tight uppercase">
                       Laporan Warga Terverifikasi
                     </h4>
+
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
                       {disaster.reports.length} Laporan Aktif
                     </span>
                   </div>
+
                   <span className="text-[10px] text-slate-400 font-medium block">
                     Divalidasi Petugas Posko TRC & BPBD Lapangan
                   </span>
                 </div>
               </div>
+
               <button
                 onClick={onOpenAIHelpdesk}
                 className="text-[11px] text-blue-600 font-semibold hover:underline flex items-center gap-0.5"
               >
-                <span>Semua</span>
+                Semua
               </button>
             </div>
 
-            <div className="space-y-2.5 overflow-y-auto max-h-[300px] pr-1">
-              {disaster.reports.map((rep) => (
-                <div
-                  key={rep.id}
-                  className="p-3 bg-slate-50/80 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      <span className="font-bold text-slate-900 text-xs">{rep.location}</span>
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+              <div className="space-y-3">
+                {disaster.reports.map((report) => (
+                  <div
+                    key={report.id}
+                    className="p-3 bg-slate-50/80 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all shrink-0 "
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span className="font-bold text-slate-900 text-xs">{report.location}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                        {report.time}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-slate-400 font-medium shrink-0">
-                      {rep.time}
-                    </span>
+                    <p className="text-xs text-slate-600 leading-snug mb-2">{report.desc}</p>
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className={`font-semibold px-2 py-0.5 rounded-full border ${report.tagClass}`}>
+                        {report.tag}
+                      </span>
+                      <span className="text-slate-400 font-medium">{report.author}</span>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-600 leading-snug mb-2">{rep.desc}</p>
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className={`font-semibold px-2 py-0.5 rounded-full border ${rep.tagClass}`}>
-                      {rep.tag}
-                    </span>
-                    <span className="text-slate-400 font-medium">{rep.author}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
-            <div className="pt-3.5 mt-3 border-t border-slate-100 flex items-center justify-between">
+            <div className="pt-3.5 mt-3 border-t border-slate-100 flex items-center justify-between shrink-0">
               <span className="text-[11px] text-slate-500 font-medium">
                 Pusat Pengaduan Darurat Warga
               </span>

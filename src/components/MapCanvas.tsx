@@ -282,6 +282,11 @@ interface MapCanvasProps {
   onExpandView: () => void;
   onOpenAIHelpdesk: () => void;
   isExpanded: boolean;
+  /** Incident currently announced by the header news ticker (highlighted on the map). */
+  highlightedDisasterKey?: string | null;
+  /** Selected evacuation post (Posko) — synced with the Posko list view. */
+  selectedPostId?: NonNullable<DisasterIncident['route']>['checkpoints'][number]['id'] | null;
+  onSelectPost?: (id: NonNullable<DisasterIncident['route']>['checkpoints'][number]['id']) => void;
   isSidebarMinimized?: boolean;
   onToggleSidebar?: () => void;
   isDetailOpen?: boolean;
@@ -513,6 +518,9 @@ const OSMMapRenderer: React.FC<{
   magmaRange?: ResolvedRange | null;
   /** Current map zoom (drives zoom-based decluttering). */
   zoomLevel?: number;
+  highlightedDisasterKey?: string | null;
+  selectedPostId?: NonNullable<DisasterIncident['route']>['checkpoints'][number]['id'] | null;
+  onSelectPost?: (id: NonNullable<DisasterIncident['route']>['checkpoints'][number]['id']) => void;
   focusTarget?: FocusTarget | null;
   searchedPlace?: PlaceResult | null;
   myLocation?: MyLocation | null;
@@ -548,6 +556,9 @@ const OSMMapRenderer: React.FC<{
   magmaEruptions = [],
   magmaRange = null,
   zoomLevel = 5,
+  highlightedDisasterKey = null,
+  selectedPostId = null,
+  onSelectPost,
   focusTarget = null,
   searchedPlace = null,
   myLocation = null,
@@ -705,7 +716,7 @@ const OSMMapRenderer: React.FC<{
       if (typeof lat !== 'number' || typeof lng !== 'number') return;
 
       const isSelected = incident.id === activeDisasterKey;
-      const html = disasterMarkerHtml(incident, isSelected);
+      const html = disasterMarkerHtml(incident, isSelected || incident.id === highlightedDisasterKey);
 
       const m = L.marker([lat, lng], {
         icon: L.divIcon({ html, className: 'disaster-osm-marker', iconSize: [0, 0] }),
@@ -733,7 +744,7 @@ const OSMMapRenderer: React.FC<{
     });
 
     updatePos();
-  }, [disasters, activeCategory, activeDisasterKey, onSelectDisaster, updatePos]);
+  }, [disasters, activeCategory, activeDisasterKey, onSelectDisaster, updatePos, highlightedDisasterKey]);
 
   // BMKG earthquake layer (separate from Disaster incidents; distinct cyan style)
   useEffect(() => {
@@ -957,14 +968,18 @@ const OSMMapRenderer: React.FC<{
       }
       pts.push([lat, lng]);
 
+      const isSelPost = cp.id === selectedPostId;
       const cpMarker = L.marker([lat, lng], {
         icon: L.divIcon({
-          html: `<div class="flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2"><div class="w-6 h-6 rounded-full bg-slate-900 border-2 border-orange-400 text-orange-300 font-black text-[10px] flex items-center justify-center shadow-lg">${idx + 1}</div></div>`,
-          iconSize: [24, 24],
-          iconAnchor: [12, 12],
+          html: `<div class="flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 cursor-pointer"><div class="${
+            isSelPost ? 'w-8 h-8 bg-orange-500 border-white text-white ring-4 ring-orange-400/40' : 'w-6 h-6 bg-slate-900 border-orange-400 text-orange-300'
+          } rounded-full border-2 font-black text-[10px] flex items-center justify-center shadow-lg">${idx + 1}</div></div>`,
+          iconSize: [0, 0],
         }),
-        zIndexOffset: 800,
+        zIndexOffset: isSelPost ? 900 : 800,
+        title: cp.name ?? cp.title ?? `Posko ${idx + 1}`,
       });
+      cpMarker.on('click', () => onSelectPost?.(cp.id));
       rGroup.addLayer(cpMarker);
     });
 
@@ -973,7 +988,7 @@ const OSMMapRenderer: React.FC<{
       rGroup.addLayer(L.polyline(pts, { color: '#f97316', weight: 3.5, opacity: 0.95, dashArray: '8, 8' }));
       map.fitBounds(L.latLngBounds(pts), { padding: [90, 90], animate: true, duration: 1.0 });
     }
-  }, [isRouteOpen, activeData]);
+  }, [isRouteOpen, activeData, selectedPostId, onSelectPost]);
 
   return (
     <>
@@ -1021,6 +1036,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   firmsRangeLabel = '',
   firmsSensors = '',
   selectedDate = 'Today',
+  highlightedDisasterKey = null,
+  selectedPostId = null,
+  onSelectPost,
   bmkgWeather = [],
   weatherStatus = 'idle',
 }) => {
@@ -1409,9 +1427,24 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     strokeWeight={4}
                   />
                   {googleRoutePoints.map((pt, idx) => (
-                    <AdvancedMarker key={`gcp-${idx}`} position={pt} zIndex={500}>
-                      <div className="flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 cursor-pointer">
-                        <div className="w-6 h-6 rounded-full bg-slate-900 border-2 border-orange-400 text-orange-300 font-black text-[10px] flex items-center justify-center shadow-xl">
+                    <AdvancedMarker
+                      key={`gcp-${idx}`}
+                      position={pt}
+                      zIndex={activeData?.route?.checkpoints?.[idx]?.id === selectedPostId ? 600 : 500}
+                      title={activeData?.route?.checkpoints?.[idx]?.name ?? `Posko ${idx + 1}`}
+                      onClick={() => {
+                        const id = activeData?.route?.checkpoints?.[idx]?.id;
+                        if (id !== undefined) onSelectPost?.(id);
+                      }}
+                    >
+                      <div className="flex items-center justify-center cursor-pointer">
+                        <div
+                          className={`rounded-full border-2 font-black text-[10px] flex items-center justify-center shadow-xl ${
+                            activeData?.route?.checkpoints?.[idx]?.id === selectedPostId
+                              ? 'w-8 h-8 bg-orange-500 border-white text-white ring-4 ring-orange-400/40'
+                              : 'w-6 h-6 bg-slate-900 border-orange-400 text-orange-300'
+                          }`}
+                        >
                           {idx + 1}
                         </div>
                       </div>
@@ -1448,7 +1481,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                           className="absolute bottom-[3.25rem] left-1/2 -translate-x-1/2 z-50"
                         />
                       )}
-                      <DisasterMarker incident={incident} isSelected={isSelected} />
+                      <DisasterMarker incident={incident} isSelected={isSelected || incident.id === highlightedDisasterKey} />
                     </div>
                   </AdvancedMarker>
                 );
@@ -2018,6 +2051,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             magmaEruptions={eruptions.notices}
             magmaRange={eruptions.range}
             zoomLevel={currentZoom}
+            highlightedDisasterKey={highlightedDisasterKey}
+            selectedPostId={selectedPostId}
+            onSelectPost={onSelectPost}
             focusTarget={focusTarget}
             searchedPlace={searchedPlace}
             myLocation={myLocation}
@@ -2637,12 +2673,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                   ? 'bg-orange-500 text-white border-orange-400 ring-2 ring-orange-400/40 shadow-orange-500/30'
                   : 'bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-900 dark:text-white border-slate-200/90 dark:border-slate-700/70'
               }`}
-              title="Buka / Tutup Halaman Rute Distribusi"
+              title="Buka / Tutup daftar Posko Evakuasi"
             >
               <Compass
                 className={`w-4 h-4 ${isRouteOpen ? 'text-white' : 'text-orange-500'}`}
               />
-              <span className="hidden md:inline">Rute Distribusi</span>
+              <span className="hidden md:inline">Posko Evakuasi</span>
               {isRouteOpen && (
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
               )}

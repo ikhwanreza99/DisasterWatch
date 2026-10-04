@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { disastersData } from './data/disasters';
-import { DisasterCategory, DisasterIncident } from './types';
+import { DisasterCategory, DisasterIncident, DisasterCheckpoint } from './types';
 import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
 import { MapProvider } from './components/map/MapProvider';
 import { SlimSidebar } from './components/SlimSidebar';
 import { DisasterDetailView } from './components/DisasterDetailView';
-import { RouteDistributionView } from './components/RouteDistributionView';
+import { EvacuationPostView } from './components/EvacuationPostView';
 import { CitizenReportsView } from './components/CitizenReportsView';
 import { AIHelpdeskPanel } from './components/AIHelpdeskPanel';
 import { ReportModal } from './components/ReportModal';
@@ -44,6 +44,15 @@ export default function App() {
   const [isRouteOpen, setIsRouteOpen] = useState<boolean>(false);
   const [isReportsOpen, setIsReportsOpen] = useState<boolean>(false);
   const [isSidebarMinimized, setIsSidebarMinimized] = useState<boolean>(true);
+  // Sidebar can expand to the full disaster detail (design from feat/homepage-slicing).
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState<boolean>(false);
+  // News ticker highlights the incident it is announcing on the map.
+  const [highlightedDisasterKey, setHighlightedDisasterKey] = useState<string | null>(null);
+  // Selected evacuation post (Posko) in the Posko view / on the map.
+  const [selectedPostId, setSelectedPostId] = useState<DisasterCheckpoint['id'] | null>(null);
+  useEffect(() => {
+    setSelectedPostId(null);
+  }, [activeDisasterKey, isRouteOpen]);
   const [isAIOpen, setIsAIOpen] = useState<boolean>(false);
 
   // Modal overlays
@@ -81,8 +90,12 @@ export default function App() {
   };
 
   const handleSelectDisaster = (key: string) => {
+    // Clicking an incident marker opens the mini sidebar for it (as in feat/homepage-slicing).
+    // If another single-window panel (Posko, Laporan, AI) is open, that panel stays and follows
+    // the new incident — the mini sidebar only renders when no other panel is open.
     if (disasters[key]) {
       setActiveDisasterKey(key);
+      setIsSidebarMinimized(false);
     }
   };
 
@@ -99,19 +112,24 @@ export default function App() {
 
   // Mutually exclusive single-window openers (ensures ZERO dual window anywhere)
   const handleOpenDetail = () => {
+    setIsDetailOpen(false);
     setIsRouteOpen(false);
     setIsReportsOpen(false);
     setIsAIOpen(false);
-    setIsSidebarMinimized(true);
-    setIsDetailOpen(true);
+    setIsSidebarMinimized(false);
+    setIsSidebarExpanded(true);
   };
 
   const handleToggleDetail = () => {
-    if (isDetailOpen) {
-      setIsDetailOpen(false);
+    if (!isSidebarMinimized && isSidebarExpanded) {
+      setIsSidebarExpanded(false);
     } else {
       handleOpenDetail();
     }
+  };
+
+  const handleCollapseSidebar = () => {
+    setIsSidebarExpanded(false);
   };
 
   const handleOpenRoute = () => {
@@ -119,6 +137,7 @@ export default function App() {
     setIsReportsOpen(false);
     setIsAIOpen(false);
     setIsSidebarMinimized(true);
+    setIsSidebarExpanded(false);
     setIsRouteOpen(true);
   };
 
@@ -135,6 +154,7 @@ export default function App() {
     setIsRouteOpen(false);
     setIsAIOpen(false);
     setIsSidebarMinimized(true);
+    setIsSidebarExpanded(false);
     setIsReportsOpen(true);
   };
 
@@ -151,6 +171,7 @@ export default function App() {
     setIsRouteOpen(false);
     setIsReportsOpen(false);
     setIsSidebarMinimized(true);
+    setIsSidebarExpanded(false);
     setIsAIOpen(true);
   };
 
@@ -172,6 +193,7 @@ export default function App() {
       setIsAIOpen(false);
       setIsSidebarMinimized(false);
     } else {
+      setIsSidebarExpanded(false);
       setIsSidebarMinimized(true);
     }
   };
@@ -289,6 +311,8 @@ export default function App() {
             target === 'magma' ? setMagmaDate(value) : target === 'bmkg' ? setBmkgDate(value) : setSelectedDate(value)
           }
           onOpenReportModal={() => setIsReportModalOpen(true)}
+          disasters={disasters}
+          onHighlightDisaster={setHighlightedDisasterKey}
         />
 
         <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords} />
@@ -343,10 +367,13 @@ export default function App() {
             isDarkMode={isDarkMode}
             onExpandView={handleOpenDetail}
             onOpenAIHelpdesk={handleOpenAI}
-            isExpanded={false}
+            isExpanded={isSidebarExpanded}
+            highlightedDisasterKey={highlightedDisasterKey}
+            selectedPostId={selectedPostId}
+            onSelectPost={setSelectedPostId}
             isSidebarMinimized={isSidebarMinimized}
             onToggleSidebar={handleToggleSidebar}
-            isDetailOpen={isDetailOpen}
+            isDetailOpen={!isSidebarMinimized && isSidebarExpanded}
             onToggleDetail={handleToggleDetail}
             onOpenDetail={handleOpenDetail}
             isRouteOpen={isRouteOpen}
@@ -390,10 +417,16 @@ export default function App() {
           {!isDetailOpen && !isRouteOpen && !isReportsOpen && !isAIOpen && !isSidebarMinimized && (
             <SlimSidebar
               disaster={activeDisaster}
+              isExpanded={isSidebarExpanded}
               onExpandView={handleOpenDetail}
+              onCollapseView={handleCollapseSidebar}
               onOpenAIHelpdesk={handleOpenAI}
+              onOpenDonationModal={() => setIsDonationModalOpen(true)}
               onOpenDisasterBrief={handleOpenDisasterBrief}
-              onMinimize={() => setIsSidebarMinimized(true)}
+              onMinimize={() => {
+                setIsSidebarExpanded(false);
+                setIsSidebarMinimized(true);
+              }}
               onOpenRoute={handleOpenRoute}
               onOpenReports={handleOpenReports}
             />
@@ -414,15 +447,17 @@ export default function App() {
             />
           )}
 
-          {/* MODE 3: Dedicated Single-Window "Rute Distribusi Bantuan" (Strictly single window, no dual window) */}
+          {/* MODE 3: Dedicated Single-Window "Posko Evakuasi" (replaces Rute Distribusi, from feat/homepage-slicing) */}
           {isRouteOpen && (
-            <RouteDistributionView
+            <EvacuationPostView
               disaster={activeDisaster}
               onClose={() => setIsRouteOpen(false)}
               onOpenDonationModal={() => setIsDonationModalOpen(true)}
-              onOpenAIHelpdesk={handleOpenReports}
+              onOpenAIHelpdesk={handleOpenAI}
               onViewDisasterDetail={handleOpenDetail}
               isDarkMode={isDarkMode}
+              selectedPostId={selectedPostId}
+              onSelectPost={setSelectedPostId}
             />
           )}
 

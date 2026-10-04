@@ -13,6 +13,26 @@ export interface StoreStatus {
 const memReports: IntelligenceReport[] = [];
 const memAid: AidRecord[] = [];
 
+/**
+ * Firestore docs were seeded before the Posko / recovery-status fields existed.
+ * Fill anything missing from the local demo record so newer UI never reads undefined.
+ */
+function withLocalDefaults(v: DisasterIncident): DisasterIncident {
+  const local = disastersData[v.id];
+  const fsCheckpoints = v.route?.checkpoints ?? [];
+  // Prefer local checkpoints when the Firestore ones predate the Posko fields (no `name`).
+  const hasPostFields = fsCheckpoints.some((c) => c.name || c.capacity);
+  return {
+    ...(local ?? {}),
+    ...v,
+    recoveryServices: v.recoveryServices ?? local?.recoveryServices ?? [],
+    route:
+      v.route && (hasPostFields || !local?.route)
+        ? { ...v.route, checkpoints: fsCheckpoints }
+        : (local?.route ?? v.route),
+  } as DisasterIncident;
+}
+
 export async function loadDisasters(): Promise<{ data: Record<string, DisasterIncident>; status: StoreStatus }> {
   const db = getDb();
   if (!db) {
@@ -24,7 +44,7 @@ export async function loadDisasters(): Promise<{ data: Record<string, DisasterIn
     const out: Record<string, DisasterIncident> = {};
     snap.forEach((d) => {
       const v = d.data() as DisasterIncident;
-      if (v && v.id) out[v.id] = v;
+      if (v && v.id) out[v.id] = withLocalDefaults(v);
     });
     return Object.keys(out).length > 0
       ? { data: out, status: { mode: 'live', message: `Memuat ${Object.keys(out).length} insiden dari Firestore.` } }

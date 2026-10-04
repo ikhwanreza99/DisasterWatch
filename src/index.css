@@ -141,3 +141,23 @@
     max-width: calc(100vw - 4rem) !important;
   }
 }
+
+/* Disaster news ticker (from feat/homepage-slicing). */
+/* Each bulletin travels across the header while its map pin is highlighted. */
+.disaster-news-track {
+  width: max-content;
+  min-width: 100%;
+  white-space: nowrap;
+  animation: disasterNewsScroll linear infinite;
+}
+@keyframes disasterNewsScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .disaster-news-track {
+    animation: none;
+    width: auto;
+    white-space: normal;
+  }
+}
