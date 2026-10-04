@@ -1,10 +1,10 @@
 import React from 'react';
 import { Flame, Waves, Activity, LayoutGrid } from 'lucide-react';
-import { DisasterCategory } from '../types';
+import { CategoryFilter, DisasterCategory } from '../types';
 
 interface CategoryFilterBarProps {
-  activeCategory: DisasterCategory | 'all';
-  onSelectCategory: (cat: DisasterCategory | 'all') => void;
+  activeCategory: CategoryFilter;
+  onSelectCategory: (cat: CategoryFilter) => void;
   isDarkMode: boolean;
 }
 
@@ -21,12 +21,13 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
       {/* All */}
       <button
         onClick={() => onSelectCategory('all')}
+        aria-pressed={activeCategory === 'all'}
         className={`cat-filter-btn group relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-xs ${
           activeCategory === 'all'
             ? 'bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950 font-bold shadow-md'
             : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/50'
         }`}
-        title="Semua Bencana"
+        title={activeCategory === 'all' ? 'Sembunyikan semua titik bencana' : 'Tampilkan semua bencana'}
       >
         <LayoutGrid className="w-5 h-5 transition-transform group-hover:scale-110" />
         <span className="absolute left-16 px-2.5 py-1 rounded-md bg-slate-900 text-white text-[11px] font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity shadow-md z-30">

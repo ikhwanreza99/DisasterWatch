@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { disastersData } from './data/disasters';
-import { DisasterCategory, DisasterIncident, DisasterCheckpoint } from './types';
+import { CategoryFilter, DisasterCategory, DisasterIncident, DisasterCheckpoint } from './types';
 import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
 import { MapProvider } from './components/map/MapProvider';
@@ -32,7 +32,7 @@ export default function App() {
   const [aidRecords, setAidRecords] = useState<AidRecord[]>(demoAid);
   const [storeNotice, setStoreNotice] = useState<string>('Mode demo lokal — Firestore fallback aktif.');
   const [currentUser, setCurrentUser] = useState<UserIdentity>(mockUser());
-  const [activeCategory, setActiveCategory] = useState<DisasterCategory | 'all'>('all');
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
   // Separate date selections: BMKG quakes (~latest 30), FIRMS (NRT, last 60 days), MAGMA (archive since 2018).
   const [selectedDate, setSelectedDate] = useState<string>('Today');
   const [magmaDate, setMagmaDate] = useState<string>('Today');
@@ -99,10 +99,15 @@ export default function App() {
     }
   };
 
-  const handleSelectCategory = (cat: DisasterCategory | 'all') => {
+  const handleSelectCategory = (cat: CategoryFilter) => {
+    // "Semua Bencana" is a toggle: clicking it while active hides every incident marker.
+    if (cat === 'all' && activeCategory === 'all') {
+      setActiveCategory('none');
+      return;
+    }
     setActiveCategory(cat);
     // If the active disaster doesn't match the new category, pick the first visible
-    if (cat !== 'all' && activeDisaster.category !== cat) {
+    if (cat !== 'all' && cat !== 'none' && activeDisaster.category !== cat) {
       const match = Object.values(disasters).find((d) => d.category === cat);
       if (match) {
         setActiveDisasterKey(match.id);

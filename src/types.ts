@@ -1,4 +1,6 @@
 export type DisasterCategory = 'fire' | 'flood' | 'earthquake';
+/** Category dock filter: one category, all of them, or none (all incident markers hidden). */
+export type CategoryFilter = DisasterCategory | 'all' | 'none';
 
 export interface DisasterCheckpoint {
   id: number;

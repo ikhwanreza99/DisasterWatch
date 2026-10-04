@@ -30,7 +30,7 @@ import {
   LocateFixed,
   Loader2,
 } from 'lucide-react';
-import { DisasterIncident, DisasterCategory } from '../types';
+import { CategoryFilter, DisasterIncident, DisasterCategory } from '../types';
 import { uniqueAreaNames, type EarthquakeEvent, type BmkgWeatherWarning } from '../services/bmkg';
 import { buildBmkgPopupHtml, buildBmkgWeatherPopupHtml } from './map/bmkgPopup';
 import { FIRMS_SOURCE_URL, type FireHotspot, type FirmsStatus } from '../services/firms';
@@ -277,7 +277,7 @@ interface MapCanvasProps {
   disasters: Record<string, DisasterIncident>;
   activeDisasterKey: string;
   onSelectDisaster: (id: string) => void;
-  activeCategory: DisasterCategory | 'all';
+  activeCategory: CategoryFilter;
   isDarkMode: boolean;
   onExpandView: () => void;
   onOpenAIHelpdesk: () => void;
@@ -489,7 +489,7 @@ const OSMMapRenderer: React.FC<{
   disasters: Record<string, DisasterIncident>;
   activeDisasterKey: string;
   onSelectDisaster: (id: string) => void;
-  activeCategory: DisasterCategory | 'all';
+  activeCategory: CategoryFilter;
   isDarkMode: boolean;
   tileType: OSMTileType;
   isRouteOpen: boolean;
