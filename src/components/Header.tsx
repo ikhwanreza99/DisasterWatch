@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
+import { DisasterTicker } from './DisasterTicker';
+import type { DisasterIncident } from '../types';
 import { Calendar, ChevronDown } from 'lucide-react';
 
 interface HeaderProps {
+  disasters: Record<string, DisasterIncident>;
+  onHighlightDisaster: (id: string | null) => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
   selectedDate: string;
@@ -10,6 +14,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  disasters,
+  onHighlightDisaster,
   selectedDate,
   onSelectDate,
 }) => {
@@ -25,7 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header
       className="
         relative z-40
-        flex items-center justify-between
+        flex flex-wrap items-center justify-between gap-4
         px-8 py-4
 
         bg-white
@@ -52,6 +58,10 @@ export const Header: React.FC<HeaderProps> = ({
             ver.1.0
           </span>
         </div>
+      </div>
+
+      <div className="order-last w-full min-w-0 md:order-none md:w-auto md:flex-1 md:px-4">
+        <DisasterTicker disasters={disasters} onHighlight={onHighlightDisaster} />
       </div>
 
       {/* Right Controls */}

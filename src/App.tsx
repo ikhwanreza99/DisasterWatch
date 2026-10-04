@@ -1,20 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { disastersData } from './data/disasters';
-import { DisasterCategory, DisasterIncident } from './types';
+import { DisasterCategory, DisasterCheckpoint, DisasterIncident } from './types';
 import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
 import { MapCanvas } from './components/MapCanvas';
 import { SlimSidebar } from './components/SlimSidebar';
 import { DisasterDetailView } from './components/DisasterDetailView';
-import { RouteDistributionView } from './components/RouteDistributionView';
 import { CitizenReportsView } from './components/CitizenReportsView';
 import { AIHelpdeskPanel } from './components/AIHelpdeskPanel';
 import { ReportModal } from './components/ReportModal';
 import { DonationModal } from './components/DonationModal';
+import { EvacuationPostView } from './components/EvacuationPostView';
 
 export default function App() {
   const [disasters, setDisasters] = useState<Record<string, DisasterIncident>>(disastersData);
   const [activeDisasterKey, setActiveDisasterKey] = useState<string>('padang');
+  const [highlightedDisasterKey, setHighlightedDisasterKey] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<DisasterCategory | 'all'>('all');
   const [selectedDate, setSelectedDate] = useState<string>('Today');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
@@ -26,6 +27,14 @@ export default function App() {
   const [isSidebarMinimized, setIsSidebarMinimized] = useState<boolean>(true);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState<boolean>(false);
   const [isAIOpen, setIsAIOpen] = useState<boolean>(false);
+
+  // Disaster Checkpoint
+  const [selectedPostId, setSelectedPostId] =
+    useState<DisasterCheckpoint['id'] | null>(null);
+
+  useEffect(() => {
+    setSelectedPostId(null);
+  }, [activeDisasterKey, isRouteOpen]);
 
   // Modal overlays
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
@@ -190,6 +199,8 @@ export default function App() {
     >
       {/* Top Bar Navigation */}
       <Header
+          disasters={disasters}
+          onHighlightDisaster={setHighlightedDisasterKey}
           isDarkMode={isDarkMode}
           onToggleTheme={handleToggleTheme}
           selectedDate={selectedDate}
@@ -208,6 +219,7 @@ export default function App() {
 
           {/* Central Map Canvas Area */}
           <MapCanvas
+            highlightedDisasterKey={highlightedDisasterKey}
             disasters={disasters}
             activeDisasterKey={activeDisasterKey}
             onSelectDisaster={handleSelectDisaster}
@@ -228,6 +240,11 @@ export default function App() {
             onToggleReports={handleToggleReports}
             onOpenReports={handleOpenReports}
             onOpenSidebar={() => setIsSidebarMinimized(false)}
+            isEvacuationPostOpen={isRouteOpen}
+            onOpenEvacuationPost={handleOpenRoute}
+            onToggleEvacuationPost={handleToggleRoute}
+            selectedPostId={selectedPostId}
+            onSelectPost={setSelectedPostId}
           />
 
           {/* MODE 1: Compact Homepage Menu Sidebar (Only rendered when no other window is open and user un-minimizes sidebar) */}
@@ -268,13 +285,11 @@ export default function App() {
 
           {/* MODE 3: Dedicated Single-Window "Rute Distribusi Bantuan" (Strictly single window, no dual window) */}
           {isRouteOpen && (
-            <RouteDistributionView
+            <EvacuationPostView
               disaster={activeDisaster}
               onClose={() => setIsRouteOpen(false)}
-              onOpenDonationModal={() => setIsDonationModalOpen(true)}
-              onOpenAIHelpdesk={handleOpenReports}
-              onViewDisasterDetail={handleOpenDetail}
-              isDarkMode={isDarkMode}
+              selectedPostId={selectedPostId}
+              onSelectPost={setSelectedPostId}
             />
           )}
 

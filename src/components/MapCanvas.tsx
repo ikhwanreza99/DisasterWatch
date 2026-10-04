@@ -26,6 +26,7 @@ import { DisasterIncident, DisasterCategory } from '../types';
 interface MapCanvasProps {
   disasters: Record<string, DisasterIncident>;
   activeDisasterKey: string;
+  highlightedDisasterKey?: string | null;
   onSelectDisaster: (id: string) => void;
   activeCategory: DisasterCategory | 'all';
   isDarkMode: boolean;
@@ -37,9 +38,15 @@ interface MapCanvasProps {
   isDetailOpen?: boolean;
   onToggleDetail?: () => void;
   onOpenDetail?: () => void;
+  // Compatibility during parent migration.
   isRouteOpen?: boolean;
   onToggleRoute?: () => void;
   onOpenRoute?: () => void;
+  selectedPostId?: DisasterIncident['route']['checkpoints'][number]['id'] | null;
+  onSelectPost?: (id: DisasterIncident['route']['checkpoints'][number]['id']) => void;
+  isEvacuationPostOpen?: boolean;
+  onToggleEvacuationPost?: () => void;
+  onOpenEvacuationPost?: () => void;
   isReportsOpen?: boolean;
   onToggleReports?: () => void;
   onOpenReports?: () => void;
@@ -135,12 +142,12 @@ const darkGoogleMapStyles: google.maps.MapTypeStyle[] = [
 // Inner controller for Google Maps camera
 const GoogleMapCameraController: React.FC<{
   activeDisaster: DisasterIncident | undefined;
-  isRouteOpen: boolean;
-  routePoints: google.maps.LatLngLiteral[];
+  isEvacuationPostOpen: boolean;
+  evacuationPostPoints: google.maps.LatLngLiteral[];
   zoomTrigger: { action: 'in' | 'out' | 'reset'; id: number } | null;
   mapType: GoogleMapType;
   onZoomChange: (zoom: number) => void;
-}> = ({ activeDisaster, isRouteOpen, routePoints, zoomTrigger, mapType, onZoomChange }) => {
+}> = ({ activeDisaster, isEvacuationPostOpen, evacuationPostPoints, zoomTrigger, mapType, onZoomChange }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -174,11 +181,11 @@ const GoogleMapCameraController: React.FC<{
   }, [map, activeDisaster?.id]);
 
   useEffect(() => {
-    if (!map || !isRouteOpen || routePoints.length < 1) return;
+    if (!map || !isEvacuationPostOpen || evacuationPostPoints.length < 1) return;
     const bounds = new google.maps.LatLngBounds();
-    routePoints.forEach((pt) => bounds.extend(pt));
+    evacuationPostPoints.forEach((pt) => bounds.extend(pt));
     map.fitBounds(bounds, { top: 90, bottom: 90, left: 90, right: 90 });
-  }, [map, isRouteOpen, routePoints]);
+  }, [map, isEvacuationPostOpen, evacuationPostPoints]);
 
   useEffect(() => {
     if (!map || !zoomTrigger) return;
@@ -406,33 +413,39 @@ const DisasterMarker: React.FC<{
 const OSMMapRenderer: React.FC<{
   disasters: Record<string, DisasterIncident>;
   activeDisasterKey: string;
+  highlightedDisasterKey?: string | null;
   onSelectDisaster: (id: string) => void;
   activeCategory: DisasterCategory | 'all';
   isDarkMode: boolean;
   tileType: OSMTileType;
-  isRouteOpen: boolean;
+  isEvacuationPostOpen: boolean;
+  selectedPostId: DisasterIncident['route']['checkpoints'][number]['id'] | null;
+  onSelectPost?: (id: DisasterIncident['route']['checkpoints'][number]['id']) => void;
   zoomTrigger: { action: 'in' | 'out' | 'reset'; id: number } | null;
   onZoomChange: (zoom: number) => void;
   onOpenDetail?: () => void;
   onExpandView: () => void;
-  onOpenRoute?: () => void;
-  onToggleRoute?: () => void;
+  onOpenEvacuationPost?: () => void;
+  onToggleEvacuationPost?: () => void;
   onOpenReports?: () => void;
   onToggleReports?: () => void;
 }> = ({
   disasters,
   activeDisasterKey,
+  highlightedDisasterKey,
   onSelectDisaster,
   activeCategory,
   isDarkMode,
   tileType,
-  isRouteOpen,
+  isEvacuationPostOpen,
+  selectedPostId,
+  onSelectPost,
   zoomTrigger,
   onZoomChange,
   onOpenDetail,
   onExpandView,
-  onOpenRoute,
-  onToggleRoute,
+  onOpenEvacuationPost,
+  onToggleEvacuationPost,
   onOpenReports,
   onToggleReports,
   
@@ -441,7 +454,7 @@ const OSMMapRenderer: React.FC<{
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
-  const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const evacuationPostLayerRef = useRef<L.LayerGroup | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
 
   const [calloutPos, setCalloutPos] = useState<{ x: number; y: number } | null>(null);
@@ -504,7 +517,7 @@ const OSMMapRenderer: React.FC<{
     const mGroup = L.layerGroup().addTo(map);
     const rGroup = L.layerGroup().addTo(map);
     markersLayerRef.current = mGroup;
-    routeLayerRef.current = rGroup;
+    evacuationPostLayerRef.current = rGroup;
 
     map.on('move', updatePos);
     map.on('zoomend', () => {
@@ -553,14 +566,14 @@ const OSMMapRenderer: React.FC<{
       circleRef.current = null;
     }
 
-    if (!isRouteOpen) {
+    if (!isEvacuationPostOpen) {
       Object.values(disasters).forEach((incident) => {
-      const isVisible = activeCategory === 'all' || incident.category === activeCategory;
+      const isVisible = activeCategory === 'all' || incident.category === activeCategory || incident.id === highlightedDisasterKey;
       if (!isVisible) return;
       const { lat, lng } = incident.coords;
       if (typeof lat !== 'number' || typeof lng !== 'number') return;
 
-      const isSelected = incident.id === activeDisasterKey;
+      const isSelected = incident.id === (highlightedDisasterKey ?? activeDisasterKey);
 
       const markerConfig = {
         flood: {
@@ -718,16 +731,19 @@ const OSMMapRenderer: React.FC<{
     }
 
     updatePos();
-  }, [disasters, activeCategory, activeDisasterKey, onSelectDisaster, updatePos, isRouteOpen]);
+  }, [disasters, activeCategory, highlightedDisasterKey, activeDisasterKey, onSelectDisaster, updatePos, isEvacuationPostOpen]);
 
-  // Route drawing
+  const selectionOnlyRef = useRef(false);
+  useEffect(() => { selectionOnlyRef.current = false; }, [isEvacuationPostOpen, activeData]);
+
+  // Independent aid-post markers (legacy data adapter)
   useEffect(() => {
-    if (!mapRef.current || !routeLayerRef.current) return;
+    if (!mapRef.current || !evacuationPostLayerRef.current) return;
     const map = mapRef.current;
-    const rGroup = routeLayerRef.current;
+    const rGroup = evacuationPostLayerRef.current;
     rGroup.clearLayers();
 
-    if (!isRouteOpen || !activeData || !activeData.route) return;
+    if (!isEvacuationPostOpen || !activeData || !activeData.route) return;
     const checkpoints = activeData.route.checkpoints || [];
     const pts: [number, number][] = [];
 
@@ -740,26 +756,43 @@ const OSMMapRenderer: React.FC<{
       }
       pts.push([lat, lng]);
 
+      const selected = cp.id === selectedPostId;
       const cpMarker = L.marker([lat, lng], {
         icon: L.divIcon({
-          html: `<div class="flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2"><div class="w-6 h-6 rounded-full bg-slate-900 border-2 border-cyan-400 text-cyan-200 font-black text-[10px] flex items-center justify-center shadow-lg">${idx + 1}</div></div>`,
+          html: `<div class="flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2"><div class="w-6 h-6 rounded-full ${selected ? 'bg-cyan-500 ring-4 ring-cyan-300/40 text-white scale-110' : 'bg-slate-900 text-cyan-200'} border-2 border-cyan-400 font-black text-[10px] flex items-center justify-center shadow-lg">${idx + 1}</div></div>`,
           iconSize: [24, 24],
           iconAnchor: [12, 12],
         }),
         zIndexOffset: 800,
       });
+      cpMarker.on('click', () => onSelectPost?.(cp.id));
+      cpMarker.on('add', () => {
+        const element = cpMarker.getElement();
+        if (!element) return;
+        element.setAttribute('role', 'button');
+        element.setAttribute('aria-label', `Pilih Posko ${idx + 1}`);
+        element.setAttribute('aria-pressed', String(selected));
+        element.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            onSelectPost?.(cp.id);
+          }
+        });
+      });
       rGroup.addLayer(cpMarker);
     });
 
-    if (pts.length >= 1) {
+    if (pts.length >= 1 && !selectionOnlyRef.current) {
       map.fitBounds(L.latLngBounds(pts), { padding: [90, 90], animate: true, duration: 1.0 });
     }
-  }, [isRouteOpen, activeData]);
+    selectionOnlyRef.current = true;
+  }, [isEvacuationPostOpen, activeData, selectedPostId, onSelectPost]);
 
   return (
     <>
       <div ref={containerRef} className="w-full h-full absolute inset-0 z-0" />
-      {!isRouteOpen &&
+      {!isEvacuationPostOpen &&
         calloutPos &&
         activeData &&
         (activeCategory === 'all' || activeData.category === activeCategory) && (
@@ -780,6 +813,7 @@ const OSMMapRenderer: React.FC<{
 export const MapCanvas: React.FC<MapCanvasProps> = ({
   disasters,
   activeDisasterKey,
+  highlightedDisasterKey,
   onSelectDisaster,
   activeCategory,
   isDarkMode,
@@ -794,6 +828,11 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   isRouteOpen = false,
   onToggleRoute,
   onOpenRoute,
+  isEvacuationPostOpen = isRouteOpen,
+  onToggleEvacuationPost = onToggleRoute,
+  onOpenEvacuationPost = onOpenRoute,
+  selectedPostId = null,
+  onSelectPost,
   isReportsOpen = false,
   onToggleReports,
   onOpenReports,
@@ -847,9 +886,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
   const activeData = disasters[activeDisasterKey];
 
-  // Route checkpoint points for Google Maps
-  const googleRoutePoints = useMemo<google.maps.LatLngLiteral[]>(() => {
-    if (!isRouteOpen || !activeData || !activeData.route) return [];
+  // Aid-post positions for Google Maps (legacy data adapter)
+  const googleEvacuationPostPoints = useMemo<google.maps.LatLngLiteral[]>(() => {
+    if (!isEvacuationPostOpen || !activeData || !activeData.route) return [];
     const checkpoints = activeData.route.checkpoints || [];
     return checkpoints.map((cp, idx) => {
       if (typeof cp.lat === 'number' && typeof cp.lng === 'number') {
@@ -862,7 +901,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         lng: baseLng - 0.2 + idx * 0.1,
       };
     });
-  }, [isRouteOpen, activeData]);
+  }, [isEvacuationPostOpen, activeData]);
 
   const handleZoomAction = (action: 'in' | 'out' | 'reset') => {
     setZoomTrigger({ action, id: Date.now() });
@@ -963,15 +1002,15 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             >
               <GoogleMapCameraController
                 activeDisaster={activeData}
-                isRouteOpen={isRouteOpen}
-                routePoints={googleRoutePoints}
+                isEvacuationPostOpen={isEvacuationPostOpen}
+                evacuationPostPoints={googleEvacuationPostPoints}
                 zoomTrigger={zoomTrigger}
                 mapType={googleMapType}
                 onZoomChange={handleZoomChange}
               />
 
               {/* Hazard Impact Perimeter */}
-              {!isRouteOpen &&
+              {!isEvacuationPostOpen &&
                 activeData &&
                 (activeCategory === 'all' || activeData.category === activeCategory) && (
                   <Circle
@@ -1001,29 +1040,33 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 )}
 
               {/* Aid-post markers: no route line in Posko Bantuan mode */}
-              {isRouteOpen && googleRoutePoints.length >= 1 && (
+              {isEvacuationPostOpen && googleEvacuationPostPoints.length >= 1 && (
                 <>
-                  {googleRoutePoints.map((pt, idx) => (
-                    <AdvancedMarker key={`gcp-${idx}`} position={pt} zIndex={500}>
-                      <div className="flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 cursor-pointer">
-                        <div className="w-7 h-7 rounded-full bg-slate-900/95 border-2 border-cyan-400 text-cyan-200 font-black text-[10px] flex items-center justify-center shadow-[0_0_18px_rgba(34,211,238,0.28)] backdrop-blur-md">
+                  {googleEvacuationPostPoints.map((pt, idx) => {
+                    const post = activeData.route.checkpoints[idx];
+                    const selected = post.id === selectedPostId;
+                    return (
+                      <AdvancedMarker key={`post-${post.id}`} position={pt} zIndex={selected ? 600 : 500}>
+                        <button type="button" onClick={() => onSelectPost?.(post.id)}
+                          aria-label={`Pilih Posko ${idx + 1}`} aria-pressed={selected}
+                          className={`w-8 h-8 rounded-full border-2 border-cyan-400 font-black text-[11px] flex items-center justify-center shadow-lg transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-300 ${selected ? 'bg-cyan-500 text-white ring-4 ring-cyan-300/40 scale-110' : 'bg-slate-900/95 text-cyan-200 hover:bg-cyan-700'}`}>
                           {idx + 1}
-                        </div>
-                      </div>
-                    </AdvancedMarker>
-                  ))}
+                        </button>
+                      </AdvancedMarker>
+                    );
+                  })}
                 </>
               )}
 
               {/* Disaster Incident Advanced Markers */}
-              {!isRouteOpen && Object.values(disasters).map((incident) => {
+              {!isEvacuationPostOpen && Object.values(disasters).map((incident) => {
                 const isVisible =
-                  activeCategory === 'all' || incident.category === activeCategory;
+                  activeCategory === 'all' || incident.category === activeCategory || incident.id === highlightedDisasterKey;
                 if (!isVisible) return null;
                 const { lat, lng } = incident.coords;
                 if (typeof lat !== 'number' || typeof lng !== 'number') return null;
 
-                const isSelected = incident.id === activeDisasterKey;
+                const isSelected = incident.id === (highlightedDisasterKey ?? activeDisasterKey);
           
                 return (
                   <AdvancedMarker
@@ -1075,19 +1118,22 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           </APIProvider>
         ) : (
           <OSMMapRenderer
+            highlightedDisasterKey={highlightedDisasterKey}
             disasters={disasters}
             activeDisasterKey={activeDisasterKey}
             onSelectDisaster={handleSelectDisaster}
             activeCategory={activeCategory}
             isDarkMode={isDarkMode}
             tileType={osmTileType}
-            isRouteOpen={isRouteOpen}
+            isEvacuationPostOpen={isEvacuationPostOpen}
+            selectedPostId={selectedPostId}
+            onSelectPost={onSelectPost}
             zoomTrigger={zoomTrigger}
             onZoomChange={handleZoomChange}
             onOpenDetail={onOpenDetail}
             onExpandView={onExpandView}
-            onOpenRoute={onOpenRoute}
-            onToggleRoute={onToggleRoute}
+            onOpenEvacuationPost={onOpenEvacuationPost}
+            onToggleEvacuationPost={onToggleEvacuationPost}
             onOpenReports={onOpenReports}
             onToggleReports={onToggleReports}
           />

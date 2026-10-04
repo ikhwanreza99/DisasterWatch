@@ -249,21 +249,30 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
             </div>
           </div>
 
-          {/* Primary Action: Rute Evakuasi / Distribusi */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onOpenRoute) {
-                onOpenRoute();
-              } else {
+          {/* Disaster details and available evacuation posts */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
                 onExpandView();
-              }
-            }}
-            className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95"
-          >
-            <Compass className="w-4 h-4 text-orange-400" />
-            <span>Rute Evakuasi Mandiri & Logistik</span>
-          </button>
+              }}
+              className="min-w-0 py-2.5 px-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+            >
+              <span>Detail Bencana</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenRoute?.();
+              }}
+              className="min-w-0 py-2.5 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+            >
+              <Compass className="w-4 h-4 shrink-0 text-orange-400" aria-hidden="true" />
+              <span>Posko Evakuasi</span>
+            </button>
+          </div>
         </div>
 
 
@@ -407,13 +416,8 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
             </div>
 
             <button
-              onClick={() => {
-                if (onOpenReports) {
-                  onOpenReports();
-                } else {
-                  onExpandView();
-                }
-              }}
+              type="button"
+              onClick={onExpandView}
               className="
                 text-[10px]
                 font-semibold
