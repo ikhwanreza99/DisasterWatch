@@ -12,6 +12,7 @@ import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
 import { ExpandedDetailContent } from './ExpandedDetailContent';
 import { WeatherCard } from './WeatherCard';
+import { UrgentNeedsCard } from './UrgentNeedsCard';
 import { BmkgForecastPanel } from './BmkgForecastPanel';
 import { resolveForecastAdm4 } from '../services/bmkg/bmkgWeatherForecast';
 
@@ -469,6 +470,9 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
             ))}
           </div>
         </div>
+
+        {/* Kebutuhan Paling Urgent + donasi */}
+        <UrgentNeedsCard disaster={disaster} onOpenDonationModal={onOpenDonationModal} className="rounded-[20px] p-4" />
 
         {/* Cuaca lapangan (Google Weather) — below Laporan Terverifikasi */}
         <div className="rounded-[20px] border border-slate-200 bg-white p-4" data-purpose="mini-weather">
