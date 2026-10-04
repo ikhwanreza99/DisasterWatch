@@ -134,7 +134,8 @@ const locationDocs = [
   { id: 'LOC-DEMO-06', disasterId: 'padang', name: 'Kuranji, Padang', lat: -0.9515, lng: 100.3543, kind: 'command-post', note: 'DEMO', isMock: true, seedBatch: SEED_BATCH, updatedAt: SEED_AT },
 ];
 
-const DISASTER_KEYS = ['demak', 'padang', 'cianjur'] as const;
+// All demo incidents (kept in sync with src/data/disasters.ts / feat/homepage-slicing).
+const DISASTER_KEYS = Object.keys(disastersData) as (keyof typeof disastersData)[];
 const disasterDocs = DISASTER_KEYS.map((k) => ({ ...disastersData[k], isMock: true, seedBatch: SEED_BATCH, seededAt: SEED_AT, demoNotice: DEMO_NOTICE }));
 
 const plan: Array<{ col: string; docs: Array<Record<string, unknown> & { id: string }> }> = [

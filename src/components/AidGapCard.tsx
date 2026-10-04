@@ -1,4 +1,4 @@
-// Reusable deterministic aid-gap table. Used inside DisasterDetailView.
+// Reusable deterministic aid-gap table. Used inside ExpandedDetailContent (sidebar detail).
 import React, { useMemo } from 'react';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
 import { needLabel } from '../domain/intelligence';

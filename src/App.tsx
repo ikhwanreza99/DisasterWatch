@@ -5,7 +5,6 @@ import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
 import { MapProvider } from './components/map/MapProvider';
 import { SlimSidebar } from './components/SlimSidebar';
-import { DisasterDetailView } from './components/DisasterDetailView';
 import { EvacuationPostView } from './components/EvacuationPostView';
 import { CitizenReportsView } from './components/CitizenReportsView';
 import { AIHelpdeskPanel } from './components/AIHelpdeskPanel';
@@ -434,19 +433,6 @@ export default function App() {
               }}
               onOpenRoute={handleOpenRoute}
               onOpenReports={handleOpenReports}
-            />
-          )}
-
-          {/* MODE 2: Dedicated Single-Window "Detail Bencana" (Strictly single window, no dual window) */}
-          {isDetailOpen && (
-            <DisasterDetailView
-              disaster={activeDisaster}
-              onClose={() => setIsDetailOpen(false)}
-              onOpenDonationModal={() => setIsDonationModalOpen(true)}
-              onOpenDisasterBrief={handleOpenDisasterBrief}
-              onViewRoute={handleOpenRoute}
-              onViewReports={handleOpenReports}
-              isDarkMode={isDarkMode}
               intelReports={intelReports}
               aidRecords={aidRecords}
             />

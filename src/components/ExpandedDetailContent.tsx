@@ -19,6 +19,8 @@ import {
   Radio,
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
+import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
+import { AidGapCard } from './AidGapCard';
 
 interface ExpandedDetailContentProps {
   disaster: DisasterIncident;
@@ -26,6 +28,9 @@ interface ExpandedDetailContentProps {
   onOpenAIHelpdesk: () => void;
   onOpenDonationModal: () => void;
   onOpenDisasterBrief: () => void;
+  /** Structured reports + aid records for the aid-gap card. */
+  intelReports?: IntelligenceReport[];
+  aidRecords?: AidRecord[];
 }
 
 export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
@@ -34,6 +39,8 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
   onOpenAIHelpdesk,
   onOpenDonationModal,
   onOpenDisasterBrief,
+  intelReports = [],
+  aidRecords = [],
 }) => {
   const [isRouteVisible, setIsRouteVisible] = useState(true);
 
@@ -360,12 +367,18 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
               <span>Salurkan Bantuan / Donasi</span>
             </button>
           </article>
+
+          {/* Kesenjangan bantuan (kebutuhan vs bantuan tercatat) */}
+          <article className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80" data-purpose="detail-aid-gap">
+            <h4 className="text-xs font-bold text-slate-900 tracking-tight uppercase mb-3">Kesenjangan Bantuan</h4>
+            <AidGapCard disasterId={disaster.id} reports={intelReports} aid={aidRecords} />
+          </article>
         </div>
 
         {/* Card 2: Laporan Warga & Relawan Terverifikasi */}
-        <div className="xl:col-span-6 min-w-0 flex flex-col h-full min-h-0 overflow-hidden pr-1 pb-4">
+        <div className="xl:col-span-6 min-w-0 flex flex-col gap-4 h-full min-h-0 overflow-y-auto pr-1 pb-4">
           <article
-            className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col h-full min-h-0 transition-all hover:shadow-md"
+            className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col h-[min(70vh,640px)] min-h-[360px] shrink-0 transition-all hover:shadow-md"
             id="citizenReportsCard"
           >
             <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-slate-100 shrink-0">
@@ -439,6 +452,7 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
               </button>
             </div>
           </article>
+
         </div>
       </div>
     </div>

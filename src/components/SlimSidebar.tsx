@@ -9,7 +9,11 @@ import {
   PanelRightClose,
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
+import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
 import { ExpandedDetailContent } from './ExpandedDetailContent';
+import { WeatherCard } from './WeatherCard';
+import { BmkgForecastPanel } from './BmkgForecastPanel';
+import { resolveForecastAdm4 } from '../services/bmkg/bmkgWeatherForecast';
 
 
 interface SlimSidebarProps {
@@ -26,6 +30,8 @@ interface SlimSidebarProps {
   onMinimize: () => void;
   onOpenRoute?: () => void;
   onOpenReports?: () => void;
+  intelReports?: IntelligenceReport[];
+  aidRecords?: AidRecord[];
 }
 
 export const SlimSidebar: React.FC<SlimSidebarProps> = ({
@@ -39,6 +45,8 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
   onMinimize,
   onOpenRoute,
   onOpenReports,
+  intelReports,
+  aidRecords,
 }) => {
   const getCategoryIcon = () => {
     switch (disaster.category) {
@@ -113,6 +121,8 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           onOpenAIHelpdesk={onOpenAIHelpdesk}
           onOpenDonationModal={onOpenDonationModal}
           onOpenDisasterBrief={onOpenDisasterBrief}
+          intelReports={intelReports}
+          aidRecords={aidRecords}
         />
       ) : (
         <>
@@ -459,6 +469,20 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
             ))}
           </div>
         </div>
+
+        {/* Cuaca lapangan (Google Weather) — below Laporan Terverifikasi */}
+        <div className="rounded-[20px] border border-slate-200 bg-white p-4" data-purpose="mini-weather">
+          <h4 className="text-[14px] font-bold text-slate-900 mb-3">Cuaca Lapangan</h4>
+          <WeatherCard
+            lat={disaster.coords.lat}
+            lng={disaster.coords.lng}
+            locationName={disaster.name}
+            disasterCategory={disaster.category}
+          />
+        </div>
+
+        {/* Prakiraan cuaca BMKG */}
+        <BmkgForecastPanel adm4={resolveForecastAdm4(disaster)} locationLabel={`${disaster.name}, ${disaster.province}`} />
       </div>
         
 

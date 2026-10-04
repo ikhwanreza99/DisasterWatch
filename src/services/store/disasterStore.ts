@@ -41,10 +41,15 @@ export async function loadDisasters(): Promise<{ data: Record<string, DisasterIn
   try {
     const snap = await getDocs(query(collection(db, COLLECTIONS.disasters), orderBy('name'), limit(50)));
     if (snap.empty) return { data: disastersData, status: { mode: 'mock', message: 'Firestore kosong — memakai data demo lokal.' } };
-    const out: Record<string, DisasterIncident> = {};
+    // Start from the local demo dataset (same 7 incidents as feat/homepage-slicing), then layer
+    // Firestore on top. Seeded demo docs (isMock) are older copies of the local dataset, so the
+    // local record wins for those; real (non-mock) Firestore incidents always win / get added.
+    const out: Record<string, DisasterIncident> = { ...disastersData };
     snap.forEach((d) => {
-      const v = d.data() as DisasterIncident;
-      if (v && v.id) out[v.id] = withLocalDefaults(v);
+      const v = d.data() as DisasterIncident & { isMock?: boolean };
+      if (!v || !v.id) return;
+      if (v.isMock && disastersData[v.id]) return;
+      out[v.id] = withLocalDefaults(v);
     });
     return Object.keys(out).length > 0
       ? { data: out, status: { mode: 'live', message: `Memuat ${Object.keys(out).length} insiden dari Firestore.` } }
