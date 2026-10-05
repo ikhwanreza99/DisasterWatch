@@ -39,7 +39,6 @@ import { MapChatComposer } from './MapChatComposer';
 import { MapSearch } from './map/MapSearch';
 import { DisasterCallout, DisasterMarker, disasterMarkerHtml } from './map/disasterMarkers';
 import type { PlaceResult } from '../services/places/placeSearch';
-import { useCityWeather, type CityWeather } from '../services/weather/cityWeather';
 import {
   useMagma,
   MAGMA_LANDSLIDE_URL,
@@ -185,8 +184,7 @@ function searchedPlacePopupHtml(p: PlaceResult): string {
   );
 }
 
-// Declutter at low zoom: city weather chips and Level I volcanoes only appear when zoomed in.
-const CITY_WEATHER_MIN_ZOOM = 6;
+// Declutter at low zoom: Level I volcanoes only appear when zoomed in.
 const NORMAL_VOLCANO_MIN_ZOOM = 7;
 
 /** Level II+ or erupting volcanoes always show; Level I (Normal) only from NORMAL_VOLCANO_MIN_ZOOM. */
@@ -215,30 +213,6 @@ function landslidePopupHtml(l: LandslideReport): string {
 
 function escHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-}
-
-/** Compact map chip: icon + temperature + city name. */
-function cityWeatherChipHtml(c: CityWeather): string {
-  const w = c.weather;
-  return (
-    `<div class="flex items-center gap-1 pl-0.5 pr-2 py-0.5 rounded-full bg-white/95 border border-sky-300 shadow-md whitespace-nowrap cursor-pointer transform -translate-x-1/2 -translate-y-1/2">` +
-    `<img src="${escHtml(w.iconUrl)}" alt="" class="w-5 h-5" />` +
-    `<span class="text-[11px] font-black text-slate-900">${Math.round(w.temperature)}°</span>` +
-    `<span class="text-[10px] font-semibold text-slate-600">${escHtml(c.name)}</span>` +
-    `</div>`
-  );
-}
-
-function cityWeatherPopupHtml(c: CityWeather): string {
-  const w = c.weather;
-  return (
-    `<div style="font-size:12px;line-height:1.45">` +
-    `<div style="font-weight:800">⛅ ${escHtml(c.name)}</div>` +
-    `<div><b>${Math.round(w.temperature)}°C</b> (terasa ${Math.round(w.feelsLike)}°C) • ${escHtml(w.conditionText)}</div>` +
-    `<div>Hujan: <b>${w.rainProbability}%</b> • Kelembapan: <b>${w.humidity}%</b> • Angin: <b>${Math.round(w.windSpeed)} km/j</b></div>` +
-    `<div style="color:#64748b;font-size:11px">Source: Google Weather</div>` +
-    `</div>`
-  );
 }
 
 function fireRadius(frp: number): number {
@@ -509,7 +483,6 @@ const OSMMapRenderer: React.FC<{
   bmkgWeather?: BmkgWeatherWarning[];
   weatherStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
   showWeather?: boolean;
-  cityWeather?: CityWeather[];
   magma?: MagmaData | null;
   showMagma?: boolean;
   ashAdvisories?: AshAdvisory[];
@@ -548,7 +521,6 @@ const OSMMapRenderer: React.FC<{
   bmkgWeather = [],
   weatherStatus = 'idle',
   showWeather = true,
-  cityWeather = [],
   magma = null,
   showMagma = false,
   ashAdvisories = [],
@@ -572,7 +544,6 @@ const OSMMapRenderer: React.FC<{
   // Canvas renderer: thousands of hotspots without thousands of DOM nodes.
   const firmsRendererRef = useRef<L.Canvas | null>(null);
   const weatherLayerRef = useRef<L.LayerGroup | null>(null);
-  const cityWeatherLayerRef = useRef<L.LayerGroup | null>(null);
   const magmaLayerRef = useRef<L.LayerGroup | null>(null);
   const ashLayerRef = useRef<L.LayerGroup | null>(null);
   const placeLayerRef = useRef<L.LayerGroup | null>(null);
@@ -653,7 +624,6 @@ const OSMMapRenderer: React.FC<{
     routeLayerRef.current = rGroup;
     bmkgLayerRef.current = bGroup;
     weatherLayerRef.current = wGroup;
-    cityWeatherLayerRef.current = L.layerGroup().addTo(map);
     magmaLayerRef.current = L.layerGroup().addTo(map);
     ashLayerRef.current = L.layerGroup().addTo(map);
     placeLayerRef.current = L.layerGroup().addTo(map);
@@ -793,23 +763,6 @@ const OSMMapRenderer: React.FC<{
       });
     });
   }, [bmkgWeather, showWeather, weatherStatus, mapEpoch]);
-
-  // Major-city weather chips (only while CUACA layer is ON)
-  useEffect(() => {
-    const cGroup = cityWeatherLayerRef.current;
-    if (!mapRef.current || !cGroup) return;
-    cGroup.clearLayers();
-    if (!showWeather || zoomLevel < CITY_WEATHER_MIN_ZOOM) return;
-    cityWeather.forEach((c) => {
-      L.marker([c.lat, c.lng], {
-        icon: L.divIcon({ html: cityWeatherChipHtml(c), className: 'city-weather-marker', iconSize: [0, 0] }),
-        zIndexOffset: 300,
-        title: `Cuaca ${c.name}`,
-      })
-        .bindPopup(cityWeatherPopupHtml(c), { maxWidth: 260, closeButton: true, className: 'bmkg-popup' })
-        .addTo(cGroup);
-    });
-  }, [cityWeather, showWeather, mapEpoch, zoomLevel]);
 
   // MAGMA layer: volcano activity levels + gerakan tanah reports (PVMBG)
   useEffect(() => {
@@ -1038,8 +991,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     [bmkgWeather],
   );
   const selectedWeather = activeWeather.find((w) => w.id === selectedWeatherId) ?? null;
-  // Major-city weather points: fetched only while the CUACA layer is ON.
-  const cityWx = useCityWeather(showWeather);
   // MAGMA (PVMBG): off by default; fetched only when toggled ON.
   const [showMagma, setShowMagma] = useState(false);
   // MAGMA legend is collapsed by default; (i) button next to zoom controls toggles it.
@@ -1070,16 +1021,14 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [magmaFeed.data, eruptions.range.id],
   );
-  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   // Only one map popup at a time (Google engine): the most recently opened one wins.
-  type PopupKind = 'disaster' | 'fire' | 'bmkg' | 'weather' | 'magma' | 'ash' | 'city';
+  type PopupKind = 'disaster' | 'fire' | 'bmkg' | 'weather' | 'magma' | 'ash';
   const closeOtherPopups = useCallback((keep: PopupKind) => {
     if (keep !== 'fire') setSelectedFire(null);
     if (keep !== 'bmkg') setSelectedBmkgId(null);
     if (keep !== 'weather') setSelectedWeatherId(null);
     if (keep !== 'magma') setSelectedMagma(null);
     if (keep !== 'ash') setSelectedAsh(null);
-    if (keep !== 'city') setSelectedCityId(null);
     if (keep !== 'disaster') setGCalloutClosed(true);
   }, []);
   useEffect(() => { if (selectedFire) closeOtherPopups('fire'); }, [selectedFire, closeOtherPopups]);
@@ -1087,7 +1036,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   useEffect(() => { if (selectedWeatherId) closeOtherPopups('weather'); }, [selectedWeatherId, closeOtherPopups]);
   useEffect(() => { if (selectedMagma) closeOtherPopups('magma'); }, [selectedMagma, closeOtherPopups]);
   useEffect(() => { if (selectedAsh) closeOtherPopups('ash'); }, [selectedAsh, closeOtherPopups]);
-  useEffect(() => { if (selectedCityId) closeOtherPopups('city'); }, [selectedCityId, closeOtherPopups]);
   // Compact summary of the layers that are ON (shown next to the Layer button).
   const activeLayerChips = [
     showBmkg && {
@@ -1109,7 +1057,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       title: `Erupsi MAGMA (${eruptions.range.label}): ${eruptions.notices.length}`,
     },
     showAsh && { key: 'ash', icon: '🌫', value: String(activeAshCount), title: `Advisory abu vulkanik aktif: ${activeAshCount}` },
-    showWeather && { key: 'wx', icon: '⛈', value: String(cityWx.cities.length), title: `Cuaca kota: ${cityWx.cities.length}` },
   ].filter((c): c is { key: string; icon: string; value: string; title: string } => !!c);
 
   // Engine state: start with 'google' if apiKey present, but auto-fallback to 'osm' on RefererNotAllowedMapError
@@ -1825,62 +1772,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 </AdvancedMarker>
               )}
 
-              {/* Major-city weather chips (CUACA layer ON only) */}
-              {showWeather &&
-                currentZoom >= CITY_WEATHER_MIN_ZOOM &&
-                cityWx.cities.map((c) => {
-                  const isSel = c.id === selectedCityId;
-                  const w = c.weather;
-                  return (
-                    <AdvancedMarker
-                      key={`city-${c.id}`}
-                      position={{ lat: c.lat, lng: c.lng }}
-                      zIndex={isSel ? 10005 : 25}
-                      title={`Cuaca ${c.name}`}
-                      onClick={() => setSelectedCityId(isSel ? null : c.id)}
-                    >
-                      <div className="relative flex items-center justify-center" data-purpose="city-weather-marker">
-                        {isSel && (
-                          <div
-                            className="pointer-events-auto absolute bottom-9 left-1/2 -translate-x-1/2 z-50 min-w-[230px] rounded-2xl p-3 shadow-2xl border border-sky-300/40 bg-slate-900/95 text-white"
-                            onClick={(ev) => ev.stopPropagation()}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="text-xs font-black tracking-wide">⛅ {c.name}</div>
-                              <button
-                                type="button"
-                                aria-label="Tutup popup"
-                                title="Tutup"
-                                onClick={(ev) => {
-                                  ev.stopPropagation();
-                                  setSelectedCityId(null);
-                                }}
-                                className="w-5 h-5 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                            <div className="text-[11px]">
-                              <b>{Math.round(w.temperature)}°C</b> (terasa {Math.round(w.feelsLike)}°C) • {w.conditionText}
-                            </div>
-                            <div className="text-[11px]">
-                              Hujan: <b>{w.rainProbability}%</b> • Lembap: <b>{w.humidity}%</b> • Angin: <b>{Math.round(w.windSpeed)} km/j</b>
-                            </div>
-                            <div className="text-[10px] text-slate-400">
-                              Source: Google Weather
-                            </div>
-                          </div>
-                        )}
-                        <span className="flex items-center gap-1 pl-0.5 pr-2 py-0.5 rounded-full bg-white/95 border border-sky-300 shadow-md whitespace-nowrap cursor-pointer">
-                          <img src={w.iconUrl} alt="" className="w-5 h-5" />
-                          <span className="text-[11px] font-black text-slate-900">{Math.round(w.temperature)}°</span>
-                          <span className="text-[10px] font-semibold text-slate-600">{c.name}</span>
-                        </span>
-                      </div>
-                    </AdvancedMarker>
-                  );
-                })}
-
               {/* Selected weather warning callout */}
               {selectedWeather && (
                 <AdvancedMarker
@@ -1962,7 +1853,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             bmkgWeather={bmkgWeather}
             weatherStatus={weatherStatus}
             showWeather={showWeather}
-            cityWeather={cityWx.cities}
             magma={magmaFeed.data}
             showMagma={showMagma}
             ashAdvisories={ash.advisories}
