@@ -1,19 +1,15 @@
 import React from 'react';
 import {
   Compass,
-  ArrowRight,
+  MessageCircle,
   Flame,
   Waves,
   Activity,
-  Sparkles,
   PanelRightClose,
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
 import { ExpandedDetailContent } from './ExpandedDetailContent';
-import { WeatherCard } from './WeatherCard';
-import { BmkgForecastPanel } from './BmkgForecastPanel';
-import { resolveForecastAdm4 } from '../services/bmkg/bmkgWeatherForecast';
 
 
 interface SlimSidebarProps {
@@ -470,83 +466,18 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           </div>
         </div>
 
-        {/* Cuaca lapangan (Google Weather) — below Laporan Terverifikasi */}
-        <div className="rounded-[20px] border border-slate-200 bg-white p-4" data-purpose="mini-weather">
-          <h4 className="text-[14px] font-bold text-slate-900 mb-3">Cuaca Lapangan</h4>
-          <WeatherCard
-            lat={disaster.coords.lat}
-            lng={disaster.coords.lng}
-            locationName={disaster.name}
-            disasterCategory={disaster.category}
-          />
-        </div>
 
-        {/* Prakiraan cuaca BMKG */}
-        <BmkgForecastPanel adm4={resolveForecastAdm4(disaster)} locationLabel={`${disaster.name}, ${disaster.province}`} />
       </div>
         
 
-      {/* Bottom AI Helpdesk Trigger */}
       <div className="pt-3">
         <button
+          type="button"
           onClick={onOpenAIHelpdesk}
-          className="
-            w-full
-            rounded-2xl
-            bg-slate-950
-            px-4 py-3
-            flex items-center justify-between
-            text-white
-            shadow-md
-            hover:bg-slate-900
-            active:scale-[0.99]
-            transition-all
-          "
+          className="flex w-full shrink-0 items-center justify-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 hover:brightness-110 text-white rounded-full text-xs font-bold shadow-md shadow-violet-500/25 transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
         >
-          <div className="flex items-center gap-3">
-            {/* Icon */}
-            <div
-              className="
-                w-9 h-9
-                rounded-xl
-                bg-orange-500/15
-                border border-orange-500/30
-                flex items-center justify-center
-                shrink-0
-              "
-            >
-              <Sparkles className="w-4 h-4 text-orange-400" />
-            </div>
-
-            {/* Text */}
-            <div className="text-left">
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] font-bold">
-                  Laporkan Bencana
-                </span>
-
-                <span
-                  className="
-                    px-1.5 py-0.5
-                    rounded-md
-                    bg-cyan-500/15
-                    border border-cyan-400/20
-                    text-[8px]
-                    font-bold
-                    text-cyan-300
-                  "
-                >
-                  AI Helpdesk
-                </span>
-              </div>
-
-              <p className="mt-0.5 text-[10px] text-slate-400">
-                Bantuan darurat & evakuasi
-              </p>
-            </div>
-          </div>
-
-          <ArrowRight className="w-4 h-4 text-orange-400" />
+          <MessageCircle className="w-4 h-4" aria-hidden="true" />
+          <span>Tanya DisasterAI</span>
         </button>
       </div>
       </>

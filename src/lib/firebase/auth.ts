@@ -1,5 +1,5 @@
 // Firebase Auth with graceful anonymous + mock fallback.
-import { Auth, getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { Auth, getAuth, onAuthStateChanged, signInAnonymously, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import type { UserIdentity } from '../../domain/intelligence';
 import { getFirebaseApp, isFirebaseConfigured } from './config';
 
@@ -22,6 +22,7 @@ export function mockUser(): UserIdentity {
 export async function ensureUser(): Promise<UserIdentity> {
   const auth = getAuthInstance();
   if (!auth) return mockUser();
+  await auth.authStateReady();
   if (auth.currentUser) {
     return {
       uid: auth.currentUser.uid,
@@ -48,4 +49,21 @@ export function watchUser(cb: (u: UserIdentity) => void): () => void {
     if (u) cb({ uid: u.uid, isAnonymous: u.isAnonymous, displayName: u.displayName ?? undefined, isMock: false });
     else cb(mockUser());
   });
+}
+
+export async function loginWithGoogle(): Promise<UserIdentity> {
+  const auth = getAuthInstance();
+  if (!auth) throw new Error('Login belum tersedia. Silakan coba lagi setelah layanan login diaktifkan.');
+  const result = await signInWithPopup(auth, new GoogleAuthProvider());
+  return { uid: result.user.uid, isAnonymous: result.user.isAnonymous,
+    displayName: result.user.displayName ?? undefined, isMock: false };
+}
+
+/** Temporary local preview session; never authenticates with Firebase. */
+export function previewUser(): UserIdentity {
+  return { uid: 'local-report-preview', isAnonymous: false, displayName: 'Pelapor Demo', isMock: true };
+}
+
+export function canReport(user: UserIdentity): boolean {
+  return !user.isAnonymous && (!user.isMock || (import.meta.env.DEV && user.uid === 'local-report-preview'));
 }

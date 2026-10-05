@@ -238,8 +238,8 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
                     : 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/25'
                 }`}
               >
-                <Compass className="w-4 h-4" />
-                <span>{isRouteVisible ? 'Rute Distribusi Bantuan Aktif' : 'Tampilkan Rute Distribusi'}</span>
+                <Compass className="w-4 h-4 text-white" aria-hidden="true" />
+                <span>Lihat Posko Evakuasi</span>
               </button>
               <button
                 onClick={handleShare}
@@ -300,78 +300,18 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
             })}
           </div>
 
-          {/* Kebutuhan Paling Urgent Card */}
-          <article className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col transition-all hover:shadow-md">
-            <div className="flex items-center justify-between pb-3 mb-3.5 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-ping"></span>
-                <h4 className="text-xs font-bold text-slate-900 tracking-tight uppercase">
-                  Kebutuhan Paling Urgent
-                </h4>
-              </div>
-              <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-500">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                  <span>Urgensi Tinggi</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-                  <span>Urgensi Rendah</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5 mb-4">
-              {disaster.supplies.map((item) => {
-                const isHigh = item.urgency === 'Urgensi Tinggi';
-                return (
-                  <div
-                    key={item.code}
-                    className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center gap-2.5"
-                  >
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                        isHigh
-                          ? 'bg-rose-50 border-rose-200 text-rose-600'
-                          : 'bg-orange-50 border-orange-200 text-orange-600'
-                      }`}
-                    >
-                      {item.name.toLowerCase().includes('masker') ? (
-                        <Shield className="w-4 h-4" />
-                      ) : item.name.toLowerCase().includes('air') ? (
-                        <Droplets className="w-4 h-4" />
-                      ) : item.name.toLowerCase().includes('obat') ? (
-                        <Pill className="w-4 h-4" />
-                      ) : (
-                        <Package className="w-4 h-4" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-slate-900 leading-tight truncate">
-                        {item.name}
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-medium block">
-                        {item.subtitle}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={onOpenDonationModal}
-              className="w-full py-3 px-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all cursor-pointer"
-            >
-              <HeartHandshake className="w-4 h-4 text-white" />
-              <span>Salurkan Bantuan / Donasi</span>
-            </button>
-          </article>
-
           {/* Kesenjangan bantuan (kebutuhan vs bantuan tercatat) */}
           <article className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80" data-purpose="detail-aid-gap">
             <h4 className="text-xs font-bold text-slate-900 tracking-tight uppercase mb-3">Kesenjangan Bantuan</h4>
             <AidGapCard disasterId={disaster.id} reports={intelReports} aid={aidRecords} />
+            <button
+              type="button"
+              onClick={onOpenDonationModal}
+              className="mt-4 w-full py-3 px-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all cursor-pointer"
+            >
+              <HeartHandshake className="w-4 h-4 text-white" />
+              <span>Salurkan Bantuan / Donasi</span>
+            </button>
           </article>
         </div>
 

@@ -25,6 +25,7 @@ export function buildDisasterContext(deps: AssistantDeps, maxChars = 6000): stri
     lines.push(
       `- [${d.id}] ${d.name}, ${d.province} | ${d.fullTitleDisplay} | urgensi ${d.urgency} | dampak ${d.impact} | biaya ${d.cost} | gap pemulihan ${d.gapRecovery} | laporan warga ${d.reports.length} | AID GAP => ${gapStr}`,
     );
+    lines.push(`Panduan ${d.id}: penyebab ${d.guide.cause}; bahaya ${d.guide.hazards}; perlindungan ${d.guide.protocols.join('; ')}; evakuasi ${d.guide.evacRoute}`);
   }
   if (deps.reports.length > 0) {
     lines.push('LAPORAN INTELIJEN TERBARU:');
@@ -43,6 +44,12 @@ export function fallbackAnswer(question: string, deps: AssistantDeps): string {
   const q = question.toLowerCase();
   const all = Object.values(deps.disasters);
 
+  if (/mempelajari bencana/.test(q)) {
+    const category = /banjir/.test(q) ? 'flood' : /gempa/.test(q) ? 'earthquake' : /kebakaran/.test(q) ? 'fire' : null;
+    const reference = all.find(d => d.category === category);
+    if (!reference) return 'Bencana apa dan di kota/kabupaten mana yang ingin Anda pelajari?';
+    return `Sebagai gambaran dari panduan yang tersedia di aplikasi: ${reference.guide.cause}\n\n${reference.guide.hazards}\n\nDi kota/kabupaten mana bencana yang Anda maksud? Apakah Anda ingin membahas risiko atau perlindungan diri?`;
+  }
   if (/belum.*verifikasi|unverified|antri/.test(q)) {
     const unv = deps.reports.filter((r) => r.verificationStatus === 'UNVERIFIED' || r.verificationStatus === 'AI_REVIEWED');
     return `Ada ${unv.length} laporan menunggu verifikasi (dari ${deps.reports.length} laporan intelijen). ${unv.slice(0, 3).map((r) => `${r.location.name} (${r.verificationStatus})`).join('; ') || ''}`;
