@@ -43,6 +43,8 @@ export default function App() {
   const [isRouteOpen, setIsRouteOpen] = useState<boolean>(false);
   const [isReportsOpen, setIsReportsOpen] = useState<boolean>(false);
   const [isSidebarMinimized, setIsSidebarMinimized] = useState<boolean>(true);
+  // KPI strip, status row, map toolbar and "Buka Menu Sidebar" pill: hidden on load, toggled from the header.
+  const [showPanels, setShowPanels] = useState<boolean>(false);
   // Sidebar can expand to the full disaster detail (design from feat/homepage-slicing).
   const [isSidebarExpanded, setIsSidebarExpanded] = useState<boolean>(false);
   // News ticker highlights the incident it is announcing on the map.
@@ -317,41 +319,48 @@ export default function App() {
           onOpenReportModal={() => setIsReportModalOpen(true)}
           disasters={disasters}
           onHighlightDisaster={setHighlightedDisasterKey}
+          showPanels={showPanels}
+          onTogglePanels={() => setShowPanels((v) => !v)}
         />
 
-        <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords} />
-        {/* Compact status row: system status (incl. data-store notice) + BMKG official signals */}
-        {/* z-[35]: popovers open above the map overlays (z-30) but below the header menus (z-40) */}
-        <div className="relative z-[35] px-3 sm:px-6 pt-1.5 pb-2 flex items-center gap-2 border-b border-slate-200/80 dark:border-slate-800/80">
-          <ArchitectureBadge
-            notice={
-              <>
-                <span className="font-semibold">{storeNotice}</span>
-                <span className="block">Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
-              </>
-            }
-          />
-          <BmkgSignalsControl
-            inline
-            quakeCount={bmkg.events.length}
-            quakeLatestText={
-              bmkg.latest
-                ? `M${bmkg.latest.magnitude} • ${bmkg.latest.region} • ${bmkg.latest.depthKm} km`
-                : null
-            }
-            quakeLive={bmkg.status.state === 'ready'}
-            quakeRefreshing={bmkg.refreshing}
-            onRefreshQuake={bmkg.refresh}
-            weatherActiveCount={bmkgWx.active.length}
-            weatherBlocked={bmkgWx.errorType === 'RSS_CORS_BLOCKED' || bmkgWx.errorType === 'CAP_CORS_BLOCKED'}
-            weatherReady={bmkgWx.status.state === 'ready'}
-            weatherRefreshing={bmkgWx.refreshing}
-            onRefreshWeather={bmkgWx.refresh}
-            forecastState={bmkgFc.state}
-            forecastSummary={forecastSummary}
-            forecastLocation={activeAdm4 ? `${activeDisaster.name}` : null}
-          />
-        </div>
+        {/* KPI strip + status row — collapsible with the header "Panel" button (hidden by default) */}
+        {showPanels && (
+          <>
+            <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords} />
+            {/* Compact status row: system status (incl. data-store notice) + BMKG official signals */}
+            {/* z-[35]: popovers open above the map overlays (z-30) but below the header menus (z-40) */}
+            <div className="relative z-[35] px-3 sm:px-6 pt-1.5 pb-2 flex items-center gap-2 border-b border-slate-200/80 dark:border-slate-800/80">
+              <ArchitectureBadge
+                notice={
+                  <>
+                    <span className="font-semibold">{storeNotice}</span>
+                    <span className="block">Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
+                  </>
+                }
+              />
+              <BmkgSignalsControl
+                inline
+                quakeCount={bmkg.events.length}
+                quakeLatestText={
+                  bmkg.latest
+                    ? `M${bmkg.latest.magnitude} • ${bmkg.latest.region} • ${bmkg.latest.depthKm} km`
+                    : null
+                }
+                quakeLive={bmkg.status.state === 'ready'}
+                quakeRefreshing={bmkg.refreshing}
+                onRefreshQuake={bmkg.refresh}
+                weatherActiveCount={bmkgWx.active.length}
+                weatherBlocked={bmkgWx.errorType === 'RSS_CORS_BLOCKED' || bmkgWx.errorType === 'CAP_CORS_BLOCKED'}
+                weatherReady={bmkgWx.status.state === 'ready'}
+                weatherRefreshing={bmkgWx.refreshing}
+                onRefreshWeather={bmkgWx.refresh}
+                forecastState={bmkgFc.state}
+                forecastSummary={forecastSummary}
+                forecastLocation={activeAdm4 ? `${activeDisaster.name}` : null}
+              />
+            </div>
+          </>
+        )}
 
         {/* Main Work Area — map-first workspace (min 60vh desktop) */}
         <main className="relative flex-1 grid grid-cols-12 overflow-hidden min-h-[60vh]">
@@ -359,6 +368,7 @@ export default function App() {
           <CategoryFilterBar
             activeCategory={activeCategory}
             onSelectCategory={handleSelectCategory}
+            compactTop={!showPanels}
             isDarkMode={isDarkMode}
           />
 
@@ -373,6 +383,7 @@ export default function App() {
             onOpenAIHelpdesk={handleOpenAI}
             isExpanded={isSidebarExpanded}
             highlightedDisasterKey={highlightedDisasterKey}
+            showToolbar={showPanels}
             selectedPostId={selectedPostId}
             onSelectPost={setSelectedPostId}
             isSidebarMinimized={isSidebarMinimized}

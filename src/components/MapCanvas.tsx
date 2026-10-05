@@ -282,6 +282,8 @@ interface MapCanvasProps {
   onExpandView: () => void;
   onOpenAIHelpdesk: () => void;
   isExpanded: boolean;
+  /** Map toolbar row (engine pill, search, Layer, map type, weather pill, sidebar button). */
+  showToolbar?: boolean;
   /** Incident currently announced by the header news ticker (highlighted on the map). */
   highlightedDisasterKey?: string | null;
   /** Selected evacuation post (Posko) — synced with the Posko list view. */
@@ -1041,6 +1043,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   onSelectPost,
   bmkgWeather = [],
   weatherStatus = 'idle',
+  showToolbar = true,
 }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
   const [showBmkg, setShowBmkg] = useState(true);
@@ -2061,7 +2064,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         )}
       </div>
 
-      {/* Top Left Header Overlay: Active Engine Pill & Layer Switcher */}
+      {/* Top Left Header Overlay: Active Engine Pill & Layer Switcher (hidden while panels are minimized) */}
+      {showToolbar ? (
       <div className="relative z-30 pt-3 sm:pt-4 px-3 sm:px-6 pointer-events-auto flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 overflow-x-auto no-scrollbar [&>*]:shrink-0 -mx-1 px-1 py-1">
           {/* Active Engine Indicator Pill */}
@@ -2503,6 +2507,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             </button>
           )}
       </div>
+      ) : (
+        <div aria-hidden="true" />
+      )}
 
       {/* Bottom Bar: Controls & Quick Action Buttons */}
       {/* Same row on every screen size: zoom column bottom-left, action buttons bottom-right (aligned to the bottom edge). */}
