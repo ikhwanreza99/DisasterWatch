@@ -237,6 +237,7 @@ export function AIHelpdeskPanel({ disaster, hasContext = true, initialMessage, i
           <input aria-label="Pesan untuk DisasterAI" value={input} onChange={event => setInput(event.target.value)} disabled={busy} placeholder="Tulis jawaban atau pertanyaan Anda…" className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
           <button type="submit" disabled={busy || !input.trim()} aria-label="Kirim pesan" className="rounded-full bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 p-3 text-white disabled:opacity-40"><Send className="h-5 w-5" /></button>
         </form>
+        <p className="mx-auto mt-1.5 flex max-w-3xl items-center gap-1.5 px-1 text-[10px] text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Berbasis data DisasterWatch · data demo/prototipe</p>
       </footer>
     </section>
   );
