@@ -120,6 +120,7 @@ export function normalizeBmkgGempa(raw: unknown, retrievedAt: string): Earthquak
   if (!eventTime || !coords || magnitude === null || depthKm === null || !region) return null;
 
   const feltArea = asString(r.Dirasakan);
+  const potential = asString(r.Potensi);
   const mmi = asString(r.Shakemap);
   return {
     id: buildEarthquakeId(eventTime, coords.lat, coords.lng, magnitude),
@@ -134,6 +135,7 @@ export function normalizeBmkgGempa(raw: unknown, retrievedAt: string): Earthquak
     depthKm,
     region,
     ...(feltArea ? { feltArea } : {}),
+    ...(potential ? { potential } : {}),
     ...(mmi ? { mmi } : {}),
     retrievedAt,
   };
@@ -174,6 +176,7 @@ export function toBmkgMarkerData(e: EarthquakeEvent): BmkgMarkerData {
     region: e.region,
     eventTime: e.eventTime,
     ...(e.feltArea ? { feltArea: e.feltArea } : {}),
+    ...(e.potential ? { potential: e.potential } : {}),
     ...(e.mmi ? { mmi: e.mmi } : {}),
     sourceUrl: e.sourceUrl,
   };

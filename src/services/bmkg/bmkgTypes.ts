@@ -53,7 +53,9 @@ export interface EarthquakeEvent {
 
   region: string;
   feltArea?: string;
-  /** MMI shakemap filename when provided (autogempa only). */
+  /** BMKG 'Potensi', e.g. tsunami potential. */
+  potential?: string;
+  /** BMKG Shakemap image filename when provided (autogempa only). */
   mmi?: string;
 
   sourceUpdatedAt?: string;
@@ -71,6 +73,8 @@ export interface BmkgMarkerData {
   region: string;
   eventTime: string;
   feltArea?: string;
+  /** BMKG 'Potensi', e.g. tsunami potential. */
+  potential?: string;
   mmi?: string;
   sourceUrl: string;
 }

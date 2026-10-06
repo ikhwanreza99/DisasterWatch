@@ -1,25 +1,26 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  X,
-  Menu,
-  Send,
-  Headset,
-  Sparkles,
-  AlertTriangle,
-  Package,
-  BookOpen,
-  ThumbsUp,
-  CheckCircle2,
-  Upload,
-  ArrowRight,
-} from 'lucide-react';
-import { DisasterIncident } from '../types';
-import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Send, Sparkles, Paperclip, Loader2, Maximize2, Minimize2 } from 'lucide-react';
+import type { DisasterIncident } from '../types';
+import type { AidRecord, IntelligenceReport, UserIdentity } from '../domain/intelligence';
+import { canReport } from '../lib/firebase/auth';
+import { getFirebaseApp } from '../lib/firebase/config';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { MAJOR_CITIES } from '../services/weather/cityWeather';
+import { detectReportIntent } from '../services/ai/reportIntent';
 import { askAssistant } from '../services/ai/disasterAssistant';
 import { submitReportPipeline } from '../services/pipeline/reportPipeline';
 
+export type WorkflowType = 'menu' | 'report-disaster' | 'report-needs' | 'find-posts' | 'learn-disaster';
 interface AIHelpdeskPanelProps {
+  expanded?: boolean;
+  onToggleExpanded?: () => void;
   disaster: DisasterIncident;
+  hasContext?: boolean;
+  initialMessage?: string;
+  initialAttachment?: File;
+  initialWorkflow?: WorkflowType;
+  user?: UserIdentity;
+  onRequireLogin?: () => void;
   onClose: () => void;
   onReportSubmitted?: (reportData: any) => void;
   disasters?: Record<string, DisasterIncident>;
@@ -27,844 +28,250 @@ interface AIHelpdeskPanelProps {
   aidRecords?: AidRecord[];
   onIntelReport?: (rep: IntelligenceReport) => void;
 }
-
-type WorkflowType = 'menu' | 'report-disaster' | 'report-needs' | 'learn-disaster';
-
-interface ChatMessage {
-  id: string;
-  sender: 'ai' | 'user';
-  text: string;
+interface Message { id: number; sender: 'ai' | 'user'; text: string }
+interface Question { key: string; text: string }
+const attachmentQuestion = 'Apakah anda memiliki foto atau dokumen pendukung. Dokumen ini akan memberikan validasi lebih pada laporan anda dan menambah akurasi kami dalam merekam data';
+export const reportQuestions: Question[] = [
+  { key: 'location', text: 'Di mana bencana terjadi? Sebutkan kota/kabupaten dan lokasi yang lebih spesifik, seperti desa atau alamat.' },
+  { key: 'category', text: 'Jenis bencana apa yang ingin Anda laporkan?' },
+  { key: 'time', text: 'Kapan bencana terjadi? Sebutkan tanggal dan perkiraan waktunya.' },
+  { key: 'description', text: 'Ceritakan kondisi di lokasi dan dampak yang Anda lihat, termasuk warga yang terdampak.' },
+  { key: 'urgency', text: 'Seberapa mendesak kondisinya? Apakah ada warga yang masih membutuhkan pertolongan segera?' },
+];
+export const needsQuestions: Question[] = [
+  { key: 'items', text: 'Bantuan apa yang dibutuhkan? Sebutkan jenis, jumlah, dan satuannya jika diketahui.' },
+  { key: 'location', text: 'Di mana bantuan dibutuhkan? Sebutkan kota/kabupaten serta nama posko, desa, atau alamat.' },
+  { key: 'category', text: 'Kebutuhan ini terkait bencana apa?' },
+  { key: 'victims', text: 'Berapa orang atau keluarga yang membutuhkan bantuan tersebut?' },
+  { key: 'access', text: 'Bagaimana akses menuju lokasi dan siapa kontak yang bisa dihubungi untuk penyaluran bantuan?' },
+  { key: 'urgency', text: 'Kebutuhan mana yang paling mendesak dan kapan bantuan diperlukan?' },
+];
+const regionOptions = ['Sumatera', 'Jawa', 'Sulawesi', 'Sulawesi & Maluku', 'Papua', 'Bali & NTT'];
+const updateQuestion = (incident: DisasterIncident) => `Apa kabar terbaru tentang ${incident.fullTitleDisplay} di ${incident.name}? Ceritakan perubahan kondisi, dampak, atau penanganan yang Anda ketahui.`;
+export function postInformation(incidents: DisasterIncident[]): string {
+  const posts = incidents.flatMap(incident => incident.route.checkpoints.map(post => ({ post, city: incident.name })));
+  if (!posts.length) return 'Belum ada data posko bantuan untuk lokasi tersebut di aplikasi. Coba sebutkan kota/kabupaten lain atau perjelas nama lokasinya.';
+  return `Berikut posko bantuan yang tercatat untuk ${incidents.map(incident => incident.name).join(', ')}:\n\n${posts.map(({ post, city }, index) => `${index + 1}. ${post.name || post.title || 'Posko Bantuan'}\nLokasi: ${post.location || post.subtitle || city}\nKapasitas: ${post.capacity ? `${post.capacity.used} / ${post.capacity.total} orang` : 'Belum ada data'}${post.capacityStatus ? ` (${post.capacityStatus})` : ''}${post.aid?.length ? `\nBantuan: ${post.aid.map(item => `${item.name} ${item.quantity}`).join(', ')}` : ''}${post.googleMapsUrl ? `\nPeta: ${post.googleMapsUrl}` : ''}`).join('\n\n')}\n\nData dapat berubah. Kota/kabupaten mana lagi yang ingin Anda cari?`;
 }
+const services: { workflow: WorkflowType; label: string }[] = [
+  { workflow: 'report-disaster', label: 'Laporkan Bencana' },
+  { workflow: 'report-needs', label: 'Laporkan Bantuan' },
+  { workflow: 'find-posts', label: 'Cari Posko Bantuan' },
+  { workflow: 'learn-disaster', label: 'Pelajari Bencana' },
+];
 
-export const AIHelpdeskPanel: React.FC<AIHelpdeskPanelProps> = ({
-  disaster,
-  onClose,
-  onReportSubmitted,
-  disasters,
-  intelReports = [],
-  aidRecords = [],
-  onIntelReport,
-}) => {
-  const [currentWorkflow, setCurrentWorkflow] = useState<WorkflowType>('menu');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputText, setInputText] = useState('');
-  const [aiThinking, setAiThinking] = useState(false);
-
-  // Workflow 1: Laporkan Bencana State
-  const [reportLocation, setReportLocation] = useState(`${disaster.name}, ${disaster.province}`);
-  const [reportCategory, setReportCategory] = useState(disaster.category);
-  const [reportUrgency, setReportUrgency] = useState('Darurat Tinggi');
-  const [reportDesc, setReportDesc] = useState('');
-  const [reportFile, setReportFile] = useState<File | null>(null);
-  const [reportSuccess, setReportSuccess] = useState(false);
-
-  // Workflow 2: Laporkan Kebutuhan State
-  const [needsItems, setNeedsItems] = useState({
-    masker: true,
-    tangkiAir: true,
-    obat: false,
-    sembako: false,
-  });
-  const [customNeeds, setCustomNeeds] = useState('');
-  const [victimsCount, setVictimsCount] = useState('');
-  const [roadCondition, setRoadCondition] = useState('Truk Besar Dapat Lewat');
-  const [needsNotes, setNeedsNotes] = useState('');
-  const [needsSuccess, setNeedsSuccess] = useState(false);
-
+export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, hasContext = true, initialMessage, initialAttachment, initialWorkflow = 'menu', user, onRequireLogin, onClose,
+  onReportSubmitted, disasters, intelReports = [], aidRecords = [], onIntelReport }: AIHelpdeskPanelProps) {
+  const context = hasContext ? disaster : undefined;
+  const intro = context
+    ? `Halo, saya DisasterAI. Anda sedang melihat ${context.fullTitleDisplay} di ${context.name}, ${context.province}. Saya bisa membantu melaporkan bencana, melaporkan kebutuhan, atau mempelajari bencana. Konfirmasi lokasi dan jenis bencana saat membuat laporan agar informasi Anda tepat.`
+    : 'Halo, saya DisasterAI. Bencana apa dan di mana yang ingin Anda laporkan atau pelajari? Pilih layanan di bawah untuk memulai, lalu kita bahas bersama.';
+  const firstQuestion = initialWorkflow === 'report-disaster' ? (context ? updateQuestion(context) : reportQuestions[0].text)
+    : initialWorkflow === 'report-needs' ? needsQuestions[0].text
+    : initialWorkflow === 'find-posts' ? (context ? postInformation([context]) : 'Di kota/kabupaten mana Anda ingin mencari posko bantuan?')
+    : initialWorkflow === 'learn-disaster' ? (context ? `Apa yang ingin Anda pelajari tentang ${context.fullTitleDisplay} di ${context.name}?` : 'Bencana apa dan di mana yang ingin Anda pelajari?') : null;
+  const [messages, setMessages] = useState<Message[]>([{ id: 0, sender: 'ai', text: intro }, ...(firstQuestion ? [{ id: 1, sender: 'ai' as const, text: firstQuestion }] : [])]);
+  const [learningContext, setLearningContext] = useState<DisasterIncident | undefined>(context);
+  const [workflow, setWorkflow] = useState(initialWorkflow);
+  const [serviceChosen, setServiceChosen] = useState(initialWorkflow !== 'menu');
+  const [quickOptions, setQuickOptions] = useState<string[]>(initialWorkflow === 'report-disaster' && !context ? regionOptions : []);
+  const [step, setStep] = useState(initialWorkflow === 'report-disaster' && context ? 2 : 0);
+  const [answers, setAnswers] = useState<Record<string, string>>(initialWorkflow === 'report-disaster' && context ? { location: `${context.name}, ${context.province}`, category: context.fullTitleDisplay } : {});
+  const [stage, setStage] = useState<'questions' | 'attachment' | 'confirm' | 'done'>('questions');
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [attachment, setAttachment] = useState<File | null>(initialAttachment ?? null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const mounted = useRef(true);
+  const sequence = useRef(2);
+  const sending = useRef(false);
+  const pendingReport = useRef<{ workflow: WorkflowType; text?: string } | null>(null);
+  const locationSuggestionsActive = useRef(false);
+  const add = (sender: Message['sender'], text: string) => setMessages(previous => [...previous, { id: sequence.current++, sender, text }]);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, busy]);
 
-  useEffect(() => {
-    setReportLocation(`${disaster.name}, ${disaster.province}`);
-    setReportCategory(disaster.category);
-  }, [disaster]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  const start = (next: WorkflowType) => {
+    if ((next === 'report-disaster' || next === 'report-needs') && (!user || !canReport(user))) {
+      pendingReport.current = { workflow: next };
+      onRequireLogin?.();
+      return;
     }
-  }, [messages, currentWorkflow, reportSuccess, needsSuccess]);
-
-  const handleSendChat = async (textToSend?: string) => {
-    const text = (textToSend || inputText).trim();
-    if (!text || aiThinking) return;
-
-    const userMsg: ChatMessage = {
-      id: Date.now().toString(),
-      sender: 'user',
-      text,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    if (!textToSend) setInputText('');
-    setAiThinking(true);
-
-    try {
-      const deps = {
-        disasters: disasters ?? { [disaster.id]: disaster },
-        reports: intelReports,
-        aid: aidRecords,
-      };
-      const { answer, engine } = await askAssistant(text, deps);
-      const aiMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: 'ai',
-        text: `${answer}\n\n[${engine === 'gemini' ? 'Gemini via Firebase AI Logic' : 'Jawaban deterministik dari DATA APLIKASI'}]`,
-      };
-      setMessages((prev) => [...prev, aiMsg]);
-    } catch {
-      const aiMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: 'ai',
-        text: `Terkait ${disaster.name} (${disaster.fullTitleDisplay}), status ${disaster.urgency}. ${disaster.guide.evacRoute}`,
-      };
-      setMessages((prev) => [...prev, aiMsg]);
-    } finally {
-      setAiThinking(false);
-    }
+    setServiceChosen(true);
+    locationSuggestionsActive.current = next === 'report-disaster' && !context;
+    setQuickOptions(next === 'report-disaster' ? (context ? [] : regionOptions) : next === 'report-needs' ? Array.from(new Set([...(context?.supplies.map(item => item.name) ?? []), 'Air bersih', 'Makanan / sembako', 'Obat-obatan', 'Tempat tinggal sementara'])).slice(0, 4) : next === 'learn-disaster' ? ['Kapan bencana terjadi?', 'Berapa kerugian bencana?', 'Berikan kabar terbaru'] : []);
+    if (next === 'report-disaster' && !context && navigator.geolocation) navigator.geolocation.getCurrentPosition(position => {
+      if (!mounted.current || !locationSuggestionsActive.current) return;
+      const { latitude, longitude } = position.coords;
+      const nearest = [...MAJOR_CITIES].sort((a, b) => Math.hypot(a.lat - latitude, a.lng - longitude) - Math.hypot(b.lat - latitude, b.lng - longitude))[0];
+      if (nearest && Math.hypot(nearest.lat - latitude, nearest.lng - longitude) < 1) setQuickOptions(options => Array.from(new Set([nearest.name, ...options])));
+    }, () => {}, { timeout: 8000, maximumAge: 300000 });
+    setWorkflow(next); setLearningContext(context); setStep(next === 'report-disaster' && context ? 2 : 0); setAnswers(next === 'report-disaster' && context ? { location: `${context.name}, ${context.province}`, category: context.fullTitleDisplay } : {}); setStage('questions'); setAttachment(initialAttachment ?? null); setInput('');
+    add('user', ({ 'report-disaster': context ? `Saya ingin melaporkan update bencana ${context.fullTitleDisplay} di ${context.name}` : 'Saya ingin melaporkan bencana', 'report-needs': 'Saya ingin melaporkan kebutuhan bantuan untuk bencana terkait', 'find-posts': 'Bantu saya mencari Posko Bantuan terdekat', 'learn-disaster': 'Saya ingin mempelajari bencana lebih lanjut', menu: '' })[next]);
+    add('ai', next === 'report-disaster' ? (context ? updateQuestion(context) : reportQuestions[0].text) : next === 'report-needs' ? needsQuestions[0].text
+      : next === 'find-posts' ? (context ? postInformation([context]) : 'Di kota/kabupaten mana Anda ingin mencari posko bantuan?')
+      : context ? `Mari pelajari ${context.fullTitleDisplay} di ${context.name}. Anda ingin tahu tentang penyebab, risiko, atau cara melindungi diri?` : 'Bencana apa dan di mana yang ingin Anda pelajari?');
   };
-
-  const handleReportSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const questions = workflow === 'report-needs' ? needsQuestions : context ? [reportQuestions[0], reportQuestions[1], reportQuestions[3], reportQuestions[2], reportQuestions[4]] : reportQuestions;
+  const summarize = (data: Record<string, string>, file?: File | null) => {
+    add('ai', `Berikut rangkuman ${workflow === 'report-needs' ? 'kebutuhan' : 'laporan bencana'} Anda:\n\n${questions.map(q => `${({ location: 'Lokasi', category: 'Jenis bencana', time: 'Waktu', description: 'Kondisi dan dampak', urgency: 'Urgensi', items: 'Kebutuhan', victims: 'Penerima bantuan', access: 'Akses dan kontak' } as Record<string, string>)[q.key]}: ${data[q.key]}`).join('\n')}\nDokumen pendukung: ${file?.name || 'Tidak ada'}\n\nApakah informasi ini sudah benar? Klik “Kirim Laporan”, atau “Perbaiki Laporan” untuk mengulang.`);
+    setStage('confirm');
+  };
+  const finishAttachment = (file?: File | null) => {
+    setAttachment(file ?? null);
+    add('user', file ? `Saya melampirkan ${file.name}.` : 'Tidak ada dokumen pendukung.');
+    summarize(answers, file);
+  };
+  const submit = async () => {
+    if (sending.current) return;
+    if (!user || !canReport(user)) { onRequireLogin?.(); return; }
+    sending.current = true; setBusy(true);
+    add('user', 'Kirim laporan.');
     try {
-      const result = await submitReportPipeline({
-        disasterId: disaster.id,
-        sourceType: 'citizen',
-        sourceName: 'Warga (AI Helpdesk)',
-        rawText: `${reportDesc}\nLokasi: ${reportLocation}\nUrgensi form: ${reportUrgency}`,
-        locationName: reportLocation,
-        lat: disaster.coords.lat,
-        lng: disaster.coords.lng,
-        isMock: true,
-      });
+      let mediaUrl: string | undefined;
+      if (attachment) {
+        if (user.isMock) mediaUrl = URL.createObjectURL(attachment);
+        else {
+          const app = getFirebaseApp();
+          if (!app) throw new Error('Layanan unggah dokumen belum tersedia.');
+          const filePath = ref(getStorage(app), `report-attachments/${user.uid}/${crypto.randomUUID()}/${attachment.name}`);
+          await uploadBytes(filePath, attachment);
+          mediaUrl = await getDownloadURL(filePath);
+        }
+      }
+      // A user-provided location must not inherit coordinates from an unrelated selected incident.
+      const match = Object.values(disasters ?? {}).find(d => answers.location.toLocaleLowerCase().includes(d.name.toLocaleLowerCase()));
+      const rawText = `${workflow === 'report-needs' ? 'Laporan kebutuhan bantuan' : 'Laporan bencana'}\n${questions.map(q => `${q.key}: ${answers[q.key]}`).join('\n')}\nDokumen: ${attachment?.name || 'Tidak ada'}`;
+      const result = await submitReportPipeline({ disasterId: match?.id, sourceType: 'citizen', sourceName: user.displayName || 'Warga', rawText,
+        locationName: answers.location, lat: match?.coords.lat, lng: match?.coords.lng, mediaUrl, isMock: user.isMock });
       onIntelReport?.(result.report);
-      if (onReportSubmitted) {
-        onReportSubmitted({
-          location: reportLocation,
-          category: reportCategory,
-          urgency: reportUrgency,
-          desc: `${reportDesc} [AI ${Math.round((result.report.aiConfidence ?? 0) * 100)}% via ${result.engine}]`,
-          file: reportFile?.name,
-        });
-      }
+      if (!onIntelReport && onReportSubmitted) onReportSubmitted({ location: answers.location, category: answers.category, urgency: answers.urgency, desc: rawText, file: attachment?.name });
+      if (!mounted.current) return;
+      setStage('done');
+      add('ai', `${result.storeMode === 'mock' ? 'Laporan tersimpan dalam sesi demo lokal.' : 'Laporan berhasil disimpan untuk ditinjau.'} Terima kasih sudah melaporkan. ${attachment ? (user.isMock ? 'Dokumen pendukung tersedia dalam sesi lokal ini.' : 'Dokumen pendukung telah dilampirkan.') : ''}\n\nApakah ada hal lain yang ingin Anda laporkan atau pelajari?`);
     } catch {
-      if (onReportSubmitted) {
-        onReportSubmitted({
-          location: reportLocation,
-          category: reportCategory,
-          urgency: reportUrgency,
-          desc: reportDesc,
-          file: reportFile?.name,
-        });
-      }
+      if (mounted.current) add('ai', 'Laporan belum berhasil dikirim. Informasi Anda masih ada di sini. Silakan coba “Kirim Laporan” lagi.');
+    } finally { sending.current = false; if (mounted.current) setBusy(false); }
+  };
+  const send = async (suggestion?: string) => {
+    const text = (suggestion ?? input).trim();
+    if (!text || busy || sending.current) return;
+    const reportIntent = detectReportIntent(text);
+    if ((reportIntent || workflow === 'report-disaster' || workflow === 'report-needs') && (!user || !canReport(user))) {
+      pendingReport.current = { workflow: reportIntent ?? workflow, text };
+      setInput(text);
+      onRequireLogin?.();
+      return;
     }
-    setReportSuccess(true);
+    if (reportIntent && workflow !== 'report-disaster' && workflow !== 'report-needs') {
+      add('user', text);
+      start(reportIntent);
+      return;
+    }
+    setInput('');
+    setServiceChosen(true);
+    locationSuggestionsActive.current = false;
+    if ((workflow === 'report-disaster' || workflow === 'report-needs') && stage === 'attachment') {
+      if (/^(tidak|nggak|enggak|ga|gak|skip|lewati|belum)/i.test(text)) finishAttachment();
+      else { add('user', text); add('ai', 'Silakan lampirkan foto atau dokumen melalui ikon klip, atau pilih “Tanpa Dokumen”.'); }
+      return;
+    }
+    add('user', text);
+    setQuickOptions([]);
+    if ((workflow === 'report-disaster' || workflow === 'report-needs') && stage === 'questions') {
+      if (questions[step].key === 'location' && regionOptions.includes(text)) {
+        add('ai', `Kota/kabupaten mana di ${text}? Anda juga bisa mengetik desa atau alamat yang lebih spesifik.`);
+        return;
+      }
+      const nextAnswers = { ...answers, [questions[step].key]: text };
+      setAnswers(nextAnswers);
+      if (step + 1 < questions.length) { setStep(step + 1); add('ai', questions[step + 1].text); }
+      else { setStage('attachment'); add('ai', attachmentQuestion); }
+      return;
+    }
+    if ((workflow === 'report-disaster' || workflow === 'report-needs') && stage === 'confirm') {
+      add('ai', 'Silakan pilih “Kirim Laporan” jika sudah benar, atau “Perbaiki Laporan” untuk mengulang informasi.'); return;
+    }
+    sending.current = true; setBusy(true);
+    try {
+      const available = disasters ?? (context ? { [context.id]: context } : {});
+      const target = Object.values(available).find(d => text.toLowerCase().includes(d.name.toLowerCase()) || text.toLowerCase().includes(d.id.toLowerCase())) ?? learningContext;
+      if (workflow === 'find-posts') {
+        const query = text.toLocaleLowerCase();
+        const matches = Object.values(available).filter(d => query.includes(d.id.toLocaleLowerCase()) || query.includes(d.name.toLocaleLowerCase()) || d.name.toLocaleLowerCase().includes(query));
+        add('ai', postInformation(matches));
+      } else if (workflow === 'learn-disaster' && target) {
+        setLearningContext(target);
+        const guide = target.guide;
+        const topic = text.toLowerCase();
+        const answer = /kapan|waktu/.test(topic) ? `Waktu yang tercatat untuk insiden ini: ${target.timestamp}.` : /kerugian|biaya/.test(topic) ? `Estimasi kerugian/dampak yang tercatat: ${target.cost}. Dampak: ${target.impact}.` : /kabar|terbaru/.test(topic) ? `Berikut laporan terakhir yang tersedia di aplikasi:\n${target.reports.slice(0, 3).map(report => `${report.time}: ${report.desc}`).join('\n') || 'Belum ada laporan terbaru.'}\nInformasi ini berasal dari data aplikasi, bukan pembaruan berita langsung.` : /penyebab/.test(topic) ? guide.cause : /risiko|bahaya/.test(topic) ? guide.hazards : /evakuasi|posko/.test(topic) ? guide.evacRoute
+          : /lindung|aman|mitigasi/.test(topic) ? guide.protocols.join('\n') : `${guide.cause}\n\nRisiko yang perlu diperhatikan: ${guide.hazards}`;
+        add('ai', `Untuk ${target.fullTitleDisplay} di ${target.name}:\n\n${answer}\n\nBagian mana yang ingin Anda bahas lebih lanjut: risiko, perlindungan diri, atau evakuasi?`);
+      } else if (workflow === 'learn-disaster' && !target) {
+        const knownType = /banjir|gempa|kebakaran/i.test(text);
+        if (knownType) {
+          const result = await askAssistant(`Bantu pengguna mempelajari bencana melalui percakapan. Pertanyaan: ${text}. Jangan menganggap lokasi dalam data sebagai lokasi pengguna. Jika lokasi belum jelas, tanyakan kota atau kabupaten. Jelaskan hanya informasi yang didukung data dan ajak pengguna bertanya lebih lanjut.`, { disasters: available, reports: intelReports, aid: aidRecords });
+          if (mounted.current) add('ai', result.answer);
+        } else add('ai', 'Bencana apa yang ingin Anda pelajari, misalnya banjir, gempa, atau kebakaran? Sebutkan juga kota/kabupatennya agar saya dapat memilih konteks yang sesuai.');
+      } else {
+        const result = await askAssistant(text, { disasters: available, reports: intelReports, aid: aidRecords });
+        if (mounted.current) add('ai', result.answer);
+      }
+    } catch { if (mounted.current) add('ai', 'Jawaban belum tersedia. Silakan coba lagi.'); }
+    finally { sending.current = false; if (mounted.current) setBusy(false); }
   };
-
-  const handleNeedsSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setNeedsSuccess(true);
-  };
-
+  useEffect(() => {
+    if (!user || !canReport(user) || !pendingReport.current) return;
+    const pending = pendingReport.current;
+    pendingReport.current = null;
+    if (pending.text) add('user', pending.text);
+    start(pending.workflow);
+  }, [user]);
+  const draftSent = useRef(false);
+  useEffect(() => {
+    if (draftSent.current || (!initialMessage && !initialAttachment)) return;
+    draftSent.current = true;
+    if (initialAttachment) add('user', `Lampiran: ${initialAttachment.name}`);
+    if (initialMessage) void send(initialMessage);
+    else add('ai', 'File Anda sudah ditambahkan. Apa yang ingin Anda laporkan atau pelajari dari dokumen ini?');
+  }, [initialMessage, initialAttachment]);
+  const showServices = !serviceChosen;
   return (
-    <div
-      className="absolute inset-0 bg-white z-50 flex flex-col justify-between transition-all duration-300 pointer-events-auto"
-      id="fullHeightAIPanel"
-    >
-      {/* AI Panel Header */}
-      <div className="px-5 py-4 bg-slate-950 text-white flex items-center justify-between border-b border-slate-800 shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="relative w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 via-orange-500 to-cyan-400 p-[1.5px] shrink-0">
-            <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center text-amber-400">
-              <Headset className="w-4 h-4 text-amber-400" />
-            </div>
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full border-2 border-slate-950 flex items-center justify-center text-[7px] text-slate-950 font-black">
-              ✦
-            </span>
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h3 className="text-xs font-bold tracking-tight text-white">
-                DisasterAI Helpdesk Assistant
-              </h3>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-            </div>
-            <p className="text-[10px] text-slate-400 flex items-center gap-1">
-              <span>Siaga Bencana RI</span> •{' '}
-              <span className="text-cyan-300 font-semibold" id="aiActiveContextBanner">
-                Konteks: {disaster.name}
-              </span>
-            </p>
-          </div>
+    <section className={`absolute z-50 flex flex-col overflow-hidden bg-slate-50 pointer-events-auto ${expanded ? 'inset-0' : 'bottom-3 right-3 w-[min(420px,calc(100%-1.5rem))] h-[min(540px,calc(100%-1.5rem))] rounded-2xl border border-slate-200 shadow-2xl'}`} id="fullHeightAIPanel" aria-label="DisasterAI Helpdesk">
+      <header className="flex shrink-0 items-center justify-between gap-3 bg-slate-950 px-5 py-4 text-white">
+        <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500"><Sparkles className="h-5 w-5" aria-hidden="true" /></div><div><h3 className="text-sm font-bold">DisasterAI Helpdesk</h3><p className="text-xs text-slate-400">Asisten informasi dan laporan bencana</p></div></div>
+        <div className="flex shrink-0 items-center gap-1">
+        <button type="button" onClick={onToggleExpanded} aria-label={expanded ? 'Kecilkan obrolan' : 'Perluas obrolan ke layar penuh'} className="rounded-xl p-2 text-slate-300 hover:bg-white/10">
+          {expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+        </button>
+        <button type="button" onClick={onClose} aria-label="Tutup DisasterAI Helpdesk" className="rounded-xl p-2 text-slate-300 hover:bg-white/10"><X className="h-5 w-5" /></button>
         </div>
-
-        <div className="flex items-center gap-1.5">
-          {/* Menu Utama Button */}
-          <button
-            onClick={() => {
-              setCurrentWorkflow('menu');
-              setReportSuccess(false);
-              setNeedsSuccess(false);
-            }}
-            className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-[10px] font-semibold text-slate-300 hover:text-white border border-slate-700/80 transition-all flex items-center gap-1 cursor-pointer"
-            title="Kembali ke 3 Pilihan Menu Utama"
-          >
-            <Menu className="w-3 h-3" />
-            <span>Menu Utama</span>
-          </button>
-          {/* Close Panel Button */}
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors border border-slate-700/80 cursor-pointer"
-            title="Tutup Chatbot & Kembali ke Dasbor"
-          >
-            <X className="w-4 h-4" />
-          </button>
+      </header>
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+        <div className="mx-auto flex max-w-3xl flex-col gap-4">
+          <div role="log" aria-live="polite" aria-relevant="additions" className="flex flex-col gap-4">
+            {messages.map(message => <div key={message.id} className={`flex gap-2 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {message.sender === 'ai' && <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600"><Sparkles className="h-4 w-4" aria-hidden="true" /></span>}
+              <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${message.sender === 'user' ? 'rounded-tr-sm bg-violet-600 text-white' : 'rounded-tl-sm border border-slate-200 bg-white text-slate-700'}`}>{message.text}</div>
+            </div>)}
+          </div>
+          {showServices && <div className="flex flex-wrap gap-2 pl-10">{services.map(service => <button key={service.workflow} type="button" disabled={busy} onClick={() => start(service.workflow)} className="rounded-full border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-50 disabled:opacity-50">{service.workflow === 'report-disaster' && context ? 'Laporkan Update Bencana' : service.label}</button>)}</div>}
+          {quickOptions.length > 0 && <div className="flex flex-wrap gap-2 pl-10">{quickOptions.map(option => <button key={option} type="button" disabled={busy} onClick={() => void send(option)} className="rounded-full border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-50">{option}</button>)}</div>}
+          {stage === 'attachment' && <div className="flex flex-wrap gap-2 pl-10">{attachment && <button type="button" onClick={() => finishAttachment(attachment)} className="rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white">Gunakan {attachment.name}</button>}<button type="button" onClick={() => fileRef.current?.click()} className="rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white">Lampirkan Foto / Dokumen</button><button type="button" onClick={() => finishAttachment()} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold">Tanpa Dokumen</button></div>}
+          {stage === 'confirm' && <div className="flex flex-wrap gap-2 pl-10"><button type="button" disabled={busy} onClick={submit} className="rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Kirim Laporan</button><button type="button" disabled={busy} onClick={() => start(workflow)} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold disabled:opacity-50">Perbaiki Laporan</button></div>}
+          {busy && <p role="status" className="flex items-center gap-2 pl-10 text-xs text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />DisasterAI sedang memproses…</p>}
         </div>
       </div>
-
-      {/* Main Content Area */}
-      <div ref={scrollRef} className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-slate-50/70 text-xs">
-        {/* Welcome Bot Bubble */}
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-xl bg-slate-900 text-amber-400 flex-shrink-0 flex items-center justify-center text-xs font-bold shadow-sm border border-slate-800">
-            <Headset className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="bg-white p-4 rounded-2xl rounded-tl-none border border-slate-200/90 shadow-sm text-slate-800 max-w-[94%] space-y-2">
-            <div className="flex items-center gap-1.5 text-amber-600 font-bold text-xs">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Halo! Selamat Datang di DisasterAI Helpdesk</span>
-            </div>
-            <p className="text-slate-600 leading-relaxed text-xs">
-              Saya asisten digital tanggap darurat BNPB & BMKG terpadu. Silakan pilih aksi cepat di bawah untuk respon terkoordinasi langsung ke posko komando satgas lapangan:
-            </p>
-          </div>
-        </div>
-
-        {/* WORKFLOW HUB: 3 Main Options */}
-        {currentWorkflow === 'menu' && (
-          <div className="space-y-2.5 pt-1 animate-fadeIn">
-            <div className="flex items-center justify-between px-1 mb-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Pilih Alur Layanan AI:
-              </span>
-              <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                Satgas Aktif 24/7
-              </span>
-            </div>
-
-            {/* Option 1: Laporkan Bencana */}
-            <button
-              onClick={() => {
-                setCurrentWorkflow('report-disaster');
-                setReportSuccess(false);
-              }}
-              className="w-full p-3.5 bg-white hover:bg-orange-50/60 rounded-2xl border border-slate-200 hover:border-orange-300 shadow-xs hover:shadow-md transition-all text-left group flex items-start gap-3.5 cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900 text-xs group-hover:text-orange-600 transition-colors">
-                    1. Laporkan Bencana
-                  </span>
-                  <span className="text-[10px] text-orange-500 font-semibold bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
-                    Form Multi-Tahap
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                  Validasi keparahan, akses jalan, jumlah jiwa rentan & penerbitan Tiket Reaksi Cepat BNPB.
-                </p>
-              </div>
-            </button>
-
-            {/* Option 2: Laporkan Kebutuhan */}
-            <button
-              onClick={() => {
-                setCurrentWorkflow('report-needs');
-                setNeedsSuccess(false);
-              }}
-              className="w-full p-3.5 bg-white hover:bg-blue-50/60 rounded-2xl border border-slate-200 hover:border-blue-300 shadow-xs hover:shadow-md transition-all text-left group flex items-start gap-3.5 cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Package className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900 text-xs group-hover:text-blue-600 transition-colors">
-                    2. Laporkan Kebutuhan
-                  </span>
-                  <span className="text-[10px] text-blue-500 font-semibold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                    Logistik & Medis
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                  Kebutuhan oksigen/ISPA, air minum, logistik balita/lansia, serta penetapan posko drop-off.
-                </p>
-              </div>
-            </button>
-
-            {/* Option 3: Pelajari Bencana */}
-            <button
-              onClick={() => setCurrentWorkflow('learn-disaster')}
-              className="w-full p-3.5 bg-white hover:bg-emerald-50/60 rounded-2xl border border-slate-200 hover:border-emerald-300 shadow-xs hover:shadow-md transition-all text-left group flex items-start gap-3.5 cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <BookOpen className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900 text-xs group-hover:text-emerald-600 transition-colors">
-                    3. Pelajari Bencana
-                  </span>
-                  <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                    Edukasi & ISPU
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                  Pemantauan ISPU real-time, protokol masker N95, peta zona aman, dan kontak darurat BPBD.
-                </p>
-              </div>
-            </button>
-          </div>
-        )}
-
-        {/* WORKFLOW 1: LAPORKAN BENCANA */}
-        {currentWorkflow === 'report-disaster' && (
-          <div className="space-y-3 animate-fadeIn">
-            {!reportSuccess ? (
-              <div className="bg-white rounded-2xl p-4 border border-orange-200 shadow-sm space-y-3.5">
-                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs">
-                      1
-                    </span>
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-xs">
-                        Formulir Lapor Kejadian Bencana
-                      </h4>
-                      <p className="text-[10px] text-slate-400">Verifikasi langsung ke satgas penanggulangan</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setCurrentWorkflow('menu')}
-                    className="text-[10px] font-semibold text-slate-400 hover:text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md"
-                  >
-                    Batal
-                  </button>
-                </div>
-
-                <form onSubmit={handleReportSubmit} className="space-y-3 text-xs">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                      Nama Lokasi / Wilayah
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={reportLocation}
-                      onChange={(e) => setReportLocation(e.target.value)}
-                      className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
-                      placeholder="Contoh: Dusun Timur RT 03, Kab. Banjar"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                        Jenis Bencana
-                      </label>
-                      <select
-                        value={reportCategory}
-                        onChange={(e) => setReportCategory(e.target.value as any)}
-                        className="w-full text-xs rounded-xl border border-slate-300 px-2.5 py-2 focus:ring-2 focus:ring-slate-900"
-                      >
-                        <option value="fire">Kebakaran Hutan / Gambut</option>
-                        <option value="flood">Banjir Bandang / Genangan</option>
-                        <option value="earthquake">Gempa Bumi / Keretakan</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                        Tingkat Darurat
-                      </label>
-                      <select
-                        value={reportUrgency}
-                        onChange={(e) => setReportUrgency(e.target.value)}
-                        className="w-full text-xs rounded-xl border border-slate-300 px-2.5 py-2 focus:ring-2 focus:ring-slate-900"
-                      >
-                        <option value="Darurat Tinggi">Darurat Tinggi</option>
-                        <option value="Siaga Penuh">Siaga Penuh</option>
-                        <option value="Waspada">Waspada</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                      Deskripsi Singkat Dampak
-                    </label>
-                    <textarea
-                      rows={2}
-                      required
-                      value={reportDesc}
-                      onChange={(e) => setReportDesc(e.target.value)}
-                      className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-slate-900"
-                      placeholder="Jelaskan kondisi akses jalan, perkiraan korban, atau arah sebaran api/air..."
-                    />
-                  </div>
-
-                  {/* Upload Evidence */}
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                      Upload Eviden / Bukti Foto
-                    </label>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*,video/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setReportFile(e.target.files[0]);
-                        }
-                      }}
-                    />
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="border-2 border-dashed border-slate-200 hover:border-orange-400 bg-slate-50/70 hover:bg-orange-50/30 rounded-xl p-3 text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-1"
-                    >
-                      <Upload className="w-5 h-5 text-orange-500" />
-                      <span className="text-[11px] font-semibold text-slate-700">
-                        {reportFile ? (
-                          <span className="text-emerald-600 font-bold">
-                            ✓ Terlampir: {reportFile.name}
-                          </span>
-                        ) : (
-                          'Pilih Foto / Video dari Perangkat'
-                        )}
-                      </span>
-                      <span className="text-[9px] text-slate-400">JPG, PNG, atau MP4 (Maks 15MB)</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-1 flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setCurrentWorkflow('menu')}
-                      className="px-4 py-2 rounded-xl text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2 rounded-xl text-[11px] font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Kirimkan Laporan</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              /* Sleek Confirmation Screen with Prominent Thumbs-up Vector Icon */
-              <div className="bg-emerald-50/90 rounded-2xl p-5 border border-emerald-200 shadow-sm text-center space-y-3 animate-fadeIn">
-                <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center border-2 border-emerald-300 shadow-inner">
-                  <ThumbsUp className="w-7 h-7" />
-                </div>
-                <div className="space-y-1">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
-                    Menunggu Verifikasi Agent TRC
-                  </span>
-                  <h4 className="text-sm font-bold text-slate-900 mt-1">
-                    Laporan Berhasil Masuk Antrian!
-                  </h4>
-                  <p className="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto">
-                    Terima kasih. Laporanmu di <strong>{reportLocation}</strong> sudah diterima dan akan diverifikasi lebih lanjut oleh tim/agent penanggulangan bencana.
-                  </p>
-                </div>
-                <div className="pt-2 flex items-center justify-center gap-2">
-                  <button
-                    onClick={() => {
-                      setReportSuccess(false);
-                      setCurrentWorkflow('menu');
-                    }}
-                    className="px-4 py-2 rounded-xl text-[11px] font-bold text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-xs cursor-pointer"
-                  >
-                    Kembali ke Menu Awal
-                  </button>
-                  <button
-                    onClick={onClose}
-                    className="px-4 py-2 rounded-xl text-[11px] font-bold text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-xs cursor-pointer"
-                  >
-                    Tutup & Pantau Peta
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* WORKFLOW 2: LAPORKAN KEBUTUHAN */}
-        {currentWorkflow === 'report-needs' && (
-          <div className="space-y-3 animate-fadeIn">
-            {!needsSuccess ? (
-              <div className="bg-white rounded-2xl p-4 border border-blue-200 shadow-sm space-y-3.5">
-                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                      2
-                    </span>
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-xs">
-                        Asesmen & Kebutuhan Darurat
-                      </h4>
-                      <p className="text-[10px] text-slate-400">Sinkronisasi armada distribusi logistik posko</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setCurrentWorkflow('menu')}
-                    className="text-[10px] font-semibold text-slate-400 hover:text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md"
-                  >
-                    Batal
-                  </button>
-                </div>
-
-                <form onSubmit={handleNeedsSubmit} className="space-y-3 text-xs">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                      Kebutuhan Paling Urgent Saat Ini
-                    </label>
-                    <div className="grid grid-cols-2 gap-1.5 mb-2">
-                      <label className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-[11px]">
-                        <input
-                          type="checkbox"
-                          checked={needsItems.masker}
-                          onChange={(e) =>
-                            setNeedsItems({ ...needsItems, masker: e.target.checked })
-                          }
-                          className="rounded text-blue-600"
-                        />
-                        <span>Masker N95 / Karbon</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-[11px]">
-                        <input
-                          type="checkbox"
-                          checked={needsItems.tangkiAir}
-                          onChange={(e) =>
-                            setNeedsItems({ ...needsItems, tangkiAir: e.target.checked })
-                          }
-                          className="rounded text-blue-600"
-                        />
-                        <span>Tangki Air Bersih</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-[11px]">
-                        <input
-                          type="checkbox"
-                          checked={needsItems.obat}
-                          onChange={(e) =>
-                            setNeedsItems({ ...needsItems, obat: e.target.checked })
-                          }
-                          className="rounded text-blue-600"
-                        />
-                        <span>Obat ISPA & Mata</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-blue-50/50 cursor-pointer text-[11px]">
-                        <input
-                          type="checkbox"
-                          checked={needsItems.sembako}
-                          onChange={(e) =>
-                            setNeedsItems({ ...needsItems, sembako: e.target.checked })
-                          }
-                          className="rounded text-blue-600"
-                        />
-                        <span>Tenda & Sembako</span>
-                      </label>
-                    </div>
-                    <input
-                      type="text"
-                      value={customNeeds}
-                      onChange={(e) => setCustomNeeds(e.target.value)}
-                      className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-slate-900"
-                      placeholder="Kebutuhan tambahan: (cth: Genset, Perahu karet, Makanan bayi)"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                        Estimasi Korban Terdampak
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={victimsCount}
-                        onChange={(e) => setVictimsCount(e.target.value)}
-                        className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-slate-900"
-                        placeholder="Contoh: ± 120 KK / 350 Jiwa"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                        Kondisi Akses Jalan
-                      </label>
-                      <select
-                        value={roadCondition}
-                        onChange={(e) => setRoadCondition(e.target.value)}
-                        className="w-full text-xs rounded-xl border border-slate-300 px-2.5 py-2 focus:ring-2 focus:ring-slate-900"
-                      >
-                        <option value="Truk Besar Dapat Lewat">Truk Dapat Lewat</option>
-                        <option value="Hanya Motor / Jalan Kaki">Hanya Motor / Jalan Kaki</option>
-                        <option value="Terisolir / Butuh Perahu">Terisolir / Butuh Perahu</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                      Keterangan Prioritas Bantuan & Posko Terdekat
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={needsNotes}
-                      onChange={(e) => setNeedsNotes(e.target.value)}
-                      className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-slate-900"
-                      placeholder="Sebutkan kontak PJ posko atau rincian krisis mendesak..."
-                    />
-                  </div>
-
-                  <div className="pt-1 flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setCurrentWorkflow('menu')}
-                      className="px-4 py-2 rounded-xl text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2 rounded-xl text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Kirim Kebutuhan Mendesak</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="bg-blue-50/90 rounded-2xl p-5 border border-blue-200 shadow-sm text-center space-y-3 animate-fadeIn">
-                <div className="w-14 h-14 mx-auto rounded-full bg-blue-100 text-blue-600 flex items-center justify-center border-2 border-blue-300 shadow-inner">
-                  <CheckCircle2 className="w-7 h-7" />
-                </div>
-                <div className="space-y-1">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span> Tercatat di Dispatcher Posko
-                  </span>
-                  <h4 className="text-sm font-bold text-slate-900 mt-1">
-                    Permintaan Logistik Didaftarkan
-                  </h4>
-                  <p className="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto">
-                    Kebutuhan darurat Anda berhasil diteruskan ke tim pengatur logistik tanggap darurat BNPB & Satgas Terpadu wilayah aktif.
-                  </p>
-                </div>
-                <div className="pt-2 flex items-center justify-center gap-2">
-                  <button
-                    onClick={() => {
-                      setNeedsSuccess(false);
-                      setCurrentWorkflow('menu');
-                    }}
-                    className="px-4 py-2 rounded-xl text-[11px] font-bold text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-xs cursor-pointer"
-                  >
-                    Kembali ke Menu Awal
-                  </button>
-                  <button
-                    onClick={onClose}
-                    className="px-4 py-2 rounded-xl text-[11px] font-bold text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-xs cursor-pointer"
-                  >
-                    Tutup Chat
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* WORKFLOW 3: PELAJARI BENCANA & PANDUAN MITIGASI */}
-        {currentWorkflow === 'learn-disaster' && (
-          <div className="bg-white rounded-2xl p-4 border border-emerald-200 shadow-sm space-y-3.5 animate-fadeIn">
-            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                  3
-                </span>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-xs">{disaster.guide.title}</h4>
-                  <p className="text-[10px] text-slate-400">Panduan Resmi BNPB & BMKG Terpadu</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setCurrentWorkflow('menu')}
-                className="text-[10px] font-semibold text-slate-400 hover:text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md cursor-pointer"
-              >
-                Pilihan Lain
-              </button>
-            </div>
-
-            {/* Penyebab & Potensi Bahaya */}
-            <div className="space-y-2 text-xs">
-              <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/80">
-                <div className="font-bold text-amber-900 flex items-center gap-1.5 text-[11px] mb-1">
-                  <span>⚠️</span> Penyebab & Dinamika
-                </div>
-                <p className="text-slate-700 text-[11px] leading-relaxed">{disaster.guide.cause}</p>
-              </div>
-
-              <div className="bg-rose-50/60 p-3 rounded-xl border border-rose-200/80">
-                <div className="font-bold text-rose-900 flex items-center gap-1.5 text-[11px] mb-1">
-                  <span>☣️</span> Potensi Bahaya Utama
-                </div>
-                <p className="text-slate-700 text-[11px] leading-relaxed">{disaster.guide.hazards}</p>
-              </div>
-            </div>
-
-            {/* Radius Aman */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-              <span className="font-bold text-slate-800 text-[11px] block mb-0.5">
-                Jangkauan & Radius Zona Aman:
-              </span>
-              <p className="text-slate-600 text-[11px]">{disaster.guide.safeRadius}</p>
-            </div>
-
-            {/* Protokol Perlindungan */}
-            <div className="space-y-1.5">
-              <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                <span>🛡️</span> Protokol Perlindungan Mandiri:
-              </div>
-              <ul className="space-y-1.5 pl-0.5">
-                {disaster.guide.protocols.map((protocol, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-xs text-slate-700">
-                    <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                      {idx + 1}
-                    </span>
-                    <span>{protocol}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Jalur Evakuasi */}
-            <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 text-xs flex items-start gap-2">
-              <span className="text-emerald-700 mt-0.5">📍</span>
-              <div>
-                <strong className="text-emerald-900 font-bold block text-[11px]">
-                  Rute Jalur Evakuasi Terbuka:
-                </strong>
-                <p className="text-emerald-800 text-[11px] mt-0.5 font-medium">
-                  {disaster.guide.evacRoute}
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-              <button
-                onClick={() => setCurrentWorkflow('menu')}
-                className="px-4 py-2 rounded-xl text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
-              >
-                Pilih Opsi Lain
-              </button>
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl text-[11px] font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
-              >
-                Selesai & Kembali
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Dynamic Chat Messages Stream */}
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex items-start gap-2.5 ${msg.sender === 'user' ? 'justify-end' : ''}`}
-          >
-            {msg.sender === 'ai' && (
-              <div className="w-7 h-7 rounded-xl bg-slate-900 text-amber-400 flex-shrink-0 flex items-center justify-center text-[10px] font-bold shadow-xs">
-                AI
-              </div>
-            )}
-            <div
-              className={`p-3.5 rounded-2xl shadow-xs max-w-[85%] text-xs leading-relaxed ${
-                msg.sender === 'user'
-                  ? 'bg-slate-900 text-white rounded-tr-none'
-                  : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'
-              }`}
-            >
-              {msg.text}
-            </div>
-          </div>
-        ))}
-
-        {aiThinking && (
-          <div className="text-[11px] text-slate-500 italic px-1">DisasterAI sedang membaca data aplikasi…</div>
-        )}
-
-        {/* Quick Suggestion Pills */}
-        <div className="pt-2">
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1.5 px-1">
-            Pertanyaan Cepat Satgas:
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              onClick={() => handleSendChat('Daerah mana yang paling membutuhkan air bersih?')}
-              className="px-3 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200 shadow-2xs transition-colors cursor-pointer"
-            >
-              💧 Gap air bersih terbesar?
-            </button>
-            <button
-              onClick={() => handleSendChat('Berapa bantuan yang masih kurang?')}
-              className="px-3 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200 shadow-2xs transition-colors cursor-pointer"
-            >
-              📦 Bantuan masih kurang?
-            </button>
-            <button
-              onClick={() => handleSendChat('Berapa laporan yang belum diverifikasi?')}
-              className="px-3 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200 shadow-2xs transition-colors cursor-pointer"
-            >
-              🛰️ Laporan belum verifikasi?
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom AI Input Bar */}
-      <div className="p-3.5 bg-white border-t border-slate-200">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSendChat();
-          }}
-          className="flex items-center gap-2"
-        >
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder={aiThinking ? 'Menjawab…' : 'Tanya berbasis data: kebutuhan, gap, verifikasi…'}
-            disabled={aiThinking}
-            className="flex-1 text-xs border border-slate-300 rounded-full px-4 py-2.5 focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none bg-slate-50/50 disabled:opacity-60"
-          />
-          <button
-            type="submit"
-            disabled={aiThinking}
-            className="w-9 h-9 rounded-full bg-slate-900 hover:bg-slate-800 active:scale-95 text-white flex items-center justify-center shadow-md transition-all shrink-0 cursor-pointer disabled:opacity-60"
-            title="Kirim Pesan"
-          >
-            <Send className="w-3.5 h-3.5 transform" />
-          </button>
+      <footer className="shrink-0 border-t border-slate-200 bg-white p-3 sm:p-4">
+        <form onSubmit={event => { event.preventDefault(); void send(); }} className="mx-auto flex max-w-3xl items-center gap-2">
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; if (file.size > 5 * 1024 * 1024) { add('ai', 'Ukuran dokumen maksimal 5 MB. Pilih file yang lebih kecil.'); return; } if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) { add('ai', 'Gunakan foto JPG, PNG, WebP, atau dokumen PDF.'); return; } finishAttachment(file); }} />
+          {stage === 'attachment' && <button type="button" onClick={() => fileRef.current?.click()} aria-label="Lampirkan foto atau dokumen" className="rounded-full p-2 text-violet-600 hover:bg-violet-50"><Paperclip className="h-5 w-5" /></button>}
+          <input aria-label="Pesan untuk DisasterAI" value={input} onChange={event => setInput(event.target.value)} disabled={busy} placeholder="Tulis jawaban atau pertanyaan Anda…" className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+          <button type="submit" disabled={busy || !input.trim()} aria-label="Kirim pesan" className="rounded-full bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 p-3 text-white disabled:opacity-40"><Send className="h-5 w-5" /></button>
         </form>
-      </div>
-    </div>
+        <p className="mx-auto mt-1.5 flex max-w-3xl items-center gap-1.5 px-1 text-[10px] text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Berbasis data DisasterWatch · data demo/prototipe</p>
+      </footer>
+    </section>
   );
-};
+}

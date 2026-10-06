@@ -10,19 +10,15 @@ import { CitizenReportsView } from './components/CitizenReportsView';
 import { AIHelpdeskPanel } from './components/AIHelpdeskPanel';
 import { ReportModal } from './components/ReportModal';
 import { DonationModal } from './components/DonationModal';
-import { IntelligenceSummaryBar } from './components/IntelligenceSummaryBar';
-import { ArchitectureBadge } from './components/ArchitectureBadge';
-import { BmkgSignalsControl } from './components/BmkgSignalsControl';
 import { useBmkgEarthquakes, useBmkgWeatherWarnings } from './services/bmkg';
-import { useBmkgWeatherForecast } from './services/bmkg/useBmkgWeatherForecast';
-import { resolveForecastAdm4 } from './services/bmkg/bmkgWeatherForecast';
 import { firmsSensorsLabel, useFirmsHotspots } from './services/firms';
 import { RANGE_LIMITS, resolveDateRange } from './domain/dateRange';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
 import { loadDisasters } from './services/store/disasterStore';
-import { ensureUser } from './lib/firebase/auth';
+import { ensureUser, watchUser, canReport } from './lib/firebase/auth';
 import { mockUser } from './lib/firebase/auth';
+import { LoginModal } from './components/LoginModal';
 
 export default function App() {
   const [disasters, setDisasters] = useState<Record<string, DisasterIncident>>(disastersData);
@@ -36,15 +32,13 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string>('Today');
   const [magmaDate, setMagmaDate] = useState<string>('Today');
   const [bmkgDate, setBmkgDate] = useState<string>('Today');
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const isDarkMode = false;
 
   // Exclusive single-window panel states: strictly at most ONE panel open at any time
   const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
   const [isRouteOpen, setIsRouteOpen] = useState<boolean>(false);
   const [isReportsOpen, setIsReportsOpen] = useState<boolean>(false);
   const [isSidebarMinimized, setIsSidebarMinimized] = useState<boolean>(true);
-  // KPI strip, status row, map toolbar and "Buka Menu Sidebar" pill: hidden on load, toggled from the header.
-  const [showPanels, setShowPanels] = useState<boolean>(false);
   // Sidebar can expand to the full disaster detail (design from feat/homepage-slicing).
   const [isSidebarExpanded, setIsSidebarExpanded] = useState<boolean>(false);
   // News ticker highlights the incident it is announcing on the map.
@@ -54,7 +48,13 @@ export default function App() {
   useEffect(() => {
     setSelectedPostId(null);
   }, [activeDisasterKey, isRouteOpen]);
+  const [aiDraft, setAiDraft] = useState<{ message: string; file?: File } | null>(null);
+  const [hasAIContext, setHasAIContext] = useState(false);
+  const [isAIExpanded, setIsAIExpanded] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState<boolean>(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [aiWorkflow, setAiWorkflow] = useState<'menu' | 'report-disaster'>('menu');
+  useEffect(() => watchUser(setCurrentUser), []);
 
   // Modal overlays
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
@@ -77,18 +77,6 @@ export default function App() {
   const bmkgWx = useBmkgWeatherWarnings();
 
   const activeDisaster = disasters[activeDisasterKey] || disasters['padang'];
-
-  // BMKG forecast follows the selected disaster; adm4 absent → NO_LOCATION.
-  const activeAdm4 = resolveForecastAdm4(activeDisaster);
-  const bmkgFc = useBmkgWeatherForecast(activeAdm4);
-  const forecastSummary = (() => {
-    const s = bmkgFc.forecast?.days[0]?.slots[0];
-    return s ? `${s.temperatureC}°C • ${s.weatherDesc}` : null;
-  })();
-
-  const handleToggleTheme = () => {
-    setIsDarkMode((prev) => !prev);
-  };
 
   const handleSelectDisaster = (key: string) => {
     // Clicking an incident marker opens the mini sidebar for it (as in feat/homepage-slicing).
@@ -172,13 +160,30 @@ export default function App() {
     }
   };
 
-  const handleOpenAI = () => {
+  const handleOpenAI = (withContext = false) => {
+    setAiDraft(null);
+    setIsAIExpanded(false);
+    setHasAIContext(withContext);
+    setAiWorkflow('menu');
     setIsDetailOpen(false);
     setIsRouteOpen(false);
     setIsReportsOpen(false);
     setIsSidebarMinimized(true);
     setIsSidebarExpanded(false);
     setIsAIOpen(true);
+  };
+
+  const openReportForm = () => {
+    handleOpenAI();
+    setAiWorkflow('report-disaster');
+  };
+
+  const handleReportDisaster = () => {
+    if (!canReport(currentUser)) {
+      setIsLoginOpen(true);
+      return;
+    }
+    openReportForm();
   };
 
   const handleOpenWeather = () => {
@@ -244,6 +249,7 @@ export default function App() {
       desc: newReportData.description || newReportData.desc || 'Laporan baru diterima dari lapangan.',
       time: 'Baru saja',
       author: 'Oleh: Warga Pelapor Terverifikasi',
+      sourceType: 'citizen' as const,
       tag: 'Menunggu Verifikasi TRC',
       tagClass: 'bg-amber-50 text-amber-700 border-amber-200',
     };
@@ -275,6 +281,11 @@ export default function App() {
         reports: [
           {
             id: rep.id,
+            newsCategory: rep.newsCategory,
+            newsInsight: rep.newsInsight,
+            sourceType: rep.sourceType,
+            sourceName: rep.sourceName,
+            sourceUrl: rep.sourceUrl,
             location: rep.location.name,
             title: e ? `${e.disasterType.toUpperCase()} • AI ${(Math.round((rep.aiConfidence ?? 0) * 100))}%` : 'Laporan AI',
             desc: rep.rawText.slice(0, 220),
@@ -310,57 +321,14 @@ export default function App() {
     >
       {/* Top Bar Navigation */}
       <Header
-          isDarkMode={isDarkMode}
-          onToggleTheme={handleToggleTheme}
           dates={{ bmkg: bmkgDate, firms: selectedDate, magma: magmaDate }}
           onSelectDate={(target, value) =>
             target === 'magma' ? setMagmaDate(value) : target === 'bmkg' ? setBmkgDate(value) : setSelectedDate(value)
           }
-          onOpenReportModal={() => setIsReportModalOpen(true)}
+          onReportDisaster={handleReportDisaster}
           disasters={disasters}
           onHighlightDisaster={setHighlightedDisasterKey}
-          showPanels={showPanels}
-          onTogglePanels={() => setShowPanels((v) => !v)}
         />
-
-        {/* KPI strip + status row — collapsible with the header "Panel" button (hidden by default) */}
-        {showPanels && (
-          <>
-            <IntelligenceSummaryBar disasters={disasters} reports={intelReports} aid={aidRecords} />
-            {/* Compact status row: system status (incl. data-store notice) + BMKG official signals */}
-            {/* z-[35]: popovers open above the map overlays (z-30) but below the header menus (z-40) */}
-            <div className="relative z-[35] px-3 sm:px-6 pt-1.5 pb-2 flex items-center gap-2 border-b border-slate-200/80 dark:border-slate-800/80">
-              <ArchitectureBadge
-                notice={
-                  <>
-                    <span className="font-semibold">{storeNotice}</span>
-                    <span className="block">Pengguna: {currentUser.displayName ?? currentUser.uid}{currentUser.isMock ? ' (mock)' : ''}</span>
-                  </>
-                }
-              />
-              <BmkgSignalsControl
-                inline
-                quakeCount={bmkg.events.length}
-                quakeLatestText={
-                  bmkg.latest
-                    ? `M${bmkg.latest.magnitude} • ${bmkg.latest.region} • ${bmkg.latest.depthKm} km`
-                    : null
-                }
-                quakeLive={bmkg.status.state === 'ready'}
-                quakeRefreshing={bmkg.refreshing}
-                onRefreshQuake={bmkg.refresh}
-                weatherActiveCount={bmkgWx.active.length}
-                weatherBlocked={bmkgWx.errorType === 'RSS_CORS_BLOCKED' || bmkgWx.errorType === 'CAP_CORS_BLOCKED'}
-                weatherReady={bmkgWx.status.state === 'ready'}
-                weatherRefreshing={bmkgWx.refreshing}
-                onRefreshWeather={bmkgWx.refresh}
-                forecastState={bmkgFc.state}
-                forecastSummary={forecastSummary}
-                forecastLocation={activeAdm4 ? `${activeDisaster.name}` : null}
-              />
-            </div>
-          </>
-        )}
 
         {/* Main Work Area — map-first workspace (min 60vh desktop) */}
         <main className="relative flex-1 grid grid-cols-12 overflow-hidden min-h-[60vh]">
@@ -368,22 +336,24 @@ export default function App() {
           <CategoryFilterBar
             activeCategory={activeCategory}
             onSelectCategory={handleSelectCategory}
-            compactTop={!showPanels}
             isDarkMode={isDarkMode}
           />
 
           {/* Central Map Canvas Area (provider-abstracted, Leaflet default) */}
           <MapProvider
+            onStartAIChat={isAIOpen ? undefined : (message, file) => {
+              handleOpenAI(false);
+              setAiDraft({ message, file });
+            }}
             disasters={disasters}
             activeDisasterKey={activeDisasterKey}
             onSelectDisaster={handleSelectDisaster}
             activeCategory={activeCategory}
             isDarkMode={isDarkMode}
             onExpandView={handleOpenDetail}
-            onOpenAIHelpdesk={handleOpenAI}
+            onOpenAIHelpdesk={() => handleOpenAI(true)}
             isExpanded={isSidebarExpanded}
             highlightedDisasterKey={highlightedDisasterKey}
-            showToolbar={showPanels}
             selectedPostId={selectedPostId}
             onSelectPost={setSelectedPostId}
             isSidebarMinimized={isSidebarMinimized}
@@ -435,7 +405,7 @@ export default function App() {
               isExpanded={isSidebarExpanded}
               onExpandView={handleOpenDetail}
               onCollapseView={handleCollapseSidebar}
-              onOpenAIHelpdesk={handleOpenAI}
+              onOpenAIHelpdesk={() => handleOpenAI(true)}
               onOpenDonationModal={() => setIsDonationModalOpen(true)}
               onOpenDisasterBrief={handleOpenDisasterBrief}
               onMinimize={() => {
@@ -455,7 +425,7 @@ export default function App() {
               disaster={activeDisaster}
               onClose={() => setIsRouteOpen(false)}
               onOpenDonationModal={() => setIsDonationModalOpen(true)}
-              onOpenAIHelpdesk={handleOpenAI}
+              onOpenAIHelpdesk={() => handleOpenAI(true)}
               onViewDisasterDetail={handleOpenDetail}
               isDarkMode={isDarkMode}
               selectedPostId={selectedPostId}
@@ -478,6 +448,15 @@ export default function App() {
           {/* MODE 5: Dedicated Single-Window "DisasterAI Helpdesk" */}
           {isAIOpen && (
             <AIHelpdeskPanel
+              key={aiWorkflow}
+              expanded={isAIExpanded}
+              onToggleExpanded={() => setIsAIExpanded(value => !value)}
+              initialWorkflow={aiWorkflow}
+              hasContext={hasAIContext}
+              initialMessage={aiDraft?.message}
+              initialAttachment={aiDraft?.file}
+              user={currentUser}
+              onRequireLogin={() => setIsLoginOpen(true)}
               disaster={activeDisaster}
               onClose={() => setIsAIOpen(false)}
               onReportSubmitted={handleNewReportSuccess}
@@ -490,6 +469,13 @@ export default function App() {
         </main>
 
         {/* Standalone Report Modal (pipeline: extraction → validation → store) */}
+      {isLoginOpen && (
+        <LoginModal onClose={() => setIsLoginOpen(false)} onSuccess={(user) => {
+          setCurrentUser(user);
+          setIsLoginOpen(false);
+          if (!isAIOpen) openReportForm();
+        }} />
+      )}
       <ReportModal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}

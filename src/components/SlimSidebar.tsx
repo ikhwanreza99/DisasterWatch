@@ -1,18 +1,18 @@
 import React from 'react';
 import {
   Compass,
-  ArrowRight,
+  ExternalLink,
+  MessageCircle,
   Flame,
   Waves,
   Activity,
-  Sparkles,
   PanelRightClose,
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
+import { getNewsSource } from '../services/newsClassification';
 import { ExpandedDetailContent } from './ExpandedDetailContent';
 import { WeatherCard } from './WeatherCard';
-import { UrgentNeedsCard } from './UrgentNeedsCard';
 import { BmkgForecastPanel } from './BmkgForecastPanel';
 import { resolveForecastAdm4 } from '../services/bmkg/bmkgWeatherForecast';
 
@@ -407,7 +407,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           </div>        
         </div>*/}
 
-        {/* Laporan Terverifikasi */}
+        {/* Update Berita Terkini */}
         <div
           className="
             rounded-[20px]
@@ -422,7 +422,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
 
               <h4 className="text-[14px] font-bold text-slate-900">
-                Laporan Terverifikasi
+                Update Berita Terkini
               </h4>
             </div>
 
@@ -443,7 +443,9 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 
           {/* Report List */}
           <div className="mt-3 space-y-2">
-            {disaster.reports.slice(0, 2).map((rep) => (
+            {disaster.reports.slice(0, 2).map((rep) => {
+              const source = getNewsSource(rep);
+              return (
               <div
                 key={rep.id}
                 className="
@@ -454,8 +456,8 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
                 "
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-[10px] font-semibold text-emerald-600 truncate">
-                    {rep.tag}
+                  <span className="text-[10px] font-semibold text-slate-900">
+                    {rep.location}
                   </span>
 
                   <span className="text-[9px] text-slate-400 shrink-0">
@@ -466,15 +468,29 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
                 <p className="mt-1 text-[11px] leading-relaxed font-medium text-slate-600">
                   {rep.desc}
                 </p>
+                <div className="mt-2 flex justify-end text-[10px]">
+                  {source ? (
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-slate-500 font-medium hover:text-blue-600 hover:underline"
+                      aria-label={`Buka sumber berita: ${source.name}`}
+                    >
+                      Sumber: {source.name}
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                    </a>
+                  ) : (
+                    <span className="text-slate-400 font-medium">{rep.author}</span>
+                  )}
+                </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
-        {/* Kebutuhan Paling Urgent + donasi */}
-        <UrgentNeedsCard disaster={disaster} onOpenDonationModal={onOpenDonationModal} className="rounded-[20px] p-4" />
-
-        {/* Cuaca lapangan (Google Weather) — below Laporan Terverifikasi */}
+        {/* Cuaca lapangan (Google Weather) — below Update Berita Terkini */}
         <div className="rounded-[20px] border border-slate-200 bg-white p-4" data-purpose="mini-weather">
           <h4 className="text-[14px] font-bold text-slate-900 mb-3">Cuaca Lapangan</h4>
           <WeatherCard
@@ -490,67 +506,14 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
       </div>
         
 
-      {/* Bottom AI Helpdesk Trigger */}
       <div className="pt-3">
         <button
+          type="button"
           onClick={onOpenAIHelpdesk}
-          className="
-            w-full
-            rounded-2xl
-            bg-slate-950
-            px-4 py-3
-            flex items-center justify-between
-            text-white
-            shadow-md
-            hover:bg-slate-900
-            active:scale-[0.99]
-            transition-all
-          "
+          className="flex w-full shrink-0 items-center justify-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 hover:brightness-110 text-white rounded-full text-xs font-bold shadow-md shadow-violet-500/25 transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
         >
-          <div className="flex items-center gap-3">
-            {/* Icon */}
-            <div
-              className="
-                w-9 h-9
-                rounded-xl
-                bg-orange-500/15
-                border border-orange-500/30
-                flex items-center justify-center
-                shrink-0
-              "
-            >
-              <Sparkles className="w-4 h-4 text-orange-400" />
-            </div>
-
-            {/* Text */}
-            <div className="text-left">
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] font-bold">
-                  Laporkan Bencana
-                </span>
-
-                <span
-                  className="
-                    px-1.5 py-0.5
-                    rounded-md
-                    bg-cyan-500/15
-                    border border-cyan-400/20
-                    text-[8px]
-                    font-bold
-                    text-cyan-300
-                  "
-                >
-                  AI Helpdesk
-                </span>
-              </div>
-
-              <p className="mt-0.5 text-[10px] text-slate-400">
-                Bantuan darurat & evakuasi
-              </p>
-            </div>
-          </div>
-
-          <ArrowRight className="w-4 h-4 text-orange-400" />
+          <MessageCircle className="w-4 h-4" aria-hidden="true" />
+          <span>Tanya DisasterAI</span>
         </button>
       </div>
       </>

@@ -6,19 +6,16 @@ interface CategoryFilterBarProps {
   activeCategory: CategoryFilter;
   onSelectCategory: (cat: CategoryFilter) => void;
   isDarkMode: boolean;
-  /** Map toolbar hidden → dock starts near the top of the map. */
-  compactTop?: boolean;
 }
 
 export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
   activeCategory,
   onSelectCategory,
   isDarkMode,
-  compactTop = false,
 }) => {
   return (
     <div
-      className={`absolute left-3 sm:left-6 ${compactTop ? 'top-3 sm:top-4' : 'top-[3.75rem] sm:top-16'} z-30 flex flex-col [@media(max-height:560px)]:flex-row gap-1.5 sm:gap-2.5 p-1.5 sm:p-2 bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-700/70 shadow-xl pointer-events-auto select-none transition-colors duration-300`}
+      className="absolute left-3 sm:left-6 top-[3.75rem] sm:top-16 z-30 flex flex-col [@media(max-height:560px)]:flex-row gap-1.5 sm:gap-2.5 p-1.5 sm:p-2 bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-700/70 shadow-xl pointer-events-auto select-none transition-colors duration-300"
       data-purpose="category-filter-bar"
     >
       {/* All */}

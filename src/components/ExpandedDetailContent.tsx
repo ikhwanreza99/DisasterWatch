@@ -14,14 +14,15 @@ import {
   Droplets,
   Pill,
   Package,
-  Camera,
+  Newspaper,
+  ExternalLink,
   Zap,
   Radio,
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
+import { classifyNews, newsCategoryStyles, getNewsSource, getNewsInsight } from '../services/newsClassification';
 import { AidGapCard } from './AidGapCard';
-import { UrgentNeedsCard } from './UrgentNeedsCard';
 
 interface ExpandedDetailContentProps {
   disaster: DisasterIncident;
@@ -184,7 +185,7 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
                 {getCategoryIcon()}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-base font-bold text-slate-900 leading-snug break-words whitespace-normal">
+                <h3 className="text-[14px] font-bold text-slate-900 leading-snug break-words whitespace-normal">
                   {disaster.name}, {disaster.province}
                 </h3>
                 <p className="text-xs font-semibold text-slate-500 mt-1">
@@ -194,21 +195,21 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs mb-4">
-              <div className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-100">
-                <span className="text-slate-400 block font-medium text-[11px]">Estimasi Dampak</span>
-                <strong className="text-slate-900 font-bold text-base block mt-0.5">
+              <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
+                <span className="text-[11px] font-medium text-slate-400 block">Estimasi Dampak</span>
+                <strong className="mt-1 text-[18px] font-bold text-slate-900 block">
                   {disaster.cost}
                 </strong>
-                <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
+                <span className="mt-2 text-[11px] font-medium text-slate-400 block">
                   {disaster.impact}
                 </span>
               </div>
-              <div className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-100">
-                <span className="text-slate-400 block font-medium text-[11px]">Gap Recovery</span>
-                <strong className="text-slate-800 font-bold text-sm block mt-0.5">
+              <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
+                <span className="text-[11px] font-medium text-slate-400 block">Gap Recovery</span>
+                <strong className="mt-1 text-[18px] font-bold text-slate-900 block">
                   {disaster.gapRecovery}
                 </strong>
-                <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                   <div
                     className="bg-amber-500 h-full rounded-full transition-all duration-500"
                     style={{ width: `${disaster.recoveryPct}%` }}
@@ -225,7 +226,7 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
                 className="w-full h-36 object-cover transform hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] text-white flex items-center gap-1.5 border border-white/10">
-                <Camera className="w-3 h-3 text-amber-400" />
+                <Newspaper className="w-3 h-3 text-amber-400" />
                 <span>Sumber: {disaster.photoSource}</span>
               </div>
             </div>
@@ -239,8 +240,8 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
                     : 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/25'
                 }`}
               >
-                <Compass className="w-4 h-4" />
-                <span>{isRouteVisible ? 'Rute Distribusi Bantuan Aktif' : 'Tampilkan Rute Distribusi'}</span>
+                <Compass className="w-4 h-4 text-white" aria-hidden="true" />
+                <span>Lihat Posko Evakuasi</span>
               </button>
               <button
                 onClick={handleShare}
@@ -276,7 +277,7 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
                   </div>
 
                   <div className="min-w-0 mb-2.5">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block truncate">
+                    <span className="text-[14px] font-bold text-slate-900 block break-words">
                       {config.label}
                     </span>
                     <span className="text-[9px] text-slate-400 font-medium">
@@ -301,63 +302,70 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
             })}
           </div>
 
-          {/* Kebutuhan Paling Urgent Card */}
-          <UrgentNeedsCard disaster={disaster} onOpenDonationModal={onOpenDonationModal} />
-
           {/* Kesenjangan bantuan (kebutuhan vs bantuan tercatat) */}
           <article className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80" data-purpose="detail-aid-gap">
-            <h4 className="text-xs font-bold text-slate-900 tracking-tight uppercase mb-3">Kesenjangan Bantuan</h4>
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-orange-500 text-white flex items-center justify-center shadow-xs shrink-0">
+                <HeartHandshake className="w-4 h-4" aria-hidden="true" />
+              </div>
+              <h4 className="text-[14px] font-bold text-slate-900">Kesenjangan Bantuan</h4>
+            </div>
             <AidGapCard disasterId={disaster.id} reports={intelReports} aid={aidRecords} />
+            <button
+              type="button"
+              onClick={onOpenDonationModal}
+              className="mt-4 w-full py-3 px-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all cursor-pointer"
+            >
+              <HeartHandshake className="w-4 h-4 text-white" />
+              <span>Salurkan Bantuan / Donasi</span>
+            </button>
           </article>
         </div>
 
-        {/* Card 2: Laporan Warga & Relawan Terverifikasi */}
+        {/* Card 2: Update Berita Terkini */}
         <div className="xl:col-span-6 min-w-0 flex flex-col gap-4 h-full min-h-0 overflow-y-auto pr-1 pb-4">
           <article
             className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col h-[min(70vh,640px)] min-h-[360px] shrink-0 transition-all hover:shadow-md"
             id="citizenReportsCard"
           >
-            <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-slate-100 shrink-0">
+            <div className="flex items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center shadow-xs shrink-0">
-                  <Camera className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-lg bg-orange-500 text-white flex items-center justify-center shadow-xs shrink-0">
+                  <Newspaper className="w-4 h-4" />
                 </div>
 
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-bold text-slate-900 tracking-tight uppercase">
-                      Laporan Warga Terverifikasi
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-[14px] font-bold text-slate-900">
+                      Update Berita Terkini
                     </h4>
 
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
-                      {disaster.reports.length} Laporan Aktif
-                    </span>
                   </div>
 
                   <span className="text-[10px] text-slate-400 font-medium block">
-                    Divalidasi Petugas Posko TRC & BPBD Lapangan
+                    Data Laporan Warga, Portal Berita, dan Internet
                   </span>
                 </div>
               </div>
 
-              <button
-                onClick={onOpenAIHelpdesk}
-                className="text-[11px] text-blue-600 font-semibold hover:underline flex items-center gap-0.5"
-              >
-                Semua
-              </button>
+              <span className="inline-flex shrink-0 items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-200">
+                {disaster.reports.length} Berita
+              </span>
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto pr-1">
               <div className="space-y-3">
-                {disaster.reports.map((report) => (
+                {disaster.reports.map((report) => {
+                  const category = newsCategoryStyles[classifyNews(report)];
+                  const source = getNewsSource(report);
+                  return (
                   <div
                     key={report.id}
                     className="p-3 bg-slate-50/80 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all shrink-0 "
                   >
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span className={`w-2 h-2 shrink-0 rounded-full ${category.dot}`}></span>
                         <span className="font-bold text-slate-900 text-xs">{report.location}</span>
                       </div>
                       <span className="text-[10px] text-slate-400 font-medium shrink-0">
@@ -365,21 +373,40 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 leading-snug mb-2">{report.desc}</p>
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className={`font-semibold px-2 py-0.5 rounded-full border ${report.tagClass}`}>
-                        {report.tag}
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px]">
+                      <span className={`font-semibold px-2 py-0.5 rounded-full border ${category.badge}`}>
+                        {getNewsInsight(report)}
                       </span>
-                      <span className="text-slate-400 font-medium">{report.author}</span>
+                      {source ? (
+                        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                          <span className="text-slate-400 font-medium">Sumber: {source.name}</span>
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 font-semibold text-orange-600 hover:bg-orange-100 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+                            aria-label={`Buka sumber berita: ${source.name}`}
+                          >
+                            Buka Sumber<ExternalLink className="w-3 h-3 shrink-0" aria-hidden="true" />
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="ml-auto text-slate-400 font-medium">{report.author}</span>
+                      )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
             <div className="pt-3.5 mt-3 border-t border-slate-100 flex items-center justify-between shrink-0">
-              <span className="text-[11px] text-slate-500 font-medium">
-                Pusat Pengaduan Darurat Warga
-              </span>
+              <button
+                onClick={onOpenAIHelpdesk}
+                className="text-[11px] text-slate-500 font-semibold hover:text-red-600 hover:underline cursor-pointer text-left"
+              >
+                Berita tidak Valid? Laporkan
+              </button>
               <button
                 onClick={onOpenAIHelpdesk}
                 className="text-xs font-bold text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1 cursor-pointer"

@@ -27,14 +27,16 @@ import {
   RefreshCw,
   X,
   Info,
+  EyeOff,
   LocateFixed,
   Loader2,
 } from 'lucide-react';
 import { CategoryFilter, DisasterIncident, DisasterCategory } from '../types';
-import { uniqueAreaNames, type EarthquakeEvent, type BmkgWeatherWarning } from '../services/bmkg';
-import { buildBmkgPopupHtml, buildBmkgWeatherPopupHtml } from './map/bmkgPopup';
+import { BMKG_SOURCE_URL, uniqueAreaNames, type EarthquakeEvent, type BmkgWeatherWarning } from '../services/bmkg';
+import { BMKG_SHAKEMAP_BASE, buildBmkgPopupHtml, buildBmkgWeatherPopupHtml, formatQuakeTime } from './map/bmkgPopup';
 import { FIRMS_SOURCE_URL, type FireHotspot, type FirmsStatus } from '../services/firms';
 import { GoogleFireOverlay } from './map/GoogleFireOverlay';
+import { MapChatComposer } from './MapChatComposer';
 import { MapSearch } from './map/MapSearch';
 import { DisasterCallout, DisasterMarker, disasterMarkerHtml } from './map/disasterMarkers';
 import type { PlaceResult } from '../services/places/placeSearch';
@@ -270,8 +272,6 @@ function buildFirePopupHtml(h: FireHotspot): string {
     `</div>`
   );
 }
-import { WeatherCard } from './WeatherCard';
-import { WeatherDetailSidebar } from './WeatherDetailSidebar';
 
 interface MapCanvasProps {
   disasters: Record<string, DisasterIncident>;
@@ -281,9 +281,8 @@ interface MapCanvasProps {
   isDarkMode: boolean;
   onExpandView: () => void;
   onOpenAIHelpdesk: () => void;
+  onStartAIChat?: (message: string, file?: File) => void;
   isExpanded: boolean;
-  /** Map toolbar row (engine pill, search, Layer, map type, weather pill, sidebar button). */
-  showToolbar?: boolean;
   /** Incident currently announced by the header news ticker (highlighted on the map). */
   highlightedDisasterKey?: string | null;
   /** Selected evacuation post (Posko) — synced with the Posko list view. */
@@ -765,6 +764,13 @@ const OSMMapRenderer: React.FC<{
         icon: L.divIcon({ html, className: 'bmkg-osm-marker', iconSize: [40, 28], iconAnchor: [20, 14] }),
         zIndexOffset: 500,
         title: `BMKG M${mag} — ${e.region}`,
+        alt: `BMKG M${mag} — ${e.region}`,
+        keyboard: true,
+      });
+      m.on('add', () => {
+        const el = m.getElement();
+        el?.setAttribute('role', 'button');
+        el?.setAttribute('aria-label', `Gempa BMKG M${mag}, ${e.region}. Buka detail`);
       });
       m.bindPopup(buildBmkgPopupHtml(e), { maxWidth: 300, closeButton: true, className: 'bmkg-popup' });
       bGroup.addLayer(m);
@@ -1015,6 +1021,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   isDarkMode,
   onExpandView,
   onOpenAIHelpdesk,
+  onStartAIChat,
   isExpanded,
   isSidebarMinimized = false,
   onToggleSidebar,
@@ -1043,12 +1050,16 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   onSelectPost,
   bmkgWeather = [],
   weatherStatus = 'idle',
-  showToolbar = true,
 }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-  const [showBmkg, setShowBmkg] = useState(true);
+  // Master switch for every API data map layer (bottom-left toggle). OFF by default.
+  const [showApiLayers, setShowApiLayers] = useState(false);
+  const showBmkg = showApiLayers;
   const [selectedBmkgId, setSelectedBmkgId] = useState<string | null>(null);
-  const [showFirms, setShowFirms] = useState(false);
+  const selectedBmkg = useMemo(() => bmkgEvents.find((e) => e.id === selectedBmkgId) ?? null, [bmkgEvents, selectedBmkgId]);
+  // Time of the last BMKG marker click: lets the map's outside-click handler ignore that same click.
+  const lastMarkerClickRef = useRef(0);
+  const showFirms = showApiLayers;
   const [selectedFire, setSelectedFire] = useState<FireHotspot | null>(null);
   // Close a stale popup when the date range (dataset) changes.
   useEffect(() => setSelectedFire(null), [firmsHotspots]);
@@ -1056,30 +1067,30 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   useEffect(() => setGCalloutClosed(false), [activeDisasterKey]);
   // Coordinates to pan/fly to when user clicks "Fokus Peta" in WeatherDetailSidebar
   const [weatherFocusCoords, setWeatherFocusCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [showWeather, setShowWeather] = useState(true);
+  const showWeather = showApiLayers;
   const [selectedWeatherId, setSelectedWeatherId] = useState<string | null>(null);
   const activeWeather = useMemo(
     () => bmkgWeather.filter((w) => w.status === 'ACTIVE'),
     [bmkgWeather],
   );
   const selectedWeather = activeWeather.find((w) => w.id === selectedWeatherId) ?? null;
-  // Major-city weather points: fetched only while the CUACA layer is ON.
-  const cityWx = useCityWeather(showWeather);
-  // MAGMA (PVMBG): off by default; fetched only when toggled ON.
-  const [showMagma, setShowMagma] = useState(false);
+  // Major-city weather points: always fetched; visibility follows the API layer toggle.
+  const cityWx = useCityWeather(true);
+  // MAGMA (PVMBG): always fetched; visibility follows the API layer toggle.
+  const showMagma = showApiLayers;
   // MAGMA legend is collapsed by default; (i) button next to zoom controls toggles it.
   const [showMagmaLegend, setShowMagmaLegend] = useState(false);
-  const magmaFeed = useMagma(showMagma);
+  const magmaFeed = useMagma(true);
   const [selectedMagma, setSelectedMagma] = useState<
     { kind: 'volcano'; v: Volcano } | { kind: 'landslide'; l: LandslideReport } | null
   >(null);
-  // Darwin VAAC volcanic ash: off by default; fetched only when toggled ON.
-  const [showAsh, setShowAsh] = useState(false);
-  const ash = useVaac(showAsh);
+  // Darwin VAAC volcanic ash: always fetched; visibility follows the API layer toggle.
+  const showAsh = showApiLayers;
+  const ash = useVaac(true);
   const [selectedAsh, setSelectedAsh] = useState<AshAdvisory | null>(null);
   const activeAshCount = ash.advisories.filter((a) => !a.terminated).length;
   // MAGMA eruption notices ("Informasi Letusan") follow the header date range.
-  const eruptions = useMagmaEruptions(showMagma, selectedDate);
+  const eruptions = useMagmaEruptions(true, selectedDate);
   const eruptionsByVolcano = useMemo(() => groupEruptions(eruptions.notices), [eruptions.notices]);
   const magmaCounts = useMemo(() => {
     const vs = magmaFeed.data?.volcanoes ?? [];
@@ -1113,6 +1124,21 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   useEffect(() => { if (selectedMagma) closeOtherPopups('magma'); }, [selectedMagma, closeOtherPopups]);
   useEffect(() => { if (selectedAsh) closeOtherPopups('ash'); }, [selectedAsh, closeOtherPopups]);
   useEffect(() => { if (selectedCityId) closeOtherPopups('city'); }, [selectedCityId, closeOtherPopups]);
+  const toggleApiLayers = useCallback(() => {
+    setShowApiLayers((on) => {
+      if (on) {
+        // Hiding the layers: close any popup that belongs to them.
+        setSelectedBmkgId(null);
+        setSelectedFire(null);
+        setSelectedWeatherId(null);
+        setSelectedMagma(null);
+        setSelectedAsh(null);
+        setSelectedCityId(null);
+        setShowMagmaLegend(false);
+      }
+      return !on;
+    });
+  }, []);
   // Compact summary of the layers that are ON (shown next to the Layer button).
   const activeLayerChips = [
     showBmkg && {
@@ -1134,7 +1160,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       title: `Erupsi MAGMA (${eruptions.range.label}): ${eruptions.notices.length}`,
     },
     showAsh && { key: 'ash', icon: '🌫', value: String(activeAshCount), title: `Advisory abu vulkanik aktif: ${activeAshCount}` },
-    showWeather && { key: 'wx', icon: '⛈', value: String(cityWx.cities.length), title: `Cuaca kota: ${cityWx.cities.length}` },
   ].filter((c): c is { key: string; icon: string; value: string; title: string } => !!c);
 
   // Engine state: start with 'google' if apiKey present, but auto-fallback to 'osm' on RefererNotAllowedMapError
@@ -1373,6 +1398,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               gestureHandling="greedy"
               disableDefaultUI={true}
               styles={isDarkMode && googleMapType === 'roadmap' ? darkGoogleMapStyles : undefined}
+              onClick={() => {
+                // Outside click closes the BMKG quake popup (ignore the click that just opened it).
+                if (Date.now() - lastMarkerClickRef.current > 50) setSelectedBmkgId(null);
+              }}
             >
               <GoogleMapCameraController
                 activeDisaster={activeData}
@@ -1544,51 +1573,19 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 bmkgEvents.map((e) => {
                   if (!Number.isFinite(e.latitude) || !Number.isFinite(e.longitude)) return null;
                   const isSel = e.id === selectedBmkgId;
+                  const label = `Gempa BMKG M${e.magnitude.toFixed(1)} — ${e.region}`;
                   return (
                     <AdvancedMarker
                       key={e.id}
                       position={{ lat: e.latitude, lng: e.longitude }}
-                      zIndex={isSel ? 10004 : 30}
-                      title={`BMKG M${e.magnitude} — ${e.region}`}
-                      onClick={() => setSelectedBmkgId(isSel ? null : e.id)}
+                      zIndex={isSel ? 10004 : 40}
+                      title={label}
+                      onClick={() => {
+                        lastMarkerClickRef.current = Date.now();
+                        setSelectedBmkgId(e.id);
+                      }}
                     >
-                      <div className="relative flex items-center justify-center" data-purpose="bmkg-marker" data-bmkg-id={e.id}>
-                        {isSel && (
-                          <div
-                            className="pointer-events-auto absolute bottom-10 left-1/2 -translate-x-1/2 z-50 min-w-[260px] rounded-2xl p-3 shadow-2xl border border-cyan-300/40 bg-slate-900/95 text-white"
-                            onClick={(ev) => ev.stopPropagation()}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="text-xs font-black tracking-wide">EARTHQUAKE</div>
-                              <button
-                                type="button"
-                                aria-label="Tutup popup"
-                                title="Tutup"
-                                onClick={(ev) => {
-                                  ev.stopPropagation();
-                                  setSelectedBmkgId(null);
-                                }}
-                                className="w-5 h-5 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                            <div className="text-[11px] text-slate-300">Source: <b>BMKG</b></div>
-                            <div className="text-[11px]">Magnitude: <b>M{e.magnitude}</b> • Depth: <b>{e.depthKm} km</b></div>
-                            <div className="text-[11px]">Location: <b>{e.region}</b></div>
-                            <div className="text-[10px] text-slate-400">Time: {e.eventTime}</div>
-                            {e.feltArea && <div className="text-[11px]">Felt area: <b>{e.feltArea}</b></div>}
-                            {e.mmi && <div className="text-[11px]">MMI: <b>{e.mmi}</b></div>}
-                            <a
-                              href="https://data.bmkg.go.id/gempabumi/"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[11px] text-cyan-300 underline"
-                            >
-                              Source: BMKG — data.bmkg.go.id/gempabumi
-                            </a>
-                          </div>
-                        )}
+                      <div className="relative flex items-center justify-center" data-purpose="bmkg-marker" data-bmkg-id={e.id} aria-label={label}>
                         <span className="min-w-9 h-7 px-1.5 rounded-full bg-cyan-600 border-2 border-white shadow-lg flex items-center justify-center text-white text-[10px] font-black">
                           M{e.magnitude.toFixed(1)}
                         </span>
@@ -1596,6 +1593,65 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     </AdvancedMarker>
                 );
               })}
+              {/* BMKG quake popup — separate marker (no onClick) so clicks inside don't toggle it */}
+              {showBmkg && bmkgStatus !== 'unavailable' && selectedBmkg && (
+                <AdvancedMarker
+                  position={{ lat: selectedBmkg.latitude, lng: selectedBmkg.longitude }}
+                  zIndex={10004}
+                  // Lift via the anchor (not a margin) so the marker host doesn't cover the chip below.
+                  anchorTop="calc(-100% - 36px)"
+                >
+                  <div
+                    className="pointer-events-auto min-w-[250px] max-w-[290px] rounded-2xl p-3 shadow-2xl border border-cyan-300/40 bg-slate-900/95 text-white"
+                    data-purpose="bmkg-popup"
+                    role="dialog"
+                    aria-label="Detail gempa BMKG"
+                    onClick={(ev) => ev.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-xs font-black tracking-wide">🌐 GEMPA BUMI · BMKG</div>
+                      <button
+                        type="button"
+                        aria-label="Tutup popup"
+                        title="Tutup"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setSelectedBmkgId(null);
+                        }}
+                        className="w-5 h-5 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 text-white transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <div className="text-[11px]">Magnitudo: <b>M{selectedBmkg.magnitude.toFixed(1)}</b> • Kedalaman: <b>{selectedBmkg.depthKm} km</b></div>
+                    <div className="text-[11px]">Wilayah: <b>{selectedBmkg.region}</b></div>
+                    <div className="text-[11px]">Waktu: <b>{formatQuakeTime(selectedBmkg.eventTime)}</b></div>
+                    <div className="text-[11px]">
+                      Koordinat: <b>{selectedBmkg.latitude.toFixed(2)}, {selectedBmkg.longitude.toFixed(2)}</b>
+                    </div>
+                    {selectedBmkg.potential && <div className="text-[11px]">Potensi: <b>{selectedBmkg.potential}</b></div>}
+                    {selectedBmkg.feltArea && <div className="text-[11px]">Dirasakan: <b>{selectedBmkg.feltArea}</b></div>}
+                    {selectedBmkg.mmi && (
+                      <a
+                        href={`${BMKG_SHAKEMAP_BASE}${encodeURIComponent(selectedBmkg.mmi)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-[11px] text-cyan-300 underline"
+                      >
+                        Lihat shakemap
+                      </a>
+                    )}
+                    <a
+                      href={BMKG_SOURCE_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-[11px] text-cyan-300 underline"
+                    >
+                      Source: BMKG — data.bmkg.go.id/gempabumi
+                    </a>
+                  </div>
+                </AdvancedMarker>
+              )}
 
               {/* BMKG weather warning polygons — ACTIVE only, valid polygons only */}
               {showWeather &&
@@ -2064,430 +2120,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         )}
       </div>
 
-      {/* Top Left Header Overlay: Active Engine Pill & Layer Switcher (hidden while panels are minimized) */}
-      {showToolbar ? (
-      <div className="relative z-30 pt-3 sm:pt-4 px-3 sm:px-6 pointer-events-auto flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0 overflow-x-auto no-scrollbar [&>*]:shrink-0 -mx-1 px-1 py-1">
-          {/* Active Engine Indicator Pill */}
-          <div className="flex items-center gap-2 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-200/90 dark:border-slate-700/80 shadow-md">
-            <span
-              className={`w-2 h-2 rounded-full animate-pulse ${
-                mapEngine === 'google' && !hasAuthError ? 'bg-blue-500' : 'bg-emerald-500'
-              }`}
-            ></span>
-            <span className="text-[11px] font-bold text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-1.5">
-              <span>{mapEngine === 'google' && !hasAuthError ? 'Google Maps API' : 'OpenStreetMap Live'}</span>
-              <span
-                className={`hidden lg:inline text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${
-                  mapEngine === 'google' && !hasAuthError
-                    ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20'
-                    : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                }`}
-              >
-                {mapEngine === 'google' && !hasAuthError ? 'Satelit & Vektor' : 'Peta Cadangan Aman'}
-              </span>
-            </span>
-          </div>
-
-          {/* Area search (Google Places) */}
+      {/* Top Left Header Overlay: Active Engine Pill & Layer Switcher */}
+      <div className="relative z-30 pt-3 sm:pt-4 px-3 sm:px-6 pointer-events-none flex items-center justify-between gap-2">
+        <div className="pointer-events-auto flex items-center gap-2 min-w-0 overflow-x-auto no-scrollbar [&>*]:shrink-0 -mx-1 px-1 py-1">
           <MapSearch onSelect={handlePlaceSelect} />
-          {/* Layer panel: one button instead of a row of toggles (no overlap with other overlays) */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={(e) => openLayerPanel(e.currentTarget)}
-              aria-expanded={showLayerPanel}
-              aria-haspopup="dialog"
-              data-purpose="layer-panel-button"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border shadow-md cursor-pointer transition-all active:scale-95 ${
-                showLayerPanel
-                  ? 'bg-slate-900 text-white border-slate-800 dark:bg-cyan-500 dark:text-slate-950 dark:border-cyan-400'
-                  : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-800 dark:text-slate-100 border-slate-200/90 dark:border-slate-700/80'
-              }`}
-              title="Pilih layer data di peta"
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Layer</span>
-              <span className="min-w-4 h-4 px-1 rounded-full bg-orange-500 text-white text-[9px] leading-4 text-center">{activeLayerChips.length}</span>
-            </button>
-            {showLayerPanel &&
-              overlayHost &&
-              createPortal(
-              <>
-                {/* click-away backdrop */}
-                <button
-                  type="button"
-                  aria-label="Tutup panel layer"
-                  className="fixed inset-0 z-40 cursor-default bg-transparent"
-                  onClick={() => setShowLayerPanel(false)}
-                />
-                <div
-                  role="dialog"
-                  aria-label="Layer data"
-                  data-purpose="layer-panel"
-                  style={layerPanelPos ? { top: layerPanelPos.top, left: layerPanelPos.left, maxHeight: `calc(100dvh - ${layerPanelPos.top + 16}px)` } : undefined}
-                  className="fixed w-[calc(100vw-1.5rem)] sm:w-80 overflow-y-auto z-50 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/98 dark:bg-[#0b1329]/98 backdrop-blur-md shadow-2xl p-3 flex flex-col gap-2 animate-fadeIn [&_button[data-purpose*=toggle]]:w-full [&_button[data-purpose*=toggle]]:justify-between [&_button[data-purpose*=toggle]]:rounded-xl [&_button[data-purpose*=toggle]]:shadow-none"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Layer data</span>
-                    <button
-                      type="button"
-                      aria-label="Tutup"
-                      onClick={() => setShowLayerPanel(false)}
-                      className="w-6 h-6 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                {/* BMKG official layer toggle */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowBmkg((v) => !v)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border shadow-md cursor-pointer transition-all active:scale-95 ${
-                      showBmkg
-                        ? 'bg-cyan-600 text-white border-cyan-500'
-                        : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
-                    }`}
-                    title="Tampilkan/sembunyikan lapisan gempa BMKG (sumber resmi)"
-                    data-purpose="bmkg-layer-toggle"
-                    data-bmkg-visible={showBmkg}
-                  >
-                    <span>🌐</span>
-                    <span>
-                      {bmkgStatus === 'unavailable'
-                        ? 'BMKG N/A'
-                        : bmkgStatus === 'ready'
-                          ? `BMKG ${bmkgRangeLabel}: ${bmkgEvents.length} gempa`
-                          : 'BMKG…'}
-                    </span>
-                    <span className="text-[9px] opacity-80">{showBmkg ? 'ON' : 'OFF'}</span>
-                  </button>
-                </div>
-
-                {/* NASA FIRMS hotspot layer toggle */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowFirms((v) => !v)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border shadow-md cursor-pointer transition-all active:scale-95 ${
-                      showFirms
-                        ? 'bg-orange-600 text-white border-orange-500'
-                        : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
-                    }`}
-                    title={`Titik panas NASA FIRMS • ${firmsRangeLabel} • ${firmsSensors}. Rentang mengikuti pilihan tanggal di header.`}
-                    data-purpose="firms-layer-toggle"
-                    aria-pressed={showFirms}
-                  >
-                    <span>🔥</span>
-                    <span>
-                      {firmsStatus === 'unavailable'
-                        ? 'FIRMS N/A'
-                        : firmsStatus === 'ready'
-                          ? `FIRMS ${firmsRangeLabel}: ${firmsHotspots.length.toLocaleString('id-ID')}`
-                          : `FIRMS ${firmsRangeLabel}…`}
-                    </span>
-                    <span className="text-[9px] opacity-80">{showFirms ? 'ON' : 'OFF'}</span>
-                  </button>
-                </div>
-
-                {/* MAGMA (PVMBG) layer toggle: volcano levels + gerakan tanah */}
-                <div className="relative">
-                  <button
-                    onClick={() => {
-                      setShowMagma((v) => !v);
-                      setSelectedMagma(null);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border shadow-md cursor-pointer transition-all active:scale-95 ${
-                      showMagma
-                        ? 'bg-amber-700 text-white border-amber-600'
-                        : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
-                    }`}
-                    title={
-                      magmaFeed.status.state === 'unavailable'
-                        ? `MAGMA tidak tersedia: ${magmaFeed.status.reason}`
-                        : 'Gunung api (tingkat aktivitas) & gerakan tanah — MAGMA Indonesia, PVMBG Badan Geologi'
-                    }
-                    data-purpose="magma-layer-toggle"
-                    aria-pressed={showMagma}
-                  >
-                    <span>🌋</span>
-                    <span>
-                      {!showMagma
-                        ? 'MAGMA'
-                        : magmaFeed.status.state === 'unavailable'
-                          ? 'MAGMA N/A'
-                          : magmaFeed.status.state === 'ready'
-                            ? eruptions.status.state === 'loading'
-                              ? `MAGMA ${eruptions.range.label}: memuat erupsi…`
-                              : `MAGMA ${eruptions.range.label}: ${magmaCounts.eruptions}${eruptions.truncated ? '+' : ''} erupsi • ${magmaCounts.elevated} ≥ Waspada`
-                            : 'MAGMA…'}
-                    </span>
-                    <span className="text-[9px] opacity-80">{showMagma ? 'ON' : 'OFF'}</span>
-                  </button>
-                </div>
-
-                {/* Darwin VAAC volcanic-ash layer toggle */}
-                <div className="relative">
-                  <button
-                    onClick={() => {
-                      setShowAsh((v) => !v);
-                      setSelectedAsh(null);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border shadow-md cursor-pointer transition-all active:scale-95 ${
-                      showAsh
-                        ? 'bg-slate-700 text-white border-slate-600'
-                        : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
-                    }`}
-                    title={
-                      ash.status.state === 'unavailable'
-                        ? `Abu vulkanik tidak tersedia: ${ash.status.reason}`
-                        : `Awan abu vulkanik — Volcanic Ash Advisory dari Darwin VAAC (BOM), pusat resmi ICAO untuk wilayah Indonesia${
-                            ash.fetchedAt ? ` • data per ${formatUtc(ash.fetchedAt)}` : ''
-                          }`
-                    }
-                    data-purpose="ash-layer-toggle"
-                    aria-pressed={showAsh}
-                  >
-                    <span>🌫</span>
-                    <span>
-                      {!showAsh
-                        ? 'ABU VULKANIK'
-                        : ash.status.state === 'unavailable'
-                          ? 'ABU N/A'
-                          : ash.status.state === 'ready'
-                            ? `ABU: ${activeAshCount} aktif`
-                            : 'ABU…'}
-                    </span>
-                    <span className="text-[9px] opacity-80">{showAsh ? 'ON' : 'OFF'}</span>
-                  </button>
-                </div>
-
-                {/* BMKG weather warning layer toggle */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowWeather((v) => !v)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border shadow-md cursor-pointer transition-all active:scale-95 ${
-                      showWeather
-                        ? 'bg-orange-500 text-white border-orange-400'
-                        : 'bg-white/95 dark:bg-[#0b1329]/95 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80'
-                    }`}
-                    title={
-                      cityWx.error
-                        ? `Cuaca kota (Google Weather): ${cityWx.error}`
-                        : 'Tampilkan/sembunyikan peringatan cuaca BMKG + cuaca kota besar (Google Weather)'
-                    }
-                    data-purpose="bmkg-weather-toggle"
-                    data-bmkg-weather-visible={showWeather}
-                  >
-                    <span>⛈</span>
-                    <span>
-                      {cityWx.loading
-                        ? 'CUACA…'
-                        : `CUACA: ${cityWx.cities.length} kota${weatherStatus === 'ready' ? ` • ${activeWeather.length} peringatan` : ''}${
-                      currentZoom < CITY_WEATHER_MIN_ZOOM ? ' (zoom in untuk lihat)' : ''
-                    }`}
-                    </span>
-                    <span className="text-[9px] opacity-80">{showWeather ? 'ON' : 'OFF'}</span>
-                  </button>
-                </div>
-                </div>
-              </>,
-              overlayHost,
-            )}
-          </div>
-          {/* Active layers summary (tap to open the panel) */}
-          {activeLayerChips.length > 0 && (
-            <button
-              type="button"
-              onClick={(e) => openLayerPanel(e.currentTarget)}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/95 dark:bg-[#0b1329]/95 border border-slate-200/90 dark:border-slate-700/80 shadow-md text-[11px] font-semibold text-slate-700 dark:text-slate-200"
-              title="Layer aktif"
-              data-purpose="active-layer-chips"
-            >
-              {activeLayerChips.map((c) => (
-                <span key={c.key} className="flex items-center gap-0.5" title={c.title}>
-                  <span aria-hidden="true">{c.icon}</span>
-                  <span className="tabular-nums">{c.value}</span>
-                </span>
-              ))}
-            </button>
-          )}
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                const r = e.currentTarget.getBoundingClientRect();
-                setMapTypeMenuPos({ top: Math.round(r.bottom + 8), left: Math.round(Math.max(12, Math.min(r.left, window.innerWidth - 236))) });
-                setShowLayerSelector(!showLayerSelector);
-              }}
-              className="flex items-center gap-1.5 bg-white/95 dark:bg-[#0b1329]/95 hover:bg-white text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-full text-[11px] font-semibold border border-slate-200/90 dark:border-slate-700/80 shadow-md cursor-pointer transition-all active:scale-95"
-              title="Ganti Pilihan Mesin atau Lapisan Peta"
-            >
-              <Layers className="w-3.5 h-3.5 text-blue-500" />
-              <span>
-                {mapEngine === 'google' && !hasAuthError
-                  ? googleMapType === 'roadmap'
-                    ? 'Google: Peta Jalan'
-                    : googleMapType === 'hybrid'
-                    ? 'Google: Satelit'
-                    : 'Google: Medan'
-                  : osmTileType === 'osm-standard'
-                  ? 'OSM Standar'
-                  : osmTileType === 'osm-hot'
-                  ? 'OSM Bencana (HOT)'
-                  : 'OSM Mode Gelap'}
-              </span>
-            </button>
-
-            {showLayerSelector &&
-              overlayHost &&
-              createPortal(
-              <>
-              <button
-                type="button"
-                aria-label="Tutup menu peta"
-                className="fixed inset-0 z-40 cursor-default bg-transparent"
-                onClick={() => setShowLayerSelector(false)}
-              />
-              <div
-                style={mapTypeMenuPos ? { top: mapTypeMenuPos.top, left: mapTypeMenuPos.left } : undefined}
-                className="fixed w-56 max-h-[60vh] overflow-y-auto bg-white dark:bg-[#0b1329] border border-slate-200 dark:border-slate-700 rounded-2xl p-2 shadow-2xl z-50 animate-fadeIn">
-                {/* Google Maps Section */}
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
-                  Google Maps Platform
-                </div>
-                <button
-                  onClick={() => {
-                    setMapEngine('google');
-                    setGoogleMapType('roadmap');
-                    setHasAuthError(false);
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'google' && googleMapType === 'roadmap' && !hasAuthError
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>Peta Jalan (Roadmap)</span>
-                  {mapEngine === 'google' && googleMapType === 'roadmap' && !hasAuthError && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setMapEngine('google');
-                    setGoogleMapType('hybrid');
-                    setHasAuthError(false);
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'google' && googleMapType === 'hybrid' && !hasAuthError
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>Satelit Citra (Hybrid)</span>
-                  {mapEngine === 'google' && googleMapType === 'hybrid' && !hasAuthError && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setMapEngine('google');
-                    setGoogleMapType('terrain');
-                    setHasAuthError(false);
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'google' && googleMapType === 'terrain' && !hasAuthError
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>Peta Medan (Terrain)</span>
-                  {mapEngine === 'google' && googleMapType === 'terrain' && !hasAuthError && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                  )}
-                </button>
-
-                <div className="h-px bg-slate-200 dark:bg-slate-700/60 my-1.5"></div>
-
-                {/* OpenStreetMap Section */}
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
-                  OpenStreetMap (Cadangan Bebas Quota)
-                </div>
-                <button
-                  onClick={() => {
-                    setMapEngine('osm');
-                    setOsmTileType('osm-standard');
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'osm' && osmTileType === 'osm-standard'
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>OSM Standar</span>
-                  {mapEngine === 'osm' && osmTileType === 'osm-standard' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setMapEngine('osm');
-                    setOsmTileType('osm-hot');
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'osm' && osmTileType === 'osm-hot'
-                      ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>OSM Bencana (HOT)</span>
-                  {mapEngine === 'osm' && osmTileType === 'osm-hot' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setMapEngine('osm');
-                    setOsmTileType('osm-dark');
-                    setShowLayerSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between cursor-pointer transition-colors ${
-                    mapEngine === 'osm' && osmTileType === 'osm-dark'
-                      ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>OSM Mode Gelap</span>
-                  {mapEngine === 'osm' && osmTileType === 'osm-dark' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                  )}
-                </button>
-              </div>
-              </>,
-              overlayHost,
-            )}
-          </div>
-
-          {/* Google Weather Live Pill for Currently Selected Incident */}
-          {activeData && typeof activeData.coords?.lat === 'number' && (
-            <div
-              className="cursor-pointer transition-transform hover:scale-105 active:scale-95 hidden md:block"
-              onClick={() => onOpenWeather?.()}
-              title={`Cuaca lapangan Google di ${activeData.name} — Klik untuk detail cuaca & titik peta`}
-            >
-              <WeatherCard
-                lat={activeData.coords.lat}
-                lng={activeData.coords.lng}
-                locationName={activeData.name}
-                disasterCategory={activeData.category}
-                compact={true}
-              />
-            </div>
-          )}
         </div>
 
         {/* Floating Restore Pill on the top right when sidebar is minimized AND NO panel is open */}
@@ -2498,7 +2134,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           !isReportsOpen && (
             <button
               onClick={onToggleSidebar}
-              className="shrink-0 flex items-center gap-2 bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-800 dark:text-slate-200 px-3 md:px-4 py-2 rounded-full font-bold text-xs shadow-xl border border-slate-200/90 dark:border-slate-700/70 backdrop-blur-md transition-all active:scale-95 group cursor-pointer hover:shadow-2xl animate-fadeIn"
+              className="pointer-events-auto shrink-0 flex items-center gap-2 bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-800 dark:text-slate-200 px-3 md:px-4 py-2 rounded-full font-bold text-xs shadow-xl border border-slate-200/90 dark:border-slate-700/70 backdrop-blur-md transition-all active:scale-95 group cursor-pointer hover:shadow-2xl animate-fadeIn"
               title="Buka / Tampilkan Sidebar Menu"
             >
               <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
@@ -2507,17 +2143,14 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             </button>
           )}
       </div>
-      ) : (
-        <div aria-hidden="true" />
-      )}
 
       {/* Bottom Bar: Controls & Quick Action Buttons */}
       {/* Same row on every screen size: zoom column bottom-left, action buttons bottom-right (aligned to the bottom edge). */}
-      <div className="relative z-30 flex flex-row items-end justify-between gap-2 px-3 sm:px-6 lg:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-6 pointer-events-auto">
-        {/* MAGMA legend — bottom-left above the zoom controls, toggled with the (i) button */}
+      <div className="relative z-30 flex flex-row items-end justify-between gap-2 px-3 sm:px-6 lg:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-6 pointer-events-none">
+        {/* MAGMA legend — right of the zoom column, bottom-aligned; toggled with the (i) button */}
         {showMagma && showMagmaLegend && (
           <div
-            id="magma-legend" className="absolute left-3 sm:left-6 lg:left-8 bottom-full mb-2 z-40 w-56 max-w-[calc(100vw-1.5rem)] max-h-[38vh] overflow-y-auto rounded-2xl border border-slate-200/90 dark:border-slate-700/70 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md p-3 shadow-lg text-[11px] text-slate-700 dark:text-slate-200 animate-fadeIn"
+            id="magma-legend" className="pointer-events-auto absolute left-[3.5rem] sm:left-[4.25rem] lg:left-[4.75rem] bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))_+_3.5rem)] sm:bottom-[5rem] md:bottom-6 z-40 w-56 max-w-[calc(100vw-4.25rem)] sm:max-w-[calc(100vw-5.5rem)] max-h-[38vh] overflow-y-auto rounded-2xl border border-slate-200/90 dark:border-slate-700/70 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md p-3 shadow-lg text-[11px] text-slate-700 dark:text-slate-200 animate-fadeIn"
             data-purpose="magma-legend"
             role="region"
             aria-label="Legenda MAGMA"
@@ -2568,15 +2201,16 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         {locateError && (
           <div
             role="status"
-            className="absolute left-3 sm:left-6 lg:left-8 bottom-full mb-2 z-40 max-w-[calc(100vw-1.5rem)] px-3 py-2 rounded-xl bg-slate-900/95 text-white text-[11px] shadow-lg animate-fadeIn"
+            className="pointer-events-auto absolute left-3 sm:left-6 lg:left-8 bottom-full mb-2 z-40 max-w-[calc(100vw-1.5rem)] px-3 py-2 rounded-xl bg-slate-900/95 text-white text-[11px] shadow-lg animate-fadeIn"
           >
             📍 {locateError}
           </div>
         )}
         {/* Bottom Left Map Controls (Zoom & Scale) */}
-        <div className="flex items-end gap-3 sm:gap-4">
+        <div className="pointer-events-auto flex items-end gap-3 sm:gap-4">
           {/* Map controls: zoom group + reset / my location / MAGMA legend (glass, vertical) */}
           <div className="flex flex-col gap-2" data-purpose="map-zoom-controls">
+            <span className="w-9 text-center text-xs font-bold tabular-nums text-slate-800 [text-shadow:0_1px_3px_rgba(255,255,255,0.95)]" aria-label={`Zoom peta ${currentZoom}x`}>{currentZoom}x</span>
             <div className="flex flex-col overflow-hidden rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)]">
               <button
                 type="button"
@@ -2618,6 +2252,18 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             >
               {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
             </button>
+            {/* Master on/off for all API data layers (BMKG, cuaca, FIRMS, MAGMA, VAAC) */}
+            <button
+              type="button"
+              onClick={toggleApiLayers}
+              aria-pressed={showApiLayers}
+              aria-label="Tampilkan layer data API"
+              title={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
+              data-purpose="api-layers-toggle"
+              className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${showApiLayers ? 'text-emerald-300 ring-1 ring-emerald-400/60' : 'text-slate-400'}`}
+            >
+              {showApiLayers ? <Layers className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4" aria-hidden="true" />}
+            </button>
             {showMagma && (
               <button
                 type="button"
@@ -2633,109 +2279,18 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             )}
           </div>
 
-          {/* Quick Zoom To Active Location / Center Info */}
-          <div className="hidden md:flex items-center bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200/90 dark:border-slate-700/70 shadow-md text-xs font-medium text-slate-600 dark:text-slate-300 gap-2">
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                mapEngine === 'google' && !hasAuthError ? 'bg-blue-400' : 'bg-emerald-400'
-              }`}
-            ></span>
-            <span>Zoom: {currentZoom}x</span>
-            {activeData && (
-              <span className="ml-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-amber-400" />
-                <span>{activeData.name.split(',')[0]}</span>
-              </span>
-            )}
-          </div>
+
         </div>
 
-        {/* Bottom Action Pill: Detail Bencana, Rute Distribusi, Laporan Warga & AI Helpdesk */}
-        {!isExpanded && (
-          <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2.5">
-            <button
-              onClick={onToggleDetail || onExpandView}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
-                isDetailOpen
-                  ? 'bg-amber-500 text-white border-amber-400 ring-2 ring-amber-400/40 shadow-amber-500/30'
-                  : 'bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-900 dark:text-white border-slate-200/90 dark:border-slate-700/70'
-              }`}
-              title="Buka / Tutup Detail Bencana"
-            >
-              <Zap
-                className={`w-4 h-4 ${
-                  isDetailOpen ? 'text-white fill-white' : 'text-amber-500 fill-amber-500'
-                }`}
-              />
-              <span className="hidden md:inline">Detail Bencana</span>
-              {isDetailOpen && (
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-              )}
-            </button>
 
-            <button
-              onClick={onToggleRoute}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
-                isRouteOpen
-                  ? 'bg-orange-500 text-white border-orange-400 ring-2 ring-orange-400/40 shadow-orange-500/30'
-                  : 'bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-900 dark:text-white border-slate-200/90 dark:border-slate-700/70'
-              }`}
-              title="Buka / Tutup daftar Posko Evakuasi"
-            >
-              <Compass
-                className={`w-4 h-4 ${isRouteOpen ? 'text-white' : 'text-orange-500'}`}
-              />
-              <span className="hidden md:inline">Posko Evakuasi</span>
-              {isRouteOpen && (
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-              )}
-            </button>
-
-            <button
-              onClick={onToggleReports}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 rounded-full shadow-md border backdrop-blur-md transition-all active:scale-95 text-xs font-bold cursor-pointer ${
-                isReportsOpen
-                  ? 'bg-emerald-600 text-white border-emerald-500 ring-2 ring-emerald-500/40 shadow-emerald-600/30'
-                  : 'bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-900 dark:text-white border-slate-200/90 dark:border-slate-700/70'
-              }`}
-              title="Buka / Tutup Laporan Warga Lapangan"
-            >
-              <Camera
-                className={`w-4 h-4 ${isReportsOpen ? 'text-white' : 'text-emerald-500'}`}
-              />
-              <span className="hidden md:inline">Laporan Warga</span>
-              {isReportsOpen && (
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-              )}
-            </button>
-
-            <button
-              onClick={onOpenAIHelpdesk}
-              className="flex items-center gap-1.5 sm:gap-2 px-3 md:px-4 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white shadow-lg transition-all active:scale-95 text-xs font-bold cursor-pointer border border-white/10"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span><span className="md:hidden">AI Lapor</span><span className="hidden md:inline">AI Helpdesk & Lapor</span></span>
-            </button>
+        {!isExpanded && !isRouteOpen && !isReportsOpen && isSidebarMinimized && onStartAIChat && (
+          <div className="pointer-events-auto">
+            <MapChatComposer onSend={onStartAIChat} />
           </div>
         )}
+
       </div>
 
-      {/* Weather Detail Sidebar — opens when user clicks weather pill */}
-      {isWeatherOpen && activeData && typeof activeData.coords?.lat === 'number' && (
-        <WeatherDetailSidebar
-          location={{
-            lat: activeData.coords.lat,
-            lng: activeData.coords.lng,
-            name: activeData.name,
-            province: activeData.province,
-            category: activeData.category,
-          }}
-          disaster={activeData}
-          onClose={() => onCloseWeather?.()}
-          onFocusMap={(coords) => setWeatherFocusCoords(coords)}
-          isDarkMode={isDarkMode}
-        />
-      )}
     </section>
   );
 };

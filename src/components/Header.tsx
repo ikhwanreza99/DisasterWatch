@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { DisasterTicker } from './DisasterTicker';
 import type { DisasterIncident } from '../types';
-import { Calendar, ChevronDown, Moon, Sun, Plus, Radio, PanelTopOpen, PanelTopClose } from 'lucide-react';
+import { Calendar, ChevronDown, Sparkles, Radio } from 'lucide-react';
 import {
   DATE_PRESETS,
   RANGE_LIMITS,
@@ -15,31 +15,22 @@ import {
 } from '../domain/dateRange';
 
 interface HeaderProps {
-  isDarkMode: boolean;
-  onToggleTheme: () => void;
   /** Separate date selections for the FIRMS and MAGMA layers. */
   dates: Record<DateTarget, string>;
   onSelectDate: (target: DateTarget, value: string) => void;
-  onOpenReportModal: () => void;
+  onReportDisaster: () => void;
   /** Incidents for the "Terkini" news ticker (from feat/homepage-slicing). */
   disasters: Record<string, DisasterIncident>;
   /** Ticker highlights the announced incident on the map. */
   onHighlightDisaster: (id: string | null) => void;
-  /** KPI/status rows + map toolbar visibility (minimize toggle). */
-  showPanels: boolean;
-  onTogglePanels: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  isDarkMode,
-  onToggleTheme,
   dates,
   onSelectDate,
-  onOpenReportModal,
+  onReportDisaster,
   disasters,
   onHighlightDisaster,
-  showPanels,
-  onTogglePanels,
 }) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -97,43 +88,6 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Date Filter Toolbar & Controls (Top-Right) */}
       <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto shrink-0">
-        {/* Show / minimize the KPI + status rows, map toolbar and sidebar button */}
-        <button
-          type="button"
-          onClick={onTogglePanels}
-          aria-pressed={showPanels}
-          aria-label={showPanels ? 'Sembunyikan panel & toolbar' : 'Tampilkan panel & toolbar'}
-          title={showPanels ? 'Sembunyikan panel & toolbar' : 'Tampilkan panel & toolbar'}
-          data-purpose="toggle-panels"
-          className={`flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-full border shadow-xs transition-all text-xs font-semibold cursor-pointer active:scale-95 ${
-            showPanels
-              ? 'border-slate-900 bg-slate-900 text-white dark:border-cyan-500 dark:bg-cyan-500 dark:text-slate-950'
-              : 'border-slate-200/90 dark:border-slate-700/70 bg-slate-50 hover:bg-slate-100 dark:bg-[#0f1b38]/70 dark:hover:bg-[#14234b] text-slate-700 dark:text-slate-200'
-          }`}
-        >
-          {showPanels ? <PanelTopClose className="w-3.5 h-3.5" /> : <PanelTopOpen className="w-3.5 h-3.5" />}
-          <span className="hidden sm:inline text-xs">Panel</span>
-        </button>
-
-        {/* Dark / Light Mode Toggle */}
-        <button
-          onClick={onToggleTheme}
-          className="flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-full border border-slate-200/90 dark:border-slate-700/70 bg-slate-50 hover:bg-slate-100 dark:bg-[#0f1b38]/70 dark:hover:bg-[#14234b] text-slate-700 dark:text-slate-200 shadow-xs transition-all text-xs font-semibold cursor-pointer active:scale-95"
-          title="Ganti Mode Gelap / Terang"
-        >
-          {isDarkMode ? (
-            <Moon className="w-3.5 h-3.5 text-cyan-400" />
-          ) : (
-            <Sun className="w-3.5 h-3.5 text-amber-500" />
-          )}
-          <span className="hidden sm:inline text-xs">{isDarkMode ? 'Dark' : 'Light'}</span>
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              isDarkMode ? 'bg-cyan-400 shadow-[0_0_8px_#38bdf8]' : 'bg-amber-500'
-            }`}
-          ></span>
-        </button>
-
         {/* Date Selector Dropdown Button */}
         <div className="relative">
           <button
@@ -271,13 +225,14 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Buat Laporan Action Button */}
+        {/* Laporkan Bencana */}
         <button
-          onClick={onOpenReportModal}
-          className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-full text-xs font-bold shadow-md shadow-orange-500/25 transition-all active:scale-95"
+          onClick={onReportDisaster}
+          type="button"
+          className="flex shrink-0 items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 hover:brightness-110 text-white rounded-full text-xs font-bold shadow-md shadow-violet-500/25 transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
         >
-          <Plus className="w-4 h-4" />
-          <span>Buat Laporan</span>
+          <Sparkles className="w-4 h-4" aria-hidden="true" />
+          <span>Laporkan Bencana</span>
         </button>
 
         {/* Officer Avatar */}

@@ -2,7 +2,7 @@
 // Additive layer — legacy `DisasterIncident` in src/types.ts stays canonical for UI.
 // New types power: Report → Gemini extraction → validation → impact/needs → aid gap.
 
-export type SourceType = 'official' | 'citizen' | 'media' | 'field' | 'aid';
+export type SourceType = 'official' | 'citizen' | 'media' | 'field' | 'aid' | 'internet' | 'social';
 
 export type VerificationStatus = 'UNVERIFIED' | 'AI_REVIEWED' | 'VERIFIED' | 'CONFLICTING';
 
@@ -44,6 +44,9 @@ export interface IntelligenceReport {
   sourceName: string;
   rawText: string;
   mediaUrl?: string;
+  sourceUrl?: string;
+  newsInsight?: string;
+  newsCategory?: import('../types').NewsCategory;
   location: {
     name: string;
     lat?: number;
