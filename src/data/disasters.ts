@@ -123,6 +123,7 @@ export const disastersData: Record<string, DisasterIncident> = {
     reports: [
       {
         id: 'rep-1',
+        newsCategory: 'needs',
         location: 'Desa Karang Intan, Martapura',
         title: 'Asap Pekat Mengarah ke Pemukiman',
         desc: 'Asap pekat dari lahan gambut mulai masuk pekarangan warga, jarak pandang tinggal ±200 meter. Warga butuh masker respirator tambahan.',
@@ -133,6 +134,7 @@ export const disastersData: Record<string, DisasterIncident> = {
       },
       {
         id: 'rep-2',
+        newsCategory: 'positive',
         location: 'SMPN 2 Martapura (Pos Pengungsi)',
         title: 'Suplai Masker N95 Diterima',
         desc: 'Distribusi 500 masker N95 dan 1 unit tangki air bersih telah diterima langsung oleh koordinator posko evakuasi.',
@@ -143,6 +145,7 @@ export const disastersData: Record<string, DisasterIncident> = {
       },
       {
         id: 'rep-3',
+        newsCategory: 'negative',
         location: 'Jl. Poros Sungai Ulin',
         title: 'Peringatan Visibilitas Jalan Terbatas',
         desc: 'Akses jalur alternatif tertutup kabut asap tebal. Pengendara diimbau menyalakan lampu kabut dan mengurangi kecepatan.',
@@ -153,6 +156,7 @@ export const disastersData: Record<string, DisasterIncident> = {
       },
       {
         id: 'rep-4',
+        newsCategory: 'needs',
         location: 'Desa Sungai Batang',
         title: 'Tambahan Mobil Tangki Air Sangat Mendesak',
         desc: 'Kebutuhan mendesak tangki air bersih cadangan untuk konsumsi warga lansia dan pemadaman titik bara tanah gambut.',
@@ -258,6 +262,7 @@ export const disastersData: Record<string, DisasterIncident> = {
     reports: [
       {
         id: 'rep-b1',
+        newsCategory: 'needs',
         location: 'Desa Karang Intan, Martapura',
         title: 'Asap Pekat Mengarah ke Pemukiman',
         desc: 'Asap pekat dari lahan gambut mulai masuk pekarangan warga, jarak pandang tinggal ±200 meter. Warga butuh masker respirator tambahan.',
@@ -268,6 +273,7 @@ export const disastersData: Record<string, DisasterIncident> = {
       },
       {
         id: 'rep-b2',
+        newsCategory: 'positive',
         location: 'SMPN 2 Martapura (Pos Pengungsi)',
         title: 'Distribusi 500 Masker N95 Selesai',
         desc: 'Distribusi 500 masker N95 di Posko Pengungsian SMPN 2 Martapura telah disalurkan oleh BPBD Banjar.',
@@ -278,6 +284,7 @@ export const disastersData: Record<string, DisasterIncident> = {
       },
       {
         id: 'rep-b3',
+        newsCategory: 'negative',
         location: 'Desa Sungai Batang',
         title: 'Akses Poros Terhalang Asap',
         desc: 'Akses jalan poros Desa Sungai Batang terhalang kepulan asap tebal, visibilitas berkurang di bawah 50 meter.',
@@ -353,6 +360,7 @@ export const disastersData: Record<string, DisasterIncident> = {
     reports: [
       {
         id: 'rep-p1',
+        newsCategory: 'positive',
         location: 'Rimbo Panjang, Kampar',
         title: 'Operasi Pemadaman Kanal Berlanjut',
         desc: 'Tim darat gabungan mengerahkan 4 mesin pompa portabel menyiram titik asap dari bawah gambut.',
@@ -427,6 +435,7 @@ export const disastersData: Record<string, DisasterIncident> = {
     reports: [
       {
         id: 'rep-c1',
+        newsCategory: 'positive',
         location: 'Desa Gasol, Cugenang',
         title: 'Tenda Darurat Mulai Terpasang',
         desc: '6 tenda pengungsian keluarga telah didirikan tim Tagana di lapangan desa untuk 85 kepala keluarga.',
@@ -501,6 +510,7 @@ export const disastersData: Record<string, DisasterIncident> = {
     reports: [
       {
         id: 'rep-d1',
+        newsCategory: 'positive',
         location: 'Karanganyar, Demak',
         title: 'Penguatan Bronjong Kawat Berlangsung',
         desc: 'Alat berat ekskavator long arm BBWS telah menancapkan tiang pancang bambu dan 2.500 karung pasir.',
@@ -572,6 +582,7 @@ export const disastersData: Record<string, DisasterIncident> = {
     reports: [
       {
         id: 'rep-pl1',
+        newsCategory: 'positive',
         location: 'Kec. Palu Barat',
         title: 'Asesmen Fasilitas Publik Usai',
         desc: 'Struktur jembatan dan puskesmas telah dicek oleh dinas PU-PR dengan kesimpulan aman beroperasi terbatas.',
@@ -644,6 +655,7 @@ export const disastersData: Record<string, DisasterIncident> = {
     reports: [
       {
         id: 'rep-j1',
+        newsCategory: 'positive',
         location: 'Sentani Timur, Jayapura',
         title: 'Bantuan Medis Polairud Tiba',
         desc: 'Distribusi 400 kelambu dan obat antimalaria dibagikan via perahu ke kampung Asei dan Babrongko.',

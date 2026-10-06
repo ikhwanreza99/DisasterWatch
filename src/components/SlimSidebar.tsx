@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Compass,
+  ExternalLink,
   MessageCircle,
   Flame,
   Waves,
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
+import { getNewsSource } from '../services/newsClassification';
 import { ExpandedDetailContent } from './ExpandedDetailContent';
 
 
@@ -402,7 +404,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           </div>        
         </div>*/}
 
-        {/* Laporan Terverifikasi */}
+        {/* Update Berita Terkini */}
         <div
           className="
             rounded-[20px]
@@ -417,7 +419,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
 
               <h4 className="text-[14px] font-bold text-slate-900">
-                Laporan Terverifikasi
+                Update Berita Terkini
               </h4>
             </div>
 
@@ -438,7 +440,9 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 
           {/* Report List */}
           <div className="mt-3 space-y-2">
-            {disaster.reports.slice(0, 2).map((rep) => (
+            {disaster.reports.slice(0, 2).map((rep) => {
+              const source = getNewsSource(rep);
+              return (
               <div
                 key={rep.id}
                 className="
@@ -449,8 +453,8 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
                 "
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-[10px] font-semibold text-emerald-600 truncate">
-                    {rep.tag}
+                  <span className="text-[10px] font-semibold text-slate-900">
+                    {rep.location}
                   </span>
 
                   <span className="text-[9px] text-slate-400 shrink-0">
@@ -461,8 +465,25 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
                 <p className="mt-1 text-[11px] leading-relaxed font-medium text-slate-600">
                   {rep.desc}
                 </p>
+                <div className="mt-2 flex justify-end text-[10px]">
+                  {source ? (
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-slate-500 font-medium hover:text-blue-600 hover:underline"
+                      aria-label={`Buka sumber berita: ${source.name}`}
+                    >
+                      Sumber: {source.name}
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                    </a>
+                  ) : (
+                    <span className="text-slate-400 font-medium">{rep.author}</span>
+                  )}
+                </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

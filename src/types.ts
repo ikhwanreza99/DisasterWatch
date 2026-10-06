@@ -38,6 +38,8 @@ export interface SupplyItem {
   icon: string;
 }
 
+export type NewsCategory = 'positive' | 'negative' | 'needs';
+
 export interface CitizenReport {
   id: string;
   location: string;
@@ -49,6 +51,11 @@ export interface CitizenReport {
   tagClass: string;
   photoUrl?: string;
   photoAlt?: string;
+  newsCategory?: NewsCategory;
+  newsInsight?: string;
+  sourceType?: import('./domain/intelligence').SourceType;
+  sourceName?: string;
+  sourceUrl?: string;
 }
 
 export interface DisasterGuide {

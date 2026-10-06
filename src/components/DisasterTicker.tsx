@@ -46,7 +46,7 @@ export function DisasterTicker({ disasters, onHighlight }: DisasterTickerProps) 
 
   if (!item) return null;
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3 rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-slate-700"
+    <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-slate-700"
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       aria-label="Berita bencana terbaru">
       <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-bold tracking-wide text-orange-600">

@@ -14,6 +14,9 @@ export interface SubmitReportInput {
   lat?: number;
   lng?: number;
   mediaUrl?: string;
+  sourceUrl?: string;
+  newsInsight?: string;
+  newsCategory?: import('../../types').NewsCategory;
   isMock?: boolean;
 }
 
@@ -38,6 +41,9 @@ export async function submitReportPipeline(input: SubmitReportInput): Promise<Pi
     sourceName: input.sourceName,
     rawText: input.rawText,
     mediaUrl: input.mediaUrl,
+    sourceUrl: input.sourceUrl,
+    newsInsight: input.newsInsight,
+    newsCategory: input.newsCategory,
     location: { name: input.locationName, lat: input.lat, lng: input.lng },
     createdAt: nowIso(),
     verificationStatus: 'AI_REVIEWED' as VerificationStatus,

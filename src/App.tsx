@@ -247,6 +247,7 @@ export default function App() {
       desc: newReportData.description || newReportData.desc || 'Laporan baru diterima dari lapangan.',
       time: 'Baru saja',
       author: 'Oleh: Warga Pelapor Terverifikasi',
+      sourceType: 'citizen' as const,
       tag: 'Menunggu Verifikasi TRC',
       tagClass: 'bg-amber-50 text-amber-700 border-amber-200',
     };
@@ -278,6 +279,11 @@ export default function App() {
         reports: [
           {
             id: rep.id,
+            newsCategory: rep.newsCategory,
+            newsInsight: rep.newsInsight,
+            sourceType: rep.sourceType,
+            sourceName: rep.sourceName,
+            sourceUrl: rep.sourceUrl,
             location: rep.location.name,
             title: e ? `${e.disasterType.toUpperCase()} • AI ${(Math.round((rep.aiConfidence ?? 0) * 100))}%` : 'Laporan AI',
             desc: rep.rawText.slice(0, 220),
