@@ -50,6 +50,7 @@ export default function App() {
   }, [activeDisasterKey, isRouteOpen]);
   const [aiDraft, setAiDraft] = useState<{ message: string; file?: File } | null>(null);
   const [hasAIContext, setHasAIContext] = useState(false);
+  const [isAIExpanded, setIsAIExpanded] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState<boolean>(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [aiWorkflow, setAiWorkflow] = useState<'menu' | 'report-disaster'>('menu');
@@ -161,6 +162,7 @@ export default function App() {
 
   const handleOpenAI = (withContext = false) => {
     setAiDraft(null);
+    setIsAIExpanded(false);
     setHasAIContext(withContext);
     setAiWorkflow('menu');
     setIsDetailOpen(false);
@@ -339,7 +341,7 @@ export default function App() {
 
           {/* Central Map Canvas Area (provider-abstracted, Leaflet default) */}
           <MapProvider
-            onStartAIChat={(message, file) => {
+            onStartAIChat={isAIOpen ? undefined : (message, file) => {
               handleOpenAI(false);
               setAiDraft({ message, file });
             }}
@@ -447,6 +449,8 @@ export default function App() {
           {isAIOpen && (
             <AIHelpdeskPanel
               key={aiWorkflow}
+              expanded={isAIExpanded}
+              onToggleExpanded={() => setIsAIExpanded(value => !value)}
               initialWorkflow={aiWorkflow}
               hasContext={hasAIContext}
               initialMessage={aiDraft?.message}

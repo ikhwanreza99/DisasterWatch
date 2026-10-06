@@ -1,16 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Send, Sparkles, Paperclip, Loader2 } from 'lucide-react';
+import { X, Send, Sparkles, Paperclip, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import type { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport, UserIdentity } from '../domain/intelligence';
 import { canReport } from '../lib/firebase/auth';
 import { getFirebaseApp } from '../lib/firebase/config';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { MAJOR_CITIES } from '../services/weather/cityWeather';
+import { detectReportIntent } from '../services/ai/reportIntent';
 import { askAssistant } from '../services/ai/disasterAssistant';
 import { submitReportPipeline } from '../services/pipeline/reportPipeline';
 
 export type WorkflowType = 'menu' | 'report-disaster' | 'report-needs' | 'find-posts' | 'learn-disaster';
 interface AIHelpdeskPanelProps {
+  expanded?: boolean;
+  onToggleExpanded?: () => void;
   disaster: DisasterIncident;
   hasContext?: boolean;
   initialMessage?: string;
@@ -57,7 +60,7 @@ const services: { workflow: WorkflowType; label: string }[] = [
   { workflow: 'learn-disaster', label: 'Pelajari Bencana' },
 ];
 
-export function AIHelpdeskPanel({ disaster, hasContext = true, initialMessage, initialAttachment, initialWorkflow = 'menu', user, onRequireLogin, onClose,
+export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, hasContext = true, initialMessage, initialAttachment, initialWorkflow = 'menu', user, onRequireLogin, onClose,
   onReportSubmitted, disasters, intelReports = [], aidRecords = [], onIntelReport }: AIHelpdeskPanelProps) {
   const context = hasContext ? disaster : undefined;
   const intro = context
@@ -83,12 +86,18 @@ export function AIHelpdeskPanel({ disaster, hasContext = true, initialMessage, i
   const mounted = useRef(true);
   const sequence = useRef(2);
   const sending = useRef(false);
+  const pendingReport = useRef<{ workflow: WorkflowType; text?: string } | null>(null);
   const locationSuggestionsActive = useRef(false);
   const add = (sender: Message['sender'], text: string) => setMessages(previous => [...previous, { id: sequence.current++, sender, text }]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, busy]);
 
   const start = (next: WorkflowType) => {
+    if ((next === 'report-disaster' || next === 'report-needs') && (!user || !canReport(user))) {
+      pendingReport.current = { workflow: next };
+      onRequireLogin?.();
+      return;
+    }
     setServiceChosen(true);
     locationSuggestionsActive.current = next === 'report-disaster' && !context;
     setQuickOptions(next === 'report-disaster' ? (context ? [] : regionOptions) : next === 'report-needs' ? Array.from(new Set([...(context?.supplies.map(item => item.name) ?? []), 'Air bersih', 'Makanan / sembako', 'Obat-obatan', 'Tempat tinggal sementara'])).slice(0, 4) : next === 'learn-disaster' ? ['Kapan bencana terjadi?', 'Berapa kerugian bencana?', 'Berikan kabar terbaru'] : []);
@@ -148,6 +157,18 @@ export function AIHelpdeskPanel({ disaster, hasContext = true, initialMessage, i
   const send = async (suggestion?: string) => {
     const text = (suggestion ?? input).trim();
     if (!text || busy || sending.current) return;
+    const reportIntent = detectReportIntent(text);
+    if ((reportIntent || workflow === 'report-disaster' || workflow === 'report-needs') && (!user || !canReport(user))) {
+      pendingReport.current = { workflow: reportIntent ?? workflow, text };
+      setInput(text);
+      onRequireLogin?.();
+      return;
+    }
+    if (reportIntent && workflow !== 'report-disaster' && workflow !== 'report-needs') {
+      add('user', text);
+      start(reportIntent);
+      return;
+    }
     setInput('');
     setServiceChosen(true);
     locationSuggestionsActive.current = false;
@@ -200,6 +221,13 @@ export function AIHelpdeskPanel({ disaster, hasContext = true, initialMessage, i
     } catch { if (mounted.current) add('ai', 'Jawaban belum tersedia. Silakan coba lagi.'); }
     finally { sending.current = false; if (mounted.current) setBusy(false); }
   };
+  useEffect(() => {
+    if (!user || !canReport(user) || !pendingReport.current) return;
+    const pending = pendingReport.current;
+    pendingReport.current = null;
+    if (pending.text) add('user', pending.text);
+    start(pending.workflow);
+  }, [user]);
   const draftSent = useRef(false);
   useEffect(() => {
     if (draftSent.current || (!initialMessage && !initialAttachment)) return;
@@ -210,10 +238,15 @@ export function AIHelpdeskPanel({ disaster, hasContext = true, initialMessage, i
   }, [initialMessage, initialAttachment]);
   const showServices = !serviceChosen;
   return (
-    <section className="absolute inset-0 z-50 flex flex-col bg-slate-50 pointer-events-auto" id="fullHeightAIPanel" aria-label="DisasterAI Helpdesk">
+    <section className={`absolute z-50 flex flex-col overflow-hidden bg-slate-50 pointer-events-auto ${expanded ? 'inset-0' : 'bottom-3 right-3 w-[min(420px,calc(100%-1.5rem))] h-[min(540px,calc(100%-1.5rem))] rounded-2xl border border-slate-200 shadow-2xl'}`} id="fullHeightAIPanel" aria-label="DisasterAI Helpdesk">
       <header className="flex shrink-0 items-center justify-between gap-3 bg-slate-950 px-5 py-4 text-white">
         <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500"><Sparkles className="h-5 w-5" aria-hidden="true" /></div><div><h3 className="text-sm font-bold">DisasterAI Helpdesk</h3><p className="text-xs text-slate-400">Asisten informasi dan laporan bencana</p></div></div>
+        <div className="flex shrink-0 items-center gap-1">
+        <button type="button" onClick={onToggleExpanded} aria-label={expanded ? 'Kecilkan obrolan' : 'Perluas obrolan ke layar penuh'} className="rounded-xl p-2 text-slate-300 hover:bg-white/10">
+          {expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+        </button>
         <button type="button" onClick={onClose} aria-label="Tutup DisasterAI Helpdesk" className="rounded-xl p-2 text-slate-300 hover:bg-white/10"><X className="h-5 w-5" /></button>
+        </div>
       </header>
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-4">
