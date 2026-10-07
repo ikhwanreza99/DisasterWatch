@@ -81,7 +81,7 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
     - _Preservation: modal close paths (3.3), popup-closed message (3.4), mock-mode messages (3.2)_
     - _Requirements: 2.2, 2.9, 3.2, 3.3, 3.4_
 
-  - [-] 3.4 Make the header avatar an accessible account control in `src/components/Header.tsx`
+  - [ ] 3.4 Make the header avatar an accessible account control in `src/components/Header.tsx`
     - New props `user: UserIdentity`, `onOpenLogin`, `onSignOut`; keep the `hidden lg:flex items-center pl-2 border-l…` wrapper, add `relative`
     - Signed out: `<button type="button" aria-label="Masuk dengan akun Google">` with a `w-9 h-9 rounded-full` `UserRound` circle matching current border and shadow; click → `onOpenLogin`
     - Signed in: `<button aria-haspopup="menu" aria-expanded aria-controls="account-menu" aria-label="Akun: …">` with Google photo (`referrerPolicy="no-referrer"`, `onError` → initial fallback) or initial circle; `role="menu"` panel showing name/email as text and a `role="menuitem"` "Keluar" button

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { DisasterTicker } from './DisasterTicker';
 import type { DisasterIncident } from '../types';
 import type { UserIdentity } from '../domain/intelligence';
+import { isGoogleUser } from '../lib/firebase/auth';
 import { Calendar, ChevronDown, Sparkles, Radio } from 'lucide-react';
 import {
   DATE_PRESETS,
@@ -26,8 +27,10 @@ interface HeaderProps {
   onHighlightDisaster: (id: string | null) => void;
   /** Current session; avatar opens login when signed out, account menu when signed in. */
   user: UserIdentity;
-  onLogin: () => void;
-  onLogout: () => void;
+  /** Opens the LoginModal (signed-out avatar click). */
+  onOpenLogin: () => void;
+  /** Signs the Google user out (account menu "Keluar"). */
+  onSignOut: () => void | Promise<void>;
 }
 
 const DEFAULT_AVATAR =
@@ -40,24 +43,40 @@ export const Header: React.FC<HeaderProps> = ({
   disasters,
   onHighlightDisaster,
   user,
-  onLogin,
-  onLogout,
+  onOpenLogin,
+  onSignOut,
 }) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const isSignedIn = !user.isAnonymous && !user.isMock;
+  const isSignedIn = isGoogleUser(user);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
+  const accountTriggerRef = useRef<HTMLButtonElement>(null);
+  const firstMenuItemRef = useRef<HTMLButtonElement>(null);
+  const accountName = user.displayName || 'Pengguna Google';
+  const accountInitial = (user.displayName || user.email || 'P').trim().charAt(0).toUpperCase() || 'P';
   useEffect(() => {
     if (!isSignedIn) setIsAccountOpen(false);
   }, [isSignedIn]);
-  // Close the account menu on outside click or Escape.
+  // Retry the Google photo whenever it changes.
+  useEffect(() => {
+    setPhotoFailed(false);
+  }, [user.photoURL]);
+  // Move focus into the menu when it opens.
+  useEffect(() => {
+    if (isAccountOpen) firstMenuItemRef.current?.focus();
+  }, [isAccountOpen]);
+  // Close the account menu on outside click or Escape (Escape returns focus to the trigger).
   useEffect(() => {
     if (!isAccountOpen) return;
     const onPointer = (e: MouseEvent) => {
       if (!accountRef.current?.contains(e.target as Node)) setIsAccountOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsAccountOpen(false);
+      if (e.key === 'Escape') {
+        setIsAccountOpen(false);
+        accountTriggerRef.current?.focus();
+      }
     };
     document.addEventListener('mousedown', onPointer);
     document.addEventListener('keydown', onKey);
