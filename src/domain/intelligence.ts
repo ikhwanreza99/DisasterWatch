@@ -84,6 +84,8 @@ export interface UserIdentity {
   uid: string;
   isAnonymous: boolean;
   displayName?: string;
+  email?: string;
+  photoURL?: string;
   isMock: boolean;
 }
 

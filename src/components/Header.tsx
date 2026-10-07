@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { DisasterTicker } from './DisasterTicker';
 import type { DisasterIncident } from '../types';
+import type { UserIdentity } from '../domain/intelligence';
 import { Calendar, ChevronDown, Sparkles, Radio } from 'lucide-react';
 import {
   DATE_PRESETS,
@@ -23,7 +24,14 @@ interface HeaderProps {
   disasters: Record<string, DisasterIncident>;
   /** Ticker highlights the announced incident on the map. */
   onHighlightDisaster: (id: string | null) => void;
+  /** Current session; avatar opens login when signed out, account menu when signed in. */
+  user: UserIdentity;
+  onLogin: () => void;
+  onLogout: () => void;
 }
+
+const DEFAULT_AVATAR =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuCdqrs-0DbJRAPUGx4dUImT0s5p4SsYS0-zoMCyPEVzpOzR2WD6Z4y19fWb2uxDzRC1COP0VkfsUr65VlRMsnW1urpviorq-VQttv9AkKcwaOmlW-guvSx1kZlXJHNDTewBxb1hGKfWPgy63fhaYTqTnHSNxTLa6t3zJvlslo81V9Qppga926cyw572oD98IWAruhDtlkuoq8ZiD9ZqypIPsCQ8vUB9vEdmnhALajbi';
 
 export const Header: React.FC<HeaderProps> = ({
   dates,
@@ -31,8 +39,33 @@ export const Header: React.FC<HeaderProps> = ({
   onReportDisaster,
   disasters,
   onHighlightDisaster,
+  user,
+  onLogin,
+  onLogout,
 }) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const isSignedIn = !user.isAnonymous && !user.isMock;
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isSignedIn) setIsAccountOpen(false);
+  }, [isSignedIn]);
+  // Close the account menu on outside click or Escape.
+  useEffect(() => {
+    if (!isAccountOpen) return;
+    const onPointer = (e: MouseEvent) => {
+      if (!accountRef.current?.contains(e.target as Node)) setIsAccountOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsAccountOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isAccountOpen]);
 
   const presets = DATE_PRESETS;
   // Which layer the picker edits: FIRMS (last 60 days) or MAGMA (archive since 2018).
@@ -236,12 +269,41 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {/* Officer Avatar */}
-        <div className="hidden lg:flex items-center pl-2 border-l border-slate-200 dark:border-slate-800">
-          <img
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCdqrs-0DbJRAPUGx4dUImT0s5p4SsYS0-zoMCyPEVzpOzR2WD6Z4y19fWb2uxDzRC1COP0VkfsUr65VlRMsnW1urpviorq-VQttv9AkKcwaOmlW-guvSx1kZlXJHNDTewBxb1hGKfWPgy63fhaYTqTnHSNxTLa6t3zJvlslo81V9Qppga926cyw572oD98IWAruhDtlkuoq8ZiD9ZqypIPsCQ8vUB9vEdmnhALajbi"
-            alt="Koordinator Satgas BNPB"
-            className="w-9 h-9 rounded-full object-cover border border-slate-300 dark:border-cyan-500/40 shadow-xs"
-          />
+        <div ref={accountRef} className="relative hidden lg:flex items-center pl-2 border-l border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => (isSignedIn ? setIsAccountOpen((open) => !open) : onLogin())}
+            aria-haspopup={isSignedIn ? 'menu' : 'dialog'}
+            aria-expanded={isSignedIn ? isAccountOpen : undefined}
+            aria-label={isSignedIn ? `Akun ${user.displayName || user.email || 'pengguna'}` : 'Masuk dengan Google'}
+            className="flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+          >
+            <img
+              src={(isSignedIn && user.photoURL) || DEFAULT_AVATAR}
+              alt={isSignedIn ? user.displayName || 'Akun pengguna' : 'Koordinator Satgas BNPB'}
+              referrerPolicy="no-referrer"
+              className="w-9 h-9 rounded-full object-cover border border-slate-300 dark:border-cyan-500/40 shadow-xs"
+            />
+          </button>
+          {isSignedIn && isAccountOpen && (
+            <div role="menu" aria-label="Menu akun" className="absolute right-0 top-full mt-2 w-60 bg-white dark:bg-[#0b1329] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 p-4 z-50 text-xs transition-all">
+              <div className="pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="font-semibold text-slate-700 dark:text-slate-200 truncate">{user.displayName || 'Pengguna Google'}</div>
+                {user.email && <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user.email}</div>}
+              </div>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setIsAccountOpen(false);
+                  onLogout();
+                }}
+                className="w-full py-1.5 rounded-lg font-bold bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950 transition-all active:scale-95"
+              >
+                Keluar
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

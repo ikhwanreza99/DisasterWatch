@@ -16,8 +16,10 @@ const ENV_KEYS = [
 
 function readEnv(key: string): string {
   // Vite exposes import.meta.env; guard for non-vite contexts (tests).
+  // Keep the literal `import.meta.env` token: Vite's dev server only injects env when it sees it
+  // (`import.meta?.env` stays undefined on localhost and forces mock mode).
   try {
-    const v = (import.meta as unknown as { env?: Record<string, string> })?.env?.[key];
+    const v: unknown = (import.meta.env as Record<string, unknown> | undefined)?.[key];
     return typeof v === 'string' ? v.trim() : '';
   } catch {
     return '';

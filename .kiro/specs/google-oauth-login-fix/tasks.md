@@ -1,0 +1,163 @@
+# Implementation Plan
+
+Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktree, no commit or push. Test runner is the existing `node:test` + `node:assert/strict` via `npx tsx --test tests/*.test.ts`. Property-style tests use small seeded generator loops inside `node:test` (no new dependency). Build gates: `npm run lint` (`tsc --noEmit`) and `npm run build`. Never print, log, or commit secret values (`.env` contents, API keys, tokens, `customData`, emails in logs).
+
+- [ ] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - Google sign-in completes, falls back, or reports the real error
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the bug exists
+  - **Scoped PBT Approach**: The bug is deterministic, so scope the property to the concrete failing cases from `isBugCondition`: `kind='google-signin'` with an error code outside `{popup-closed-by-user, popup-blocked}` (1.2), an error code in `REDIRECT_FALLBACK_CODES` or a mobile/embedded UA (1.3), `kind='app-load'` with a pending redirect (1.4), `kind='avatar-click'`/`'signed-in-render'` (1.5, 1.6), and `kind='google-signin'` with `isDev` and Firebase configured (1.7)
+  - Create `tests/authBugCondition.test.ts`:
+    - Dynamically import `../src/lib/firebase/authErrors.ts` and `../src/lib/firebase/authFlow.ts` inside the tests (so a missing module fails the test rather than crashing the file)
+    - Error mapping (2.2): for every code in `auth/cancelled-popup-request`, `auth/unauthorized-domain`, `auth/operation-not-allowed`, `auth/network-request-failed`, `auth/internal-error`, `auth/operation-not-supported-in-this-environment`, assert `mapAuthError(code)` is non-empty and NOT equal to `'Login Google belum berhasil. Silakan coba lagi.'`; for seeded random unknown codes `auth/x-<n>`, assert the message contains the code
+    - Redirect fallback (2.3): assert `shouldFallbackToRedirect(code)` is true for `auth/popup-blocked`, `auth/cancelled-popup-request`, `auth/operation-not-supported-in-this-environment`; assert `prefersRedirect(ua)` is true for an Android Chrome, iPhone Safari, Instagram in-app, Facebook (`FBAN`) and Android WebView (`; wv)`) UA table
+    - Redirect intent (2.4): for seeded random `(source ∈ {report, avatar, ai-helpdesk}, now)`, `saveLoginIntent` then `takeLoginIntent(store, now + 1000)` returns `source`, and a second take returns `null`
+    - Source-text checks (read files with `node:fs`, no React rendering): `src/lib/firebase/auth.ts` imports and calls `signInWithRedirect` and `getRedirectResult` and exports `signInWithGoogle`, `consumeRedirectResult`, `signOutUser` (1.3, 1.4, 2.6); `src/components/Header.tsx` renders the avatar inside a `<button` with an Indonesian `aria-label` and contains `Keluar` (1.5, 1.6); `src/components/LoginModal.tsx` does not call `previewUser()` before checking `isFirebaseConfigured()` (1.7); `.github/workflows/deploy-hosting.yml` sets `VITE_FIREBASE_AUTH_DOMAIN` to `disasterwatch-61ed5.web.app` (1.1, 1.8)
+  - Run `npx tsx --test tests/authBugCondition.test.ts` on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS (this is correct - it proves the bug exists)
+  - Document counterexamples in the task notes, for example: `authErrors.ts` / `authFlow.ts` missing; `auth.ts` has no `signInWithRedirect` / `getRedirectResult`; Header avatar is a static `<img>` with the "Koordinator Satgas BNPB" placeholder; LoginModal returns `previewUser()` whenever `import.meta.env.DEV`; current inline mapping turns `auth/unauthorized-domain` into the generic string; workflow reads authDomain from a secret (do not print its value)
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.2, 2.3, 2.4, 2.5, 2.6, 2.8, 2.9_
+
+- [ ] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Non-buggy auth and UI behavior unchanged
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe on UNFIXED code (read source, record values in the test as constants):
+    - `LoginModal` shows exactly `'Login dibatalkan. Silakan coba lagi.'` for `auth/popup-closed-by-user` and keeps the modal open
+    - Mock-mode production message is `'Login belum tersedia. Silakan coba lagi setelah layanan login diaktifkan.'`
+    - `firebase.json` has no `headers`, `vite.config.ts` has no `server.headers`, `index.html` has no COOP meta
+    - Header keeps `hidden lg:flex`, `pl-2`, `border-l`, `w-9 h-9 rounded-full`, the gradient "Laporkan Bencana" button, date controls, and ticker
+    - `ensureUser` falls back to `signInAnonymously`; `watchUser` emits `mockUser()` when there is no Firebase or no user; `canReport` logic
+    - Deploy workflow reads every other `VITE_FIREBASE_*` key from `secrets.*`; `.env.example` has key names with empty values only
+  - Create `tests/authPreservation.test.ts` (source-text and config checks that pass now and must keep passing):
+    - COOP guard (2.10, 3.7): parse `firebase.json`, read `vite.config.ts` and `index.html`; assert no `Cross-Origin-Opener-Policy` value of `same-origin` (only `same-origin-allow-popups` is allowed if one ever appears)
+    - Header visuals (3.7): the class tokens above are still present in `src/components/Header.tsx`
+    - Popup-closed text (3.4): the string `'Login dibatalkan. Silakan coba lagi.'` exists in the auth error source (LoginModal today, `authErrors.ts` after the fix — check the union of both files)
+    - Mock mode (3.2, 3.5): `src/lib/firebase/auth.ts` still contains the `signInAnonymously` fallback and `mockUser()` emission, and the "Login belum tersedia…" text still exists
+    - Config hygiene (3.9): `.env.example` lines matching `VITE_FIREBASE_*=` have empty values; deploy workflow sources `VITE_FIREBASE_API_KEY`, `PROJECT_ID`, `STORAGE_BUCKET`, `MESSAGING_SENDER_ID`, `APP_ID` from `secrets.*`. Never print file values in assertion messages — report key names only
+    - Untouched files (3.8): data-layer toggle default, legend, and BMKG quake popup sources still contain their current default markers (record the exact markers observed, e.g. the toggle's initial `false` state)
+  - Create `tests/authFlowPreservation.test.ts` with pure-function preservation properties for the modules added in task 3.1 (do not use `test.skip`; these run for real in task 3.8):
+    - `shouldFallbackToRedirect(code)` is false for `auth/popup-closed-by-user` and for seeded random non-fallback codes (3.4)
+    - `prefersRedirect(ua)` is false for desktop Chrome, Firefox, Safari, Edge UAs (desktop popup-first preserved)
+    - `mapAuthError('auth/popup-closed-by-user') === 'Login dibatalkan. Silakan coba lagi.'` (3.4)
+    - Intent robustness: throwing storage, `null` storage, malformed JSON, unknown source, expired entry all return `null` without throwing; `takeLoginIntent` returns `source` iff `0 <= delta <= maxAge` and always clears the key; random save/take/clear interleavings yield at most one non-null take per save
+    - `logAuthError` with stubbed `console.warn` receives only `{ code, phase }` keys (no error object, no `customData`, no email)
+  - Run `npx tsx --test tests/authPreservation.test.ts` on UNFIXED code
+  - **EXPECTED OUTCOME**: `authPreservation.test.ts` PASSES (this confirms baseline behavior to preserve). `authFlowPreservation.test.ts` targets the new pure modules and is expected to fail only with "module not found" on unfixed code; record that and do not count it as a regression
+  - Mark task complete when tests are written, run, and `authPreservation.test.ts` passes on unfixed code
+  - _Requirements: 2.10, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9_
+
+- [ ] 3. Fix for Google OAuth login not completing, masked errors, no redirect fallback, and inert header avatar
+
+  - [ ] 3.1 Add pure auth modules and extend identity
+    - `src/domain/intelligence.ts`: add optional `photoURL?: string` and `email?: string` to `UserIdentity`
+    - New `src/lib/firebase/authErrors.ts` (no `firebase` or `import.meta` imports): `AUTH_ERROR_MESSAGES` with the full Indonesian table from design; `mapAuthError(code, fallbackMessage?)` with unknown-code message `Login Google belum berhasil (kode: ${code}). Silakan coba lagi.`; `authErrorCode(cause)`; `logAuthError(code, phase)` logging only `{ code, phase }`
+    - New `src/lib/firebase/authFlow.ts` (pure): `LoginSource`, `REDIRECT_FALLBACK_CODES`, `shouldFallbackToRedirect`, `prefersRedirect(userAgent)` with the mobile and embedded regexes from design, `saveLoginIntent` / `takeLoginIntent` (default max age 10 min) / `clearLoginIntent` on key `dw.loginIntent`, each wrapped in try/catch
+    - _Bug_Condition: isBugCondition(input) where input.kind='google-signin' AND input.errorCode NOT IN [popup-closed-by-user, popup-blocked], OR errorCode IN REDIRECT_FALLBACK_CODES, OR isMobileOrEmbedded(userAgent)_
+    - _Expected_Behavior: Property 1 (b) — show mapAuthError(code) and log only { code, phase }; fallback decision per Property 1 (a)_
+    - _Preservation: popup-closed-by-user text unchanged and never falls back; desktop UAs stay popup-first_
+    - _Requirements: 2.2, 2.3, 3.4_
+
+  - [ ] 3.2 Rework `src/lib/firebase/auth.ts`
+    - Add `toIdentity(u)` used by `ensureUser`, `watchUser`, and sign-in (includes `displayName`, `photoURL`, `email`)
+    - Replace `loginWithGoogle` with `signInWithGoogle(source)` returning `{ status: 'signed-in', user } | { status: 'redirecting' }`: `GoogleAuthProvider` with `prompt: 'select_account'`; redirect-first when `prefersRedirect(navigator.userAgent)`; otherwise `signInWithPopup` as the first `await`; on fallback codes save intent and `signInWithRedirect`; on redirect failure clear intent, log with phase `'redirect'`, rethrow
+    - Add memoized `consumeRedirectResult()` (single `getRedirectResult` per page load, StrictMode-safe, never throws, mock mode resolves `{ user: null, source: null }`)
+    - In `ensureUser`, `await consumeRedirectResult()` before the `signInAnonymously` branch
+    - Add `signOutUser()` (mock: `mockUser()`; else `signOut`, `clearLoginIntent`, return `ensureUser()`; log phase `'signout'` on error) and `isGoogleUser(u)`; leave `canReport` unchanged
+    - _Bug_Condition: isBugCondition(input) where kind='app-load' AND firebaseConfigured AND pendingRedirect; kind='google-signin' with fallback codes or mobile/embedded UA_
+    - _Expected_Behavior: Property 1 (a) and (c) — popup or redirect sign-in yields a Google user; getRedirectResult called exactly once and routed via persisted intent_
+    - _Preservation: ensureUser anonymous fallback and watchUser mockUser() emission unchanged (3.5); config still from VITE_FIREBASE_* (3.9)_
+    - _Requirements: 2.1, 2.3, 2.4, 2.6, 3.5, 3.9_
+
+  - [ ] 3.3 Update `src/components/LoginModal.tsx`
+    - New props `source: LoginSource` and `initialError?: string`
+    - Mock mode only (`!isFirebaseConfigured()`): DEV → `onSuccess(previewUser())`; production → existing "Login belum tersedia…" message
+    - Firebase configured (including DEV): call `signInWithGoogle(source)` synchronously from the click handler; `'signed-in'` → `onSuccess(user)`; `'redirecting'` → keep busy and show "Mengalihkan ke halaman login Google…"; error → `mapAuthError(authErrorCode(cause), …)`
+    - Keep X / backdrop / Escape close paths, `<dialog>` markup, `role="alert"`, and styling unchanged
+    - _Bug_Condition: kind='google-signin' AND isDev AND firebaseConfigured; error codes outside the old two-code mapping_
+    - _Expected_Behavior: real OAuth in DEV with config (2.9); code-specific Indonesian messages (2.2)_
+    - _Preservation: modal close paths (3.3), popup-closed message (3.4), mock-mode messages (3.2)_
+    - _Requirements: 2.2, 2.9, 3.2, 3.3, 3.4_
+
+  - [ ] 3.4 Make the header avatar an accessible account control in `src/components/Header.tsx`
+    - New props `user: UserIdentity`, `onOpenLogin`, `onSignOut`; keep the `hidden lg:flex items-center pl-2 border-l…` wrapper, add `relative`
+    - Signed out: `<button type="button" aria-label="Masuk dengan akun Google">` with a `w-9 h-9 rounded-full` `UserRound` circle matching current border and shadow; click → `onOpenLogin`
+    - Signed in: `<button aria-haspopup="menu" aria-expanded aria-controls="account-menu" aria-label="Akun: …">` with Google photo (`referrerPolicy="no-referrer"`, `onError` → initial fallback) or initial circle; `role="menu"` panel showing name/email as text and a `role="menuitem"` "Keluar" button
+    - Escape closes the menu and returns focus to the trigger; first item focused on open; outside click closes (calendar dropdown pattern); visible `focus-visible` outline
+    - Leave ticker, date picker, and "Laporkan Bencana" button untouched
+    - _Bug_Condition: kind='avatar-click' AND NOT isGoogleUser(user); kind='signed-in-render' AND isGoogleUser(user)_
+    - _Expected_Behavior: avatar opens LoginModal when signed out (2.5); shows photo/name and "Keluar" when signed in (2.6)_
+    - _Preservation: main's header visuals and `hidden lg:flex` responsive visibility (3.7)_
+    - _Requirements: 2.5, 2.6, 3.7_
+
+  - [ ] 3.5 Wire login source and redirect result through `src/App.tsx`
+    - State `loginSource` (default `'report'`) and `loginError`; `openLogin(source)` clears the error and opens the modal
+    - `handleReportDisaster` → `openLogin('report')`; AIHelpdesk `onRequireLogin` → `openLogin('ai-helpdesk')`; Header gets `user`, `onOpenLogin={() => openLogin('avatar')}`, `onSignOut` → `setCurrentUser(await signOutUser())`, keeping state if sign-out fails
+    - `routeAfterLogin(user, source)`: set user and close modal; `'report'` → `openReportForm()`; `'ai-helpdesk'` → open form only if the AI panel is closed; `'avatar'` → nothing else
+    - Pass `source`, `initialError`, and `onSuccess={(u) => routeAfterLogin(u, loginSource)}` to `LoginModal`
+    - Mount effect: `consumeRedirectResult()` with the existing `cancelled` guard; user → `routeAfterLogin(user, source ?? 'avatar')`; error → set source (`?? 'report'`), set error, open modal
+    - Do not edit data-layer toggle, legend, or BMKG quake popup code
+    - _Bug_Condition: kind='app-load' AND pendingRedirect; login triggered from avatar vs report vs ai-helpdesk_
+    - _Expected_Behavior: Property 1 (a)/(c) routing by login source (2.1, 2.4, 2.7)_
+    - _Preservation: signed-in "Laporkan Bencana" opens form directly (3.1); AI panel stays open on popup login (3.6); data-layer/legend/quake defaults unchanged (3.8)_
+    - _Requirements: 2.1, 2.4, 2.7, 3.1, 3.6, 3.8_
+
+  - [ ] 3.6 Production authDomain and documentation
+    - `.github/workflows/deploy-hosting.yml`: set `VITE_FIREBASE_AUTH_DOMAIN: disasterwatch-61ed5.web.app` (literal public hostname) with a comment explaining the same-origin auth handler; leave all other `VITE_FIREBASE_*` keys on `secrets.*`
+    - `.env.example`: key name only, plus a comment that production should use the Hosting domain and local dev may use `<project>.firebaseapp.com`; no values
+    - `README.md` and `README.id.md`: short "Google login prerequisites" section mirroring task 5's console list
+    - Do not add any COOP header; if ever required it must be `same-origin-allow-popups`
+    - Optionally add `"test": "tsx --test tests/*.test.ts"` to `package.json` scripts
+    - _Bug_Condition: origin(authDomain) != appOrigin on the web.app deployment (1.1, 1.8)_
+    - _Expected_Behavior: same-origin `/__/auth/handler` in production (2.8); no restrictive COOP (2.10)_
+    - _Preservation: build-time `VITE_FIREBASE_*` config, no committed secrets (3.9)_
+    - _Requirements: 2.8, 2.10, 3.9_
+
+  - [ ] 3.7 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Google sign-in completes, falls back, or reports the real error
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior
+    - When this test passes, it confirms the expected behavior is satisfied
+    - Run `npx tsx --test tests/authBugCondition.test.ts`
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10_
+
+  - [ ] 3.8 Verify preservation tests still pass
+    - **Property 2: Preservation** - Non-buggy auth and UI behavior unchanged
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run `npx tsx --test tests/authPreservation.test.ts tests/authFlowPreservation.test.ts`
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions; `authFlowPreservation.test.ts` now loads the new modules and passes)
+    - Confirm all tests still pass after fix (no regressions)
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9_
+
+- [ ] 4. Checkpoint - Ensure all tests pass
+  - Run `npx tsx --test tests/*.test.ts` (existing `bmkgNormalizer`, `newsClassification`, `reportIntent` plus the new auth tests)
+  - Run `npm run lint` and `npm run build`; fix any type or build errors
+  - Confirm `git diff` contains no secret values and `.env` is untouched and not staged; do not commit or push
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 5. Console prerequisites and manual deployed-domain verification (user action)
+  - These cannot be changed from the repo. Confirm each one; none of these values are secrets, and the OAuth client secret is never needed in the repo
+  - [ ] 5.1 Firebase console → Authentication → Sign-in method: Google provider enabled (otherwise `auth/operation-not-allowed`)
+  - [ ] 5.2 Firebase console → Authentication → Settings → Authorized domains include `localhost`, `192.168.0.113`, `disasterwatch-61ed5.web.app`, `disasterwatch-61ed5.firebaseapp.com` (otherwise `auth/unauthorized-domain`)
+  - [ ] 5.3 Google Cloud console → APIs & Services → Credentials → OAuth 2.0 Web client (auto-created by Firebase):
+    - Authorized redirect URIs include `https://disasterwatch-61ed5.web.app/__/auth/handler`, keeping `https://disasterwatch-61ed5.firebaseapp.com/__/auth/handler` (otherwise `Error 400: redirect_uri_mismatch`)
+    - Authorized JavaScript origins include `https://disasterwatch-61ed5.web.app` and `http://localhost:3000` for dev (otherwise `origin_mismatch`)
+  - [ ] 5.4 Google Cloud console → OAuth consent screen configured: app name and support email set; published, or test users added while in Testing (otherwise `Error 403: access_denied` / "Access blocked")
+  - [ ] 5.5 If the API key has restrictions, allow `disasterwatch-61ed5.web.app/*` referrers and the Identity Toolkit API (otherwise `auth/internal-error` / `auth/requests-from-referer-…-are-blocked`)
+  - [ ] 5.6 Deploy: the workflow deploys from `main` only, so the `web.app` authDomain takes effect after `rafii-api` is merged; for a manual build, export `VITE_FIREBASE_AUTH_DOMAIN=disasterwatch-61ed5.web.app` first
+  - [ ] 5.7 Manual verification on `https://disasterwatch-61ed5.web.app` (check DevTools console for `[auth]` lines containing only `{ code, phase }`):
+    - Desktop Chrome and Safari from "Laporkan Bencana": popup host is `disasterwatch-61ed5.web.app/__/auth/handler`; popup, modal close; report workflow opens; avatar shows Google photo and name
+    - From the avatar: modal opens, closes on success, no report form
+    - AI helpdesk `onRequireLogin`: AI panel stays open after popup login, no second form
+    - Popups blocked: redirect to Google and back; one `getRedirectResult` call; report workflow opens
+    - Android Chrome, iOS Safari, Instagram in-app browser: redirect-first, returns to the report workflow
+    - Close the popup: "Login dibatalkan. Silakan coba lagi.", modal stays open
+    - Optional error surfacing on an unauthorized preview channel: "Domain ini belum diizinkan…" and `{ code: 'auth/unauthorized-domain', phase: 'popup' }`
+    - "Keluar": signs out, avatar returns to the signed-out button, "Laporkan Bencana" opens the modal again
+    - Keyboard and screen reader: avatar reachable by Tab with its Indonesian label; Enter/Space opens; Escape closes and restores focus; focus visible (full WCAG validation needs manual assistive-technology testing)
+    - Local DEV with Firebase configured: real Google popup, no preview user; without config: preview user flow unchanged
+    - Regression sweep: data-layers toggle off by default, legend position unchanged, BMKG quake popup works, header layout matches main at `sm`, `md`, `lg`
+  - _Requirements: 2.1, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.1, 3.3, 3.4, 3.6, 3.7, 3.8_

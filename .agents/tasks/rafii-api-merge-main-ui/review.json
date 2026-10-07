@@ -1,0 +1,27 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "minor",
+      "blocking": false,
+      "label": "Side effects inside setState updater",
+      "file": "src/components/MapCanvas.tsx",
+      "detail": "toggleApiLayers calls the setSelected*/setShowMagmaLegend setters from inside the setShowApiLayers updater, which React double-invokes in StrictMode. It is harmless today because the setters are idempotent. Read showApiLayers in the callback, or clear the popups in an effect keyed on it."
+    },
+    {
+      "severity": "info",
+      "blocking": false,
+      "label": "Restored sidebar cards not verified at runtime",
+      "file": "src/components/SlimSidebar.tsx",
+      "detail": "The sidebar was minimized in the headless run (mini-weather count 0). Open an incident once and confirm WeatherCard and BmkgForecastPanel render below 'Update Berita Terkini'."
+    },
+    {
+      "severity": "info",
+      "blocking": false,
+      "label": "OSM path not exercised",
+      "file": "src/components/MapCanvas.tsx",
+      "detail": "Google loaded on :3000, so the restored OSM BMKG marker effect and the city-chip layer were only type-checked. Force the OSM engine once and test the toggle."
+    }
+  ],
+  "reviewDoc": "/Users/960302/Downloads/DisasterWatch/.agents/tasks/rafii-api-merge-main-ui/review.md"
+}
