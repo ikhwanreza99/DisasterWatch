@@ -2,7 +2,7 @@
 
 Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktree, no commit or push. Test runner is the existing `node:test` + `node:assert/strict` via `npx tsx --test tests/*.test.ts`. Property-style tests use small seeded generator loops inside `node:test` (no new dependency). Build gates: `npm run lint` (`tsc --noEmit`) and `npm run build`. Never print, log, or commit secret values (`.env` contents, API keys, tokens, `customData`, emails in logs).
 
-- [ ] 1. Write bug condition exploration test
+- [x] 1. Write bug condition exploration test
   - **Property 1: Bug Condition** - Google sign-in completes, falls back, or reports the real error
   - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
   - **DO NOT attempt to fix the test or the code when it fails**
@@ -21,7 +21,7 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
   - Mark task complete when test is written, run, and failure is documented
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.2, 2.3, 2.4, 2.5, 2.6, 2.8, 2.9_
 
-- [ ] 2. Write preservation property tests (BEFORE implementing fix)
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
   - **Property 2: Preservation** - Non-buggy auth and UI behavior unchanged
   - **IMPORTANT**: Follow observation-first methodology
   - Observe on UNFIXED code (read source, record values in the test as constants):
@@ -51,7 +51,7 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
 
 - [ ] 3. Fix for Google OAuth login not completing, masked errors, no redirect fallback, and inert header avatar
 
-  - [ ] 3.1 Add pure auth modules and extend identity
+  - [x] 3.1 Add pure auth modules and extend identity
     - `src/domain/intelligence.ts`: add optional `photoURL?: string` and `email?: string` to `UserIdentity`
     - New `src/lib/firebase/authErrors.ts` (no `firebase` or `import.meta` imports): `AUTH_ERROR_MESSAGES` with the full Indonesian table from design; `mapAuthError(code, fallbackMessage?)` with unknown-code message `Login Google belum berhasil (kode: ${code}). Silakan coba lagi.`; `authErrorCode(cause)`; `logAuthError(code, phase)` logging only `{ code, phase }`
     - New `src/lib/firebase/authFlow.ts` (pure): `LoginSource`, `REDIRECT_FALLBACK_CODES`, `shouldFallbackToRedirect`, `prefersRedirect(userAgent)` with the mobile and embedded regexes from design, `saveLoginIntent` / `takeLoginIntent` (default max age 10 min) / `clearLoginIntent` on key `dw.loginIntent`, each wrapped in try/catch
@@ -60,7 +60,7 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
     - _Preservation: popup-closed-by-user text unchanged and never falls back; desktop UAs stay popup-first_
     - _Requirements: 2.2, 2.3, 3.4_
 
-  - [ ] 3.2 Rework `src/lib/firebase/auth.ts`
+  - [x] 3.2 Rework `src/lib/firebase/auth.ts`
     - Add `toIdentity(u)` used by `ensureUser`, `watchUser`, and sign-in (includes `displayName`, `photoURL`, `email`)
     - Replace `loginWithGoogle` with `signInWithGoogle(source)` returning `{ status: 'signed-in', user } | { status: 'redirecting' }`: `GoogleAuthProvider` with `prompt: 'select_account'`; redirect-first when `prefersRedirect(navigator.userAgent)`; otherwise `signInWithPopup` as the first `await`; on fallback codes save intent and `signInWithRedirect`; on redirect failure clear intent, log with phase `'redirect'`, rethrow
     - Add memoized `consumeRedirectResult()` (single `getRedirectResult` per page load, StrictMode-safe, never throws, mock mode resolves `{ user: null, source: null }`)
@@ -71,7 +71,7 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
     - _Preservation: ensureUser anonymous fallback and watchUser mockUser() emission unchanged (3.5); config still from VITE_FIREBASE_* (3.9)_
     - _Requirements: 2.1, 2.3, 2.4, 2.6, 3.5, 3.9_
 
-  - [ ] 3.3 Update `src/components/LoginModal.tsx`
+  - [x] 3.3 Update `src/components/LoginModal.tsx`
     - New props `source: LoginSource` and `initialError?: string`
     - Mock mode only (`!isFirebaseConfigured()`): DEV → `onSuccess(previewUser())`; production → existing "Login belum tersedia…" message
     - Firebase configured (including DEV): call `signInWithGoogle(source)` synchronously from the click handler; `'signed-in'` → `onSuccess(user)`; `'redirecting'` → keep busy and show "Mengalihkan ke halaman login Google…"; error → `mapAuthError(authErrorCode(cause), …)`
@@ -81,7 +81,7 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
     - _Preservation: modal close paths (3.3), popup-closed message (3.4), mock-mode messages (3.2)_
     - _Requirements: 2.2, 2.9, 3.2, 3.3, 3.4_
 
-  - [ ] 3.4 Make the header avatar an accessible account control in `src/components/Header.tsx`
+  - [-] 3.4 Make the header avatar an accessible account control in `src/components/Header.tsx`
     - New props `user: UserIdentity`, `onOpenLogin`, `onSignOut`; keep the `hidden lg:flex items-center pl-2 border-l…` wrapper, add `relative`
     - Signed out: `<button type="button" aria-label="Masuk dengan akun Google">` with a `w-9 h-9 rounded-full` `UserRound` circle matching current border and shadow; click → `onOpenLogin`
     - Signed in: `<button aria-haspopup="menu" aria-expanded aria-controls="account-menu" aria-label="Akun: …">` with Google photo (`referrerPolicy="no-referrer"`, `onError` → initial fallback) or initial circle; `role="menu"` panel showing name/email as text and a `role="menuitem"` "Keluar" button
@@ -92,7 +92,7 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
     - _Preservation: main's header visuals and `hidden lg:flex` responsive visibility (3.7)_
     - _Requirements: 2.5, 2.6, 3.7_
 
-  - [ ] 3.5 Wire login source and redirect result through `src/App.tsx`
+  - [~] 3.5 Wire login source and redirect result through `src/App.tsx`
     - State `loginSource` (default `'report'`) and `loginError`; `openLogin(source)` clears the error and opens the modal
     - `handleReportDisaster` → `openLogin('report')`; AIHelpdesk `onRequireLogin` → `openLogin('ai-helpdesk')`; Header gets `user`, `onOpenLogin={() => openLogin('avatar')}`, `onSignOut` → `setCurrentUser(await signOutUser())`, keeping state if sign-out fails
     - `routeAfterLogin(user, source)`: set user and close modal; `'report'` → `openReportForm()`; `'ai-helpdesk'` → open form only if the AI panel is closed; `'avatar'` → nothing else
@@ -104,7 +104,7 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
     - _Preservation: signed-in "Laporkan Bencana" opens form directly (3.1); AI panel stays open on popup login (3.6); data-layer/legend/quake defaults unchanged (3.8)_
     - _Requirements: 2.1, 2.4, 2.7, 3.1, 3.6, 3.8_
 
-  - [ ] 3.6 Production authDomain and documentation
+  - [~] 3.6 Production authDomain and documentation
     - `.github/workflows/deploy-hosting.yml`: set `VITE_FIREBASE_AUTH_DOMAIN: disasterwatch-61ed5.web.app` (literal public hostname) with a comment explaining the same-origin auth handler; leave all other `VITE_FIREBASE_*` keys on `secrets.*`
     - `.env.example`: key name only, plus a comment that production should use the Hosting domain and local dev may use `<project>.firebaseapp.com`; no values
     - `README.md` and `README.id.md`: short "Google login prerequisites" section mirroring task 5's console list
@@ -115,7 +115,7 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
     - _Preservation: build-time `VITE_FIREBASE_*` config, no committed secrets (3.9)_
     - _Requirements: 2.8, 2.10, 3.9_
 
-  - [ ] 3.7 Verify bug condition exploration test now passes
+  - [~] 3.7 Verify bug condition exploration test now passes
     - **Property 1: Expected Behavior** - Google sign-in completes, falls back, or reports the real error
     - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
     - The test from task 1 encodes the expected behavior
@@ -124,7 +124,7 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
     - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10_
 
-  - [ ] 3.8 Verify preservation tests still pass
+  - [~] 3.8 Verify preservation tests still pass
     - **Property 2: Preservation** - Non-buggy auth and UI behavior unchanged
     - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
     - Run `npx tsx --test tests/authPreservation.test.ts tests/authFlowPreservation.test.ts`
@@ -132,7 +132,7 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
     - Confirm all tests still pass after fix (no regressions)
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9_
 
-- [ ] 4. Checkpoint - Ensure all tests pass
+- [~] 4. Checkpoint - Ensure all tests pass
   - Run `npx tsx --test tests/*.test.ts` (existing `bmkgNormalizer`, `newsClassification`, `reportIntent` plus the new auth tests)
   - Run `npm run lint` and `npm run build`; fix any type or build errors
   - Confirm `git diff` contains no secret values and `.env` is untouched and not staged; do not commit or push
@@ -140,15 +140,15 @@ Scope: branch `rafii-api` in `/Users/960302/Downloads/DisasterWatch`. No worktre
 
 - [ ] 5. Console prerequisites and manual deployed-domain verification (user action)
   - These cannot be changed from the repo. Confirm each one; none of these values are secrets, and the OAuth client secret is never needed in the repo
-  - [ ] 5.1 Firebase console → Authentication → Sign-in method: Google provider enabled (otherwise `auth/operation-not-allowed`)
-  - [ ] 5.2 Firebase console → Authentication → Settings → Authorized domains include `localhost`, `192.168.0.113`, `disasterwatch-61ed5.web.app`, `disasterwatch-61ed5.firebaseapp.com` (otherwise `auth/unauthorized-domain`)
-  - [ ] 5.3 Google Cloud console → APIs & Services → Credentials → OAuth 2.0 Web client (auto-created by Firebase):
+  - [~] 5.1 Firebase console → Authentication → Sign-in method: Google provider enabled (otherwise `auth/operation-not-allowed`)
+  - [~] 5.2 Firebase console → Authentication → Settings → Authorized domains include `localhost`, `192.168.0.113`, `disasterwatch-61ed5.web.app`, `disasterwatch-61ed5.firebaseapp.com` (otherwise `auth/unauthorized-domain`)
+  - [~] 5.3 Google Cloud console → APIs & Services → Credentials → OAuth 2.0 Web client (auto-created by Firebase):
     - Authorized redirect URIs include `https://disasterwatch-61ed5.web.app/__/auth/handler`, keeping `https://disasterwatch-61ed5.firebaseapp.com/__/auth/handler` (otherwise `Error 400: redirect_uri_mismatch`)
     - Authorized JavaScript origins include `https://disasterwatch-61ed5.web.app` and `http://localhost:3000` for dev (otherwise `origin_mismatch`)
-  - [ ] 5.4 Google Cloud console → OAuth consent screen configured: app name and support email set; published, or test users added while in Testing (otherwise `Error 403: access_denied` / "Access blocked")
-  - [ ] 5.5 If the API key has restrictions, allow `disasterwatch-61ed5.web.app/*` referrers and the Identity Toolkit API (otherwise `auth/internal-error` / `auth/requests-from-referer-…-are-blocked`)
-  - [ ] 5.6 Deploy: the workflow deploys from `main` only, so the `web.app` authDomain takes effect after `rafii-api` is merged; for a manual build, export `VITE_FIREBASE_AUTH_DOMAIN=disasterwatch-61ed5.web.app` first
-  - [ ] 5.7 Manual verification on `https://disasterwatch-61ed5.web.app` (check DevTools console for `[auth]` lines containing only `{ code, phase }`):
+  - [~] 5.4 Google Cloud console → OAuth consent screen configured: app name and support email set; published, or test users added while in Testing (otherwise `Error 403: access_denied` / "Access blocked")
+  - [~] 5.5 If the API key has restrictions, allow `disasterwatch-61ed5.web.app/*` referrers and the Identity Toolkit API (otherwise `auth/internal-error` / `auth/requests-from-referer-…-are-blocked`)
+  - [~] 5.6 Deploy: the workflow deploys from `main` only, so the `web.app` authDomain takes effect after `rafii-api` is merged; for a manual build, export `VITE_FIREBASE_AUTH_DOMAIN=disasterwatch-61ed5.web.app` first
+  - [~] 5.7 Manual verification on `https://disasterwatch-61ed5.web.app` (check DevTools console for `[auth]` lines containing only `{ code, phase }`):
     - Desktop Chrome and Safari from "Laporkan Bencana": popup host is `disasterwatch-61ed5.web.app/__/auth/handler`; popup, modal close; report workflow opens; avatar shows Google photo and name
     - From the avatar: modal opens, closes on success, no report form
     - AI helpdesk `onRequireLogin`: AI panel stays open after popup login, no second form

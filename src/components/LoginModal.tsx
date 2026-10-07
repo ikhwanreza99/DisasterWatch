@@ -1,20 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Sparkles, X, Loader2 } from 'lucide-react';
-import { loginWithGoogle, previewUser } from '../lib/firebase/auth';
+import { signInWithGoogle, previewUser } from '../lib/firebase/auth';
 import { isFirebaseConfigured } from '../lib/firebase/config';
-import { authErrorCode, authErrorMessage } from '../lib/firebase/authErrors';
+import { AUTH_UNAVAILABLE_MESSAGE, authErrorCode, mapAuthError } from '../lib/firebase/authErrors';
+import type { LoginSource } from '../lib/firebase/authFlow';
 import type { UserIdentity } from '../domain/intelligence';
 
 interface LoginModalProps {
   onClose: () => void;
   onSuccess: (user: UserIdentity) => void;
-  /** 'report' = opened from Laporkan Bencana; 'account' = opened from the header avatar. */
-  reason?: 'report' | 'account';
+  /** UI element that opened the modal; routes the user after sign-in. */
+  source: LoginSource;
   /** Error from a completed redirect sign-in, shown when the modal opens. */
   initialError?: string;
 }
 
-export function LoginModal({ onClose, onSuccess, reason = 'report', initialError = '' }: LoginModalProps) {
+export function LoginModal({ onClose, onSuccess, source, initialError = '' }: LoginModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const activeRef = useRef(true);
   const [busy, setBusy] = useState(false);
@@ -27,33 +28,36 @@ export function LoginModal({ onClose, onSuccess, reason = 'report', initialError
     return () => { activeRef.current = false; dialog?.close(); };
   }, []);
 
-  const handleLogin = async () => {
+  const handleLogin = () => {
     if (busy) return;
-    // Local demo without Firebase env vars: preview session, no real auth.
-    if (import.meta.env.DEV && !isFirebaseConfigured()) {
-      onSuccess(previewUser());
+    // Mock mode (no Firebase env vars): preview session in DEV only, never real auth.
+    if (!isFirebaseConfigured()) {
+      if (import.meta.env.DEV) onSuccess(previewUser());
+      else setError(AUTH_UNAVAILABLE_MESSAGE);
       return;
     }
+    // Start sign-in synchronously inside the click so the popup keeps user activation.
+    const pending = signInWithGoogle(source);
     setBusy(true);
     setError('');
-    let redirecting = false;
-    try {
-      const user = await loginWithGoogle();
-      if (!activeRef.current) return;
-      if (user === 'redirect') {
-        // Page is navigating to Google; keep the button busy.
-        redirecting = true;
-        setError('Mengalihkan ke Google…');
-        return;
-      }
-      onSuccess(user);
-    } catch (cause) {
-      if (!activeRef.current) return;
-      console.warn('[auth] Google login failed', authErrorCode(cause));
-      setError(authErrorMessage(cause));
-    } finally {
-      if (activeRef.current && !redirecting) setBusy(false);
-    }
+    pending
+      .then((outcome) => {
+        if (!activeRef.current) return;
+        if (outcome.status === 'redirecting') {
+          // Page is navigating to Google; keep the button busy.
+          setError('Mengalihkan ke halaman login Google…');
+          return;
+        }
+        setBusy(false);
+        onSuccess(outcome.user);
+      })
+      .catch((cause: unknown) => {
+        if (!activeRef.current) return;
+        // Raw code already logged in auth.ts.
+        const code = authErrorCode(cause);
+        setError(mapAuthError(code, cause instanceof Error && !code ? cause.message : undefined));
+        setBusy(false);
+      });
   };
 
   return (
@@ -71,8 +75,8 @@ export function LoginModal({ onClose, onSuccess, reason = 'report', initialError
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 text-white">
         <Sparkles className="h-6 w-6" aria-hidden="true" />
       </div>
-      <h2 id="login-title" className="text-xl font-bold">{reason === 'account' ? 'Masuk ke DisasterWatch' : 'Masuk untuk laporkan bencana'}</h2>
-      <p id="login-description" className="mt-2 text-sm text-slate-500">{reason === 'account'
+      <h2 id="login-title" className="text-xl font-bold">{source === 'avatar' ? 'Masuk ke DisasterWatch' : 'Masuk untuk laporkan bencana'}</h2>
+      <p id="login-description" className="mt-2 text-sm text-slate-500">{source === 'avatar'
         ? 'Gunakan akun Google untuk melaporkan bencana dan menyimpan laporan Anda.'
         : 'Gunakan akun Google. Setelah masuk, formulir laporan DisasterAI akan langsung terbuka.'}</p>
       <button type="button" onClick={handleLogin} disabled={busy} className="mt-6 flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold transition hover:bg-slate-50 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500">

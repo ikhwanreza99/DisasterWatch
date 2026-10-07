@@ -13,7 +13,17 @@ import {
 } from 'firebase/auth';
 import type { UserIdentity } from '../../domain/intelligence';
 import { getFirebaseApp, isFirebaseConfigured } from './config';
-import { authErrorCode, REDIRECT_FALLBACK_CODES } from './authErrors';
+import { AUTH_UNAVAILABLE_MESSAGE, authErrorCode, logAuthError, mapAuthError } from './authErrors';
+import {
+  clearLoginIntent,
+  prefersRedirect,
+  saveLoginIntent,
+  shouldFallbackToRedirect,
+  takeLoginIntent,
+  type IntentStorage,
+  type LoginSource,
+} from './authFlow';
+
 let cachedAuth: Auth | null = null;
 export function getAuthInstance(): Auth | null {
   if (!isFirebaseConfigured()) return null;
@@ -26,7 +36,8 @@ export function getAuthInstance(): Auth | null {
 export function mockUser(): UserIdentity {
   return { uid: 'local-demo-user', isAnonymous: true, displayName: 'Demo User', isMock: true };
 }
-function toIdentity(u: User): UserIdentity {
+/** Single mapper from a Firebase user to the app identity. */
+export function toIdentity(u: User): UserIdentity {
   return {
     uid: u.uid,
     isAnonymous: u.isAnonymous,
@@ -36,10 +47,59 @@ function toIdentity(u: User): UserIdentity {
     isMock: false,
   };
 }
+
+/** sessionStorage if available; Safari private mode / sandboxed frames may throw on access. */
+function intentStorage(): IntentStorage | null {
+  try {
+    return typeof sessionStorage === 'undefined' ? null : sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+export type RedirectResultOutcome = {
+  user: UserIdentity | null;
+  source: LoginSource | null;
+  error?: { code?: string; message: string };
+};
+
+let redirectResultPromise: Promise<RedirectResultOutcome> | null = null;
+
+/**
+ * Reads a pending Google redirect sign-in. Memoized: getRedirectResult runs at most once per
+ * page load (StrictMode double effects share the same promise). Never throws.
+ */
+export function consumeRedirectResult(): Promise<RedirectResultOutcome> {
+  if (redirectResultPromise) return redirectResultPromise;
+  redirectResultPromise = (async (): Promise<RedirectResultOutcome> => {
+    const auth = getAuthInstance();
+    if (!auth) return { user: null, source: null };
+    try {
+      const result = await getRedirectResult(auth);
+      if (!result) {
+        takeLoginIntent(intentStorage()); // discard any stale intent
+        return { user: null, source: null };
+      }
+      return { user: toIdentity(result.user), source: takeLoginIntent(intentStorage()) };
+    } catch (cause) {
+      const code = authErrorCode(cause);
+      logAuthError(code, 'redirect-result');
+      return {
+        user: null,
+        source: takeLoginIntent(intentStorage()),
+        error: { code, message: mapAuthError(code) },
+      };
+    }
+  })();
+  return redirectResultPromise;
+}
+
 /** Ensure a signed-in user; falls back to mock user when Firebase is unavailable. */
 export async function ensureUser(): Promise<UserIdentity> {
   const auth = getAuthInstance();
   if (!auth) return mockUser();
+  // Finish any pending Google redirect before an anonymous session could race it.
+  await consumeRedirectResult();
   await auth.authStateReady();
   if (auth.currentUser) return toIdentity(auth.currentUser);
   try {
@@ -60,49 +120,66 @@ export function watchUser(cb: (u: UserIdentity) => void): () => void {
     else cb(mockUser());
   });
 }
-/** Touch-first / mobile browsers: popups are unreliable, use full-page redirect. */
-export function isMobileBrowser(): boolean {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-  const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-  return coarse && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-}
-/**
- * Google sign-in. Uses a popup on desktop and falls back to a full-page redirect when the
- * popup is blocked or on mobile. Returns 'redirect' when the page is navigating away.
- */
-export async function loginWithGoogle(): Promise<UserIdentity | 'redirect'> {
-  const auth = getAuthInstance();
-  if (!auth) throw new Error('Login belum tersedia. Silakan coba lagi setelah layanan login diaktifkan.');
-  auth.languageCode = 'id';
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
-  if (isMobileBrowser()) {
-    await signInWithRedirect(auth, provider);
-    return 'redirect';
-  }
+
+export type GoogleSignInOutcome =
+  | { status: 'signed-in'; user: UserIdentity }
+  | { status: 'redirecting' };
+
+async function redirectSignIn(auth: Auth, provider: GoogleAuthProvider, source: LoginSource): Promise<GoogleSignInOutcome> {
+  saveLoginIntent(intentStorage(), source);
   try {
-    const result = await signInWithPopup(auth, provider);
-    return toIdentity(result.user);
+    await signInWithRedirect(auth, provider);
+    return { status: 'redirecting' };
   } catch (cause) {
-    const code = authErrorCode(cause);
-    if (code && REDIRECT_FALLBACK_CODES.has(code)) {
-      await signInWithRedirect(auth, provider);
-      return 'redirect';
-    }
+    clearLoginIntent(intentStorage());
+    logAuthError(authErrorCode(cause), 'redirect');
     throw cause;
   }
 }
-/** Completes a pending redirect sign-in (call once on load). Rethrows auth errors. */
-export async function completeRedirectLogin(): Promise<UserIdentity | null> {
+
+/**
+ * Google sign-in. Popup first on desktop (signInWithPopup is the first await, preserving the
+ * click's user activation); redirect-first on mobile/embedded browsers, and redirect fallback
+ * for popup-blocked / cancelled / unsupported popup errors. Other errors are rethrown.
+ */
+export async function signInWithGoogle(source: LoginSource): Promise<GoogleSignInOutcome> {
   const auth = getAuthInstance();
-  if (!auth) return null;
-  const result = await getRedirectResult(auth);
-  return result ? toIdentity(result.user) : null;
+  if (!auth) throw new Error(AUTH_UNAVAILABLE_MESSAGE);
+  auth.languageCode = 'id';
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+  if (prefersRedirect(ua)) return redirectSignIn(auth, provider, source);
+  try {
+    const result = await signInWithPopup(auth, provider);
+    clearLoginIntent(intentStorage());
+    return { status: 'signed-in', user: toIdentity(result.user) };
+  } catch (cause) {
+    const code = authErrorCode(cause);
+    logAuthError(code, 'popup');
+    if (shouldFallbackToRedirect(code)) return redirectSignIn(auth, provider, source);
+    throw cause;
+  }
 }
-export async function logout(): Promise<void> {
+
+/** Signs out of Google and restores the anonymous (or mock) identity. */
+export async function signOutUser(): Promise<UserIdentity> {
   const auth = getAuthInstance();
-  if (auth) await signOut(auth);
+  if (!auth) return mockUser();
+  try {
+    await signOut(auth);
+  } catch (cause) {
+    logAuthError(authErrorCode(cause), 'signout');
+    throw cause;
+  }
+  clearLoginIntent(intentStorage());
+  return ensureUser();
 }
+
+export function isGoogleUser(u: UserIdentity): boolean {
+  return !u.isAnonymous && !u.isMock;
+}
+
 /** Temporary local preview session; never authenticates with Firebase. */
 export function previewUser(): UserIdentity {
   return { uid: 'local-report-preview', isAnonymous: false, displayName: 'Pelapor Demo', isMock: true };

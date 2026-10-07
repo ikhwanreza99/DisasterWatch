@@ -1,50 +1,52 @@
-// Maps Firebase Auth error codes to Indonesian user-facing messages (pure, unit-testable).
+// Maps Firebase Auth error codes to Indonesian user-facing messages.
+// Pure module: no `firebase` or `import.meta` imports, so node:test can load it.
 
-/** Popup errors where a full-page redirect is likely to succeed instead. */
-export const REDIRECT_FALLBACK_CODES = new Set([
-  'auth/popup-blocked',
-  'auth/cancelled-popup-request',
-  'auth/operation-not-supported-in-environment',
-]);
+export const AUTH_UNAVAILABLE_MESSAGE =
+  'Login belum tersedia. Silakan coba lagi setelah layanan login diaktifkan.';
 
+const DEFAULT_FALLBACK_MESSAGE = 'Login belum berhasil. Silakan coba lagi.';
+
+export const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  'auth/popup-closed-by-user': 'Login dibatalkan. Silakan coba lagi.',
+  'auth/popup-blocked': 'Popup diblokir browser. Kami alihkan ke halaman login Google…',
+  'auth/cancelled-popup-request':
+    'Permintaan login sebelumnya dibatalkan. Mengalihkan ke halaman login Google…',
+  'auth/operation-not-supported-in-this-environment':
+    'Browser ini tidak mendukung popup login. Mengalihkan ke halaman login Google…',
+  'auth/unauthorized-domain':
+    'Domain ini belum diizinkan untuk login Google. Hubungi admin DisasterWatch.',
+  'auth/operation-not-allowed':
+    'Login Google belum diaktifkan untuk aplikasi ini. Hubungi admin DisasterWatch.',
+  'auth/network-request-failed': 'Koneksi bermasalah. Periksa internet Anda lalu coba lagi.',
+  'auth/internal-error':
+    'Terjadi gangguan pada layanan login. Silakan coba lagi beberapa saat lagi.',
+  'auth/too-many-requests': 'Terlalu banyak percobaan login. Tunggu sebentar lalu coba lagi.',
+  'auth/user-disabled': 'Akun ini dinonaktifkan. Hubungi admin DisasterWatch.',
+  'auth/web-storage-unsupported':
+    'Browser memblokir penyimpanan data. Aktifkan cookie/penyimpanan situs lalu coba lagi.',
+  'auth/account-exists-with-different-credential':
+    'Email ini sudah terdaftar dengan metode login lain.',
+};
+
+/** Indonesian message for a Firebase Auth error code. Unknown codes include the code. */
+export function mapAuthError(code: string | undefined, fallbackMessage?: string): string {
+  if (!code) return fallbackMessage ?? DEFAULT_FALLBACK_MESSAGE;
+  if (Object.prototype.hasOwnProperty.call(AUTH_ERROR_MESSAGES, code)) {
+    return AUTH_ERROR_MESSAGES[code];
+  }
+  return `Login Google belum berhasil (kode: ${code}). Silakan coba lagi.`;
+}
+
+/** Safely reads a non-empty string `code` from a thrown value. */
 export function authErrorCode(cause: unknown): string | undefined {
-  const code = (cause as { code?: unknown } | null | undefined)?.code;
+  if (typeof cause !== 'object' || cause === null) return undefined;
+  const code = (cause as { code?: unknown }).code;
   return typeof code === 'string' && code ? code : undefined;
 }
 
-export function authErrorMessage(cause: unknown): string {
-  const code = authErrorCode(cause);
-  switch (code) {
-    case 'auth/popup-closed-by-user':
-    case 'auth/cancelled-popup-request':
-      return 'Login dibatalkan. Silakan coba lagi.';
-    case 'auth/popup-blocked':
-      return 'Popup diblokir browser. Mengalihkan ke halaman login Google…';
-    case 'auth/operation-not-allowed':
-      return 'Login Google belum diaktifkan di Firebase Console (Authentication → Sign-in method → Google).';
-    case 'auth/unauthorized-domain': {
-      const host = typeof location !== 'undefined' ? location.hostname : 'ini';
-      return `Domain ${host} belum diizinkan. Tambahkan di Firebase Console → Authentication → Settings → Authorized domains.`;
-    }
-    case 'auth/network-request-failed':
-      return 'Koneksi gagal. Periksa internet Anda lalu coba lagi.';
-    case 'auth/too-many-requests':
-      return 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.';
-    case 'auth/user-disabled':
-      return 'Akun ini dinonaktifkan.';
-    case 'auth/account-exists-with-different-credential':
-      return 'Email ini sudah terdaftar dengan metode login lain.';
-    case 'auth/invalid-api-key':
-    case 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':
-      return 'Konfigurasi Firebase tidak valid (API key).';
-    case 'auth/configuration-not-found':
-    case 'auth/auth-domain-config-required':
-      return 'Konfigurasi Firebase Auth belum lengkap.';
-    case 'auth/internal-error':
-      return 'Terjadi kesalahan pada layanan login. Silakan coba lagi.';
-    case undefined:
-      return cause instanceof Error && cause.message ? cause.message : 'Login belum berhasil. Silakan coba lagi.';
-    default:
-      return `Login Google belum berhasil (${code}). Silakan coba lagi.`;
-  }
+export type AuthErrorPhase = 'popup' | 'redirect' | 'redirect-result' | 'signout';
+
+/** Logs only the error code and phase; never the error object, customData, emails or tokens. */
+export function logAuthError(code: string | undefined, phase: AuthErrorPhase): void {
+  console.warn('[auth] Google sign-in failed', { code: code ?? 'unknown', phase });
 }

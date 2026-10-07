@@ -16,9 +16,8 @@ import { RANGE_LIMITS, resolveDateRange } from './domain/dateRange';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
 import { loadDisasters } from './services/store/disasterStore';
-import { ensureUser, watchUser, canReport, completeRedirectLogin, logout } from './lib/firebase/auth';
+import { ensureUser, watchUser, canReport, consumeRedirectResult, signOutUser } from './lib/firebase/auth';
 import { mockUser } from './lib/firebase/auth';
-import { authErrorCode, authErrorMessage } from './lib/firebase/authErrors';
 
 type LoginReason = 'report' | 'account';
 const LOGIN_INTENT_KEY = 'dw:postLoginIntent';
@@ -210,11 +209,11 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await logout();
-    } catch (e) {
-      console.warn('[auth] sign-out failed', authErrorCode(e));
+      setCurrentUser(await signOutUser());
+    } catch {
+      // Already logged (code only) in auth.ts; keep the current state.
+      return;
     }
-    setCurrentUser(mockUser());
     if (aiWorkflow === 'report-disaster') setIsAIOpen(false);
   };
 
@@ -272,20 +271,20 @@ export default function App() {
       if (!data[activeDisasterKey] && data['demak']) setActiveDisasterKey('demak');
     });
     // Finish a pending Google redirect sign-in first so ensureUser() doesn't start an anonymous session.
-    completeRedirectLogin()
-      .then((u) => {
-        if (cancelled || !u) return;
-        setCurrentUser(u);
-        if (readLoginIntent() === 'report') openReportForm();
-        writeLoginIntent(null);
-      })
-      .catch((e) => {
+    consumeRedirectResult()
+      .then(({ user, source, error }) => {
         if (cancelled) return;
-        console.warn('[auth] Google redirect login failed', authErrorCode(e));
-        setLoginReason(readLoginIntent() ?? 'report');
-        setLoginError(authErrorMessage(e));
-        setIsLoginOpen(true);
+        const reason: LoginReason | null =
+          source === 'avatar' ? 'account' : source ? 'report' : readLoginIntent();
         writeLoginIntent(null);
+        if (user) {
+          setCurrentUser(user);
+          if (reason === 'report') openReportForm();
+        } else if (error) {
+          setLoginReason(reason ?? 'report');
+          setLoginError(error.message);
+          setIsLoginOpen(true);
+        }
       })
       .finally(() => {
         ensureUser().then((u) => {
@@ -532,7 +531,7 @@ export default function App() {
         {/* Standalone Report Modal (pipeline: extraction → validation → store) */}
       {isLoginOpen && (
         <LoginModal
-          reason={loginReason}
+          source={loginReason === 'account' ? 'avatar' : 'report'}
           initialError={loginError}
           onClose={() => {
             setIsLoginOpen(false);
