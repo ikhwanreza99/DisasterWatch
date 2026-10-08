@@ -126,21 +126,13 @@ function firmsUrl(source: FirmsSource, days: number, start: string): string {
 }
 
 async function fetchChunk(source: FirmsSource, days: number, start: string, signal?: AbortSignal) {
-  const controller = new AbortController();
-  const abort = () => controller.abort();
-  if (signal?.aborted) controller.abort();
-  signal?.addEventListener('abort', abort, { once: true });
-  const timer = setTimeout(abort, 45_000);
-  try {
-    const res = await fetch(firmsUrl(source, days, start), { signal: controller.signal });
-    const text = await res.text();
-    if (!res.ok) throw new Error(`FIRMS HTTP ${res.status}`);
-    if (!text.startsWith('latitude')) throw new Error('Respons FIRMS tidak valid');
-    return parseFirmsCsv(text, SOURCE_LABEL[source]);
-  } finally {
-    clearTimeout(timer);
-    signal?.removeEventListener('abort', abort);
-  }
+  // NASA may take longer than 45 seconds. Only cancel when the caller changes
+  // the date range, retries, or unmounts; progress must not truncate the data.
+  const res = await fetch(firmsUrl(source, days, start), { signal });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`FIRMS HTTP ${res.status}`);
+  if (!text.startsWith('latitude')) throw new Error('Respons FIRMS tidak valid');
+  return parseFirmsCsv(text, SOURCE_LABEL[source]);
 }
 
 function aggregate(list: FireHotspot[]): FireHotspot[] {
