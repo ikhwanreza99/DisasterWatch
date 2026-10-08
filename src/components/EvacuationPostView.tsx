@@ -1,3 +1,4 @@
+import { MobileSheetHandle } from './MobileSheetHandle';
 import React, { useEffect, useRef } from 'react';
 import {
   X,
@@ -91,9 +92,10 @@ export const EvacuationPostView: React.FC<EvacuationPostViewProps> = ({
 
   return (
     <aside
-      className="absolute top-0 right-0 z-30 h-full w-[430px] max-w-[95vw] overflow-hidden flex flex-col pointer-events-auto transition-all duration-300 ease-in-out bg-white/75 backdrop-blur-2xl border-l border-white/60 shadow-2xl animate-fadeIn"
+      className="mobile-sheet absolute top-0 right-0 z-30 h-full w-[430px] max-w-[95vw] overflow-hidden flex flex-col pointer-events-auto transition-all duration-300 ease-in-out bg-white/75 backdrop-blur-2xl border-l border-white/60 shadow-2xl animate-fadeIn"
       id="evacuationPostView" aria-label="Posko Bantuan"
     >
+      <MobileSheetHandle />
       <div className="px-5 pt-5 pb-4 shrink-0">
         <div className="flex items-center justify-between pb-4 border-b border-slate-200/80">
           <div className="flex items-center gap-3 min-w-0">

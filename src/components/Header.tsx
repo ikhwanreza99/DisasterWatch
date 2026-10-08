@@ -3,7 +3,8 @@ import { DisasterTicker } from './DisasterTicker';
 import type { DisasterIncident } from '../types';
 import type { UserIdentity } from '../domain/intelligence';
 import { isGoogleUser } from '../lib/firebase/auth';
-import { Calendar, ChevronDown, Sparkles, Radio } from 'lucide-react';
+import { useMobileLayout } from './useMobileLayout';
+import { Calendar, ChevronDown, Sparkles, Radio, UserRound } from 'lucide-react';
 import {
   DATE_PRESETS,
   RANGE_LIMITS,
@@ -33,19 +34,17 @@ interface HeaderProps {
   onSignOut: () => void | Promise<void>;
 }
 
-const DEFAULT_AVATAR =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCdqrs-0DbJRAPUGx4dUImT0s5p4SsYS0-zoMCyPEVzpOzR2WD6Z4y19fWb2uxDzRC1COP0VkfsUr65VlRMsnW1urpviorq-VQttv9AkKcwaOmlW-guvSx1kZlXJHNDTewBxb1hGKfWPgy63fhaYTqTnHSNxTLa6t3zJvlslo81V9Qppga926cyw572oD98IWAruhDtlkuoq8ZiD9ZqypIPsCQ8vUB9vEdmnhALajbi';
-
 export const Header: React.FC<HeaderProps> = ({
+  user,
   dates,
   onSelectDate,
   onReportDisaster,
   disasters,
   onHighlightDisaster,
-  user,
   onOpenLogin,
   onSignOut,
 }) => {
+  const mobile = useMobileLayout();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const isSignedIn = isGoogleUser(user);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
@@ -115,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
   const allSame = bmkgLabel === firmsLabel && firmsLabel === magmaLabel;
 
   return (
-    <header className="relative z-40 flex flex-wrap md:flex-nowrap items-center justify-between gap-2 px-3 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0b1329]/80 backdrop-blur-xl transition-colors duration-300">
+    <header className="app-header relative z-40 flex flex-wrap md:flex-nowrap items-center justify-between gap-2 px-3 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0b1329]/80 backdrop-blur-xl transition-colors duration-300">
       {/* Brand Identifier (Top-Left) */}
       <div className="flex items-center gap-2.5 pointer-events-auto">
         <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-orange-500 flex items-center justify-center shadow-md shadow-orange-500/20 text-white shrink-0">
@@ -135,7 +134,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Disaster news ticker — between brand and controls; own row on phones, hidden on very short screens */}
       <div className="order-last w-full min-w-0 md:order-none md:w-auto md:flex-1 md:px-2 [@media(max-height:480px)]:hidden">
-        <DisasterTicker disasters={disasters} onHighlight={onHighlightDisaster} />
+        {!mobile && <DisasterTicker disasters={disasters} onHighlight={onHighlightDisaster} />}
       </div>
 
       {/* Date Filter Toolbar & Controls (Top-Right) */}
@@ -158,7 +157,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {isCalendarOpen && (
-            <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#0b1329] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 p-4 z-50 text-xs transition-all">
+            <div className="fixed left-3 right-3 top-16 sm:absolute sm:left-auto sm:top-auto sm:right-0 mt-2 max-h-[calc(100dvh-8rem)] overflow-y-auto w-auto sm:w-72 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#0b1329] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 p-4 z-50 text-xs transition-all">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 font-semibold text-slate-700 dark:text-slate-200">
                 <span>Pilih Rentang Waktu</span>
                 <span className="text-[10px] text-slate-400 dark:text-cyan-400">
@@ -281,28 +280,36 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onReportDisaster}
           type="button"
-          className="flex shrink-0 items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 hover:brightness-110 text-white rounded-full text-xs font-bold shadow-md shadow-violet-500/25 transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+          className="hidden sm:flex shrink-0 items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 hover:brightness-110 text-white rounded-full text-xs font-bold shadow-md shadow-violet-500/25 transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
         >
           <Sparkles className="w-4 h-4" aria-hidden="true" />
           <span>Laporkan Bencana</span>
         </button>
 
         {/* Officer Avatar */}
-        <div ref={accountRef} className="relative hidden lg:flex items-center pl-2 border-l border-slate-200 dark:border-slate-800">
+        <div ref={accountRef} className="relative flex items-center pl-2 border-l border-slate-200 dark:border-slate-800">
           <button
             type="button"
-            onClick={() => (isSignedIn ? setIsAccountOpen((open) => !open) : onLogin())}
+            onClick={() => (isSignedIn ? setIsAccountOpen((open) => !open) : onOpenLogin())}
+            ref={accountTriggerRef}
             aria-haspopup={isSignedIn ? 'menu' : 'dialog'}
             aria-expanded={isSignedIn ? isAccountOpen : undefined}
             aria-label={isSignedIn ? `Akun ${user.displayName || user.email || 'pengguna'}` : 'Masuk dengan Google'}
             className="flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
           >
-            <img
-              src={(isSignedIn && user.photoURL) || DEFAULT_AVATAR}
-              alt={isSignedIn ? user.displayName || 'Akun pengguna' : 'Koordinator Satgas BNPB'}
-              referrerPolicy="no-referrer"
-              className="w-9 h-9 rounded-full object-cover border border-slate-300 dark:border-cyan-500/40 shadow-xs"
-            />
+            {isSignedIn && user.photoURL && !photoFailed ? (
+              <img
+                src={user.photoURL}
+                alt={accountName}
+                referrerPolicy="no-referrer"
+                onError={() => setPhotoFailed(true)}
+                className="w-9 h-9 rounded-full object-cover border border-slate-300 dark:border-cyan-500/40 shadow-xs"
+              />
+            ) : (
+              <span className="flex w-9 h-9 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-cyan-300 border border-slate-300 dark:border-cyan-500/40 font-bold" aria-hidden="true">
+                {isSignedIn ? accountInitial : <UserRound className="w-5 h-5" />}
+              </span>
+            )}
           </button>
           {isSignedIn && isAccountOpen && (
             <div role="menu" aria-label="Menu akun" className="absolute right-0 top-full mt-2 w-60 bg-white dark:bg-[#0b1329] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 p-4 z-50 text-xs transition-all">
@@ -312,10 +319,11 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
               <button
                 type="button"
+                ref={firstMenuItemRef}
                 role="menuitem"
                 onClick={() => {
                   setIsAccountOpen(false);
-                  onLogout();
+                  void onSignOut();
                 }}
                 className="w-full py-1.5 rounded-lg font-bold bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950 transition-all active:scale-95"
               >

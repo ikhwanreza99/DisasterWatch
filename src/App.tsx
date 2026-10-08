@@ -40,6 +40,21 @@ function writeLoginIntent(v: LoginReason | null) {
 import { LoginModal } from './components/LoginModal';
 
 export default function App() {
+  // Follow the visible viewport when the on-screen keyboard opens on phones.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const update = () => {
+      document.documentElement.style.setProperty('--app-height', `${viewport?.height ?? window.innerHeight}px`);
+    };
+    update();
+    viewport?.addEventListener('resize', update);
+    window.addEventListener('resize', update);
+    return () => {
+      viewport?.removeEventListener('resize', update);
+      window.removeEventListener('resize', update);
+      document.documentElement.style.removeProperty('--app-height');
+    };
+  }, []);
   const [disasters, setDisasters] = useState<Record<string, DisasterIncident>>(disastersData);
   const [activeDisasterKey, setActiveDisasterKey] = useState<string>('demak');
   const [intelReports, setIntelReports] = useState<IntelligenceReport[]>(demoReports);
@@ -105,7 +120,14 @@ export default function App() {
     // the new incident — the mini sidebar only renders when no other panel is open.
     if (disasters[key]) {
       setActiveDisasterKey(key);
-      setIsSidebarMinimized(false);
+      if (window.matchMedia('(max-width: 639px)').matches) {
+        setIsSidebarMinimized(true);
+        setIsSidebarExpanded(false);
+        setIsRouteOpen(false);
+        setIsReportsOpen(false);
+      } else {
+        setIsSidebarMinimized(false);
+      }
     }
   };
 
@@ -132,7 +154,7 @@ export default function App() {
     setIsReportsOpen(false);
     setIsAIOpen(false);
     setIsSidebarMinimized(false);
-    setIsSidebarExpanded(true);
+    setIsSidebarExpanded(!window.matchMedia('(max-width: 639px)').matches);
   };
 
   const handleToggleDetail = () => {
@@ -370,7 +392,7 @@ export default function App() {
   return (
     <div
       // Inline 100dvh (fits the visible area between the mobile browser bars); h-screen is the fallback.
-      style={{ height: '100dvh' }}
+      style={{ height: 'var(--app-height, 100dvh)' }}
       className={`w-screen h-screen overflow-hidden flex flex-col transition-colors duration-300 ${
         isDarkMode ? 'bg-[#070d18] text-slate-100 dark' : 'bg-white text-slate-800'
       }`}
@@ -378,6 +400,7 @@ export default function App() {
     >
       {/* Top Bar Navigation */}
       <Header
+          user={currentUser}
           dates={{ bmkg: bmkgDate, firms: selectedDate, magma: magmaDate }}
           onSelectDate={(target, value) =>
             target === 'magma' ? setMagmaDate(value) : target === 'bmkg' ? setBmkgDate(value) : setSelectedDate(value)
@@ -385,13 +408,12 @@ export default function App() {
           onReportDisaster={handleReportDisaster}
           disasters={disasters}
           onHighlightDisaster={setHighlightedDisasterKey}
-          user={currentUser}
-          onLogin={() => openLogin('account')}
-          onLogout={handleLogout}
+          onOpenLogin={() => openLogin('account')}
+          onSignOut={handleLogout}
         />
 
         {/* Main Work Area — map-first workspace (min 60vh desktop) */}
-        <main className="relative flex-1 grid grid-cols-12 overflow-hidden min-h-[60vh]">
+        <main className="relative flex-1 grid grid-cols-12 overflow-hidden min-h-0 md:min-h-[60vh]">
           {/* Left Category Filter Dock */}
           <CategoryFilterBar
             activeCategory={activeCategory}
@@ -401,6 +423,8 @@ export default function App() {
 
           {/* Central Map Canvas Area (provider-abstracted, Leaflet default) */}
           <MapProvider
+            onHighlightDisaster={setHighlightedDisasterKey}
+            mobileFilterSlot={<CategoryFilterBar mobile activeCategory={activeCategory} onSelectCategory={handleSelectCategory} isDarkMode={isDarkMode} />}
             onStartAIChat={isAIOpen ? undefined : (message, file) => {
               handleOpenAI(false);
               setAiDraft({ message, file });

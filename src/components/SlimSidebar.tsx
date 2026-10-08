@@ -1,3 +1,5 @@
+import { useMobileLayout } from './useMobileLayout';
+import { MobileSheetHandle } from './MobileSheetHandle';
 import React from 'react';
 import {
   Compass,
@@ -29,7 +31,7 @@ interface SlimSidebarProps {
   onOpenDisasterBrief: () => void;
 
   onMinimize: () => void;
-  onOpenRoute?: () => void;
+  onOpenRoute: () => void;
   onOpenReports?: () => void;
   intelReports?: IntelligenceReport[];
   aidRecords?: AidRecord[];
@@ -49,6 +51,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
   intelReports,
   aidRecords,
 }) => {
+  const mobile = useMobileLayout();
   const getCategoryIcon = () => {
     switch (disaster.category) {
       case 'fire':
@@ -73,9 +76,9 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 
   return (
     <aside
-      id="slimHomepageSidebar"
+      id="slimHomepageSidebar" data-full-detail={isExpanded && !mobile}
       className={`
-        absolute top-0 right-0 z-30
+        mobile-sheet absolute top-0 right-0 z-30
         h-full
         pointer-events-auto
 
@@ -115,10 +118,13 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
         }
       `}
     >
-      {isExpanded ? (
+      {mobile && <MobileSheetHandle initiallyExpanded />}
+      {(isExpanded || mobile) ? (
         <ExpandedDetailContent
           disaster={disaster}
-          onClose={onCollapseView}
+          mobile={mobile}
+          onOpenRoute={onOpenRoute}
+          onClose={mobile ? onMinimize : onCollapseView}
           onOpenAIHelpdesk={onOpenAIHelpdesk}
           onOpenDonationModal={onOpenDonationModal}
           onOpenDisasterBrief={onOpenDisasterBrief}

@@ -63,8 +63,8 @@ export const DonationModal: React.FC<DonationModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative overflow-hidden text-xs">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 animate-fadeIn">
+      <div className="bg-white max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative text-xs">
         {!isSuccess ? (
           <>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">

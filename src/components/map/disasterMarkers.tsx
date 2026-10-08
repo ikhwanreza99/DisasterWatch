@@ -103,9 +103,10 @@ export const DisasterMarker: React.FC<{ incident: DisasterIncident; isSelected: 
 export const DisasterCallout: React.FC<{
   incident: DisasterIncident;
   onClose: () => void;
+  onViewDetail?: () => void;
   className?: string;
   style?: React.CSSProperties;
-}> = ({ incident, onClose, className = '', style }) => (
+}> = ({ incident, onClose, onViewDetail, className = '', style }) => (
   <div
     id="activeCallout"
     role="dialog"
@@ -157,6 +158,7 @@ export const DisasterCallout: React.FC<{
         <span>{incident.timestamp}</span>
       </div>
     </div>
+    {onViewDetail && <button type="button" onClick={event => { event.stopPropagation(); onViewDetail(); }} className="sm:hidden relative z-10 mt-3 min-h-11 w-full rounded-xl bg-white/15 px-4 text-xs font-bold hover:bg-white/25">Lihat detail</button>}
     {/* pointer */}
     <div
       className="absolute -bottom-[7px] left-1/2 -translate-x-1/2 w-3.5 h-3.5 rotate-45 border-r border-b border-white/20"

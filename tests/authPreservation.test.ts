@@ -35,10 +35,9 @@ test('COOP guard: no Cross-Origin-Opener-Policy: same-origin in hosting, dev ser
   assert.doesNotMatch(read('index.html'), COOP_SAME_ORIGIN, 'index.html sets COOP same-origin');
 });
 
-test('Header keeps main visual tokens and stock avatar photo (3.7)', () => {
+test('Header keeps main controls and a profile fallback (3.7)', () => {
   const header = read('src/components/Header.tsx');
   for (const token of [
-    'hidden lg:flex',
     'pl-2',
     'border-l',
     'w-9 h-9 rounded-full',
@@ -47,7 +46,7 @@ test('Header keeps main visual tokens and stock avatar photo (3.7)', () => {
     '<DisasterTicker',
     'isCalendarOpen',
     '<Calendar',
-    'Koordinator Satgas BNPB',
+    '<UserRound',
   ]) {
     assert.ok(header.includes(token), `Header.tsx is missing visual token: ${token}`);
   }
