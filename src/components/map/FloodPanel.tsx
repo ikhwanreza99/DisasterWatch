@@ -65,7 +65,7 @@ export function FloodPanel({ data, state, selected, onSelect, showNormal, onShow
       </> : <>
         <div className="rounded-xl bg-slate-50 p-3 space-y-2">
           <p className="font-medium">Tingkat peringatan</p>
-          {Object.entries(floodLevels).map(([level, item]) => <div key={level} className="flex items-center gap-2"><span className="rounded-full w-3 h-3" style={{background:item.color}}/>{item.label}<span className="ml-auto text-slate-500">{data?.gauges.filter(g => currentSeverity(g) === level).length ?? 0}</span></div>)}
+          {Object.entries(floodLevels).map(([level, item]) => <div key={level} className="flex items-center gap-2"><span className="rounded-full w-3 h-3" style={{background:item.color}}/>{item.label}<span className="ml-auto text-slate-500">{state === 'ready' ? data?.gauges.filter(g => currentSeverity(g) === level).length ?? 0 : '—'}</span></div>)}
           <label className="flex items-center justify-between pt-2 border-t"><span>Tampilkan titik normal</span><input type="checkbox" checked={showNormal} onChange={e => onShowNormal(e.target.checked)}/></label>
         </div>
         <input aria-label="Cari titik pantau sungai" placeholder="Cari sungai atau titik pantau" value={query} onChange={e => setQuery(e.target.value)} className="w-full border rounded-lg p-2"/>
