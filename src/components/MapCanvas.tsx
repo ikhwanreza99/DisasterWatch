@@ -37,7 +37,7 @@ import {
 import { CategoryFilter, DisasterIncident, DisasterCategory } from '../types';
 import { BMKG_SOURCE_URL, uniqueAreaNames, type EarthquakeEvent, type BmkgWeatherWarning } from '../services/bmkg';
 import { BMKG_SHAKEMAP_BASE, buildBmkgPopupHtml, buildBmkgWeatherPopupHtml, formatQuakeTime } from './map/bmkgPopup';
-import { FIRMS_SOURCE_URL, type FireHotspot, type FirmsStatus } from '../services/firms';
+import { FIRMS_SOURCE_URL, type FireHotspot, type FirmsStatus, type FirmsProgress } from '../services/firms';
 import { GoogleFireOverlay } from './map/GoogleFireOverlay';
 import { MapChatComposer } from './MapChatComposer';
 import { MapSearch } from './map/MapSearch';
@@ -329,6 +329,8 @@ interface MapCanvasProps {
   bmkgRangeLabel?: string;
   firmsHotspots?: FireHotspot[];
   firmsStatus?: FirmsStatus['state'];
+  firmsProgress?: FirmsProgress;
+  onRetryFirms?: () => void;
   /** Short label of the active FIRMS range, e.g. "7 hari". */
   firmsRangeLabel?: string;
   /** Header date selection; MAGMA eruption notices follow it. */
@@ -1076,6 +1078,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   bmkgRangeLabel = 'hari ini',
   firmsHotspots = [],
   firmsStatus = 'idle',
+  firmsProgress = { completed: 0, total: 0, failed: 0 },
+  onRetryFirms,
   firmsRangeLabel = '',
   firmsSensors = '',
   selectedDate = 'Today',
@@ -1087,6 +1091,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 }) => {
   const mobile = useMobileLayout();
   const [showMobileNews, setShowMobileNews] = useState(true);
+  const [firmsNoticeOpen, setFirmsNoticeOpen] = useState(true);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
   // Master switch for every API data map layer (bottom-left toggle). ON by default; category selects the visible sources.
@@ -1121,6 +1126,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const ash = useVaac(true);
   const [selectedAsh, setSelectedAsh] = useState<AshAdvisory | null>(null);
   const activeAshCount = ash.advisories.filter((a) => !a.terminated).length;
+  useEffect(() => {
+    if (firmsStatus === 'loading' || firmsProgress.failed > 0) setFirmsNoticeOpen(true);
+  }, [firmsStatus, firmsProgress.failed]);
   // MAGMA eruption notices ("Informasi Letusan") follow the header date range.
   const eruptions = useMagmaEruptions(true, selectedDate);
   const eruptionsByVolcano = useMemo(() => groupEruptions(eruptions.notices), [eruptions.notices]);
@@ -2170,6 +2178,24 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           <button type="button" className="mobile-news-close" aria-label="Tutup berita berjalan" onClick={() => setShowMobileNews(false)}>
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
+        </div>
+      )}
+
+      {showFirms && firmsNoticeOpen && (firmsStatus === 'loading' || firmsStatus === 'unavailable' || firmsProgress.failed > 0) && (
+        <div className="pointer-events-auto absolute top-20 left-16 right-3 sm:left-24 sm:right-auto z-50 max-w-sm rounded-xl border border-orange-200 bg-white/95 p-3 shadow-lg text-xs text-slate-700" role="status" aria-live="polite">
+          <div className="flex items-start justify-between gap-2 font-semibold">
+            <div className="flex items-center gap-2">
+              {firmsStatus === 'loading' && <Loader2 className="h-4 w-4 animate-spin shrink-0 text-orange-500" aria-hidden="true" />}
+              <span>{firmsStatus === 'loading' ? 'Memuat hotspot NASA FIRMS…' : firmsStatus === 'unavailable' ? 'NASA FIRMS belum tersedia' : 'Hotspot FIRMS tersedia sebagian'}</span>
+            </div>
+            <button type="button" onClick={() => setFirmsNoticeOpen(false)} className="-mr-1 -mt-1 rounded p-1 text-slate-400 hover:bg-orange-50 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-orange-500" aria-label="Tutup status FIRMS" title="Tutup">×</button>
+          </div>
+          {firmsStatus === 'loading' && firmsProgress.total > 0 && <>
+            <progress className="mt-2 w-full accent-orange-500" max={firmsProgress.total} value={firmsProgress.completed} aria-label="Progres permintaan FIRMS" />
+            <p>{firmsProgress.completed}/{firmsProgress.total} permintaan selesai · {firmsHotspots.length.toLocaleString('id-ID')} titik dimuat</p>
+          </>}
+          {firmsProgress.failed > 0 && <p className="mt-1">{firmsProgress.failed} permintaan gagal atau melewati batas waktu.</p>}
+          {firmsStatus !== 'loading' && onRetryFirms && <button type="button" onClick={onRetryFirms} className="mt-2 inline-flex items-center rounded-lg bg-orange-600 px-3 py-1.5 font-semibold text-white hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600">Muat ulang FIRMS</button>}
         </div>
       )}
 

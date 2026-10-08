@@ -462,6 +462,8 @@ export default function App() {
             }
             firmsHotspots={firms.hotspots}
             firmsStatus={firms.status.state}
+            firmsProgress={firms.progress}
+            onRetryFirms={firms.refresh}
             firmsRangeLabel={firms.range.label}
             selectedDate={magmaDate}
             firmsSensors={firmsSensorsLabel(firms.range)}

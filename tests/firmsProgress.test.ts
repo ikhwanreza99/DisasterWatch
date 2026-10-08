@@ -1,0 +1,43 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { fetchFirmsHotspots, firmsRangeFromSelection } from '../src/services/firms/index.ts';
+const csv = 'latitude,longitude,frp,confidence,acq_date,acq_time,daynight\n-6,110,20,n,2026-10-08,0100,D';
+
+test('renders successful FIRMS batches before a slower source completes; partial results are not cached', async () => {
+  const original = globalThis.fetch;
+  let resolveSlow!: (response: Response) => void;
+  let calls = 0;
+  globalThis.fetch = (() => {
+    calls++;
+    return calls === 1 ? Promise.resolve(new Response(csv)) : new Promise<Response>(resolve => { resolveSlow = resolve; });
+  }) as typeof fetch;
+  try {
+    const range = { ...firmsRangeFromSelection('Today'), id: 'progress-test', start: new Date('2026-10-08T00:00:00Z'), end: new Date('2026-10-08T23:59:59Z') };
+    range.sources = ['VIIRS_SNPP_NRT', 'MODIS_NRT'];
+    let firstReady!: () => void;
+    const first = new Promise<void>(resolve => { firstReady = resolve; });
+    const updates: { completed: number; failed: number; count: number }[] = [];
+    const pending = fetchFirmsHotspots(range, undefined, (progress, points) => {
+      updates.push({ completed: progress.completed, failed: progress.failed, count: points.length });
+      if (progress.completed === 1) firstReady();
+    });
+    await first;
+    assert.equal(updates.at(-1)?.count, 1);
+    assert.equal(updates.at(-1)?.completed, 1);
+    resolveSlow(new Response('unavailable', { status: 503 }));
+    assert.equal((await pending).length, 1);
+    assert.equal(updates.at(-1)?.failed, 1);
+    globalThis.fetch = (async () => { calls++; return new Response(csv); }) as typeof fetch;
+    await fetchFirmsHotspots(range);
+    assert.equal(calls, 4, 'retry must fetch missing data instead of serving an incomplete cache');
+  } finally { globalThis.fetch = original; }
+});
+
+test('all failed FIRMS requests reject instead of showing zero as success', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async () => new Response('failure', { status: 500 })) as typeof fetch;
+  try {
+    const range = { ...firmsRangeFromSelection('Today'), id: 'failure-test' };
+    await assert.rejects(fetchFirmsHotspots(range), /belum tersedia/);
+  } finally { globalThis.fetch = original; }
+});

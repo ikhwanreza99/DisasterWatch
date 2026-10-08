@@ -34,9 +34,11 @@ export interface FireHotspot {
   count: number;
 }
 
+export interface FirmsProgress { completed: number; total: number; failed: number; }
+
 export type FirmsStatus =
   | { state: 'idle' | 'loading' }
-  | { state: 'ready'; count: number; updatedAt: string }
+  | { state: 'ready'; count: number; updatedAt: string; failed?: number }
   | { state: 'unavailable'; reason: string };
 
 export interface FirmsRange extends ResolvedRange {
@@ -115,20 +117,30 @@ function planChunks(start: Date, end: Date): { days: number; start: string }[] {
 // Dev: Vite proxy injects the server-side NASA_FIRMS_MAP_KEY (see vite.config.ts).
 // Production (static Firebase Hosting, no server): call FIRMS directly (it sends CORS *)
 // with VITE_NASA_FIRMS_MAP_KEY. NOTE: VITE_* is inlined into the public bundle.
-const PROD_FIRMS_KEY = import.meta.env.VITE_NASA_FIRMS_MAP_KEY || '';
+const PROD_FIRMS_KEY = import.meta.env?.VITE_NASA_FIRMS_MAP_KEY || '';
 
 function firmsUrl(source: FirmsSource, days: number, start: string): string {
   const path = `${source}/${INDONESIA_BBOX}/${days}/${start}`;
-  if (import.meta.env.DEV || !PROD_FIRMS_KEY) return `/api/firms/${path}`;
+  if (import.meta.env?.DEV || !PROD_FIRMS_KEY) return `/api/firms/${path}`;
   return `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${encodeURIComponent(PROD_FIRMS_KEY)}/${path}`;
 }
 
 async function fetchChunk(source: FirmsSource, days: number, start: string, signal?: AbortSignal) {
-  const res = await fetch(firmsUrl(source, days, start), { signal });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`FIRMS HTTP ${res.status}`);
-  if (!text.startsWith('latitude')) throw new Error(text.slice(0, 120) || 'FIRMS proxy unavailable');
-  return parseFirmsCsv(text, SOURCE_LABEL[source]);
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(abort, 45_000);
+  try {
+    const res = await fetch(firmsUrl(source, days, start), { signal: controller.signal });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`FIRMS HTTP ${res.status}`);
+    if (!text.startsWith('latitude')) throw new Error('Respons FIRMS tidak valid');
+    return parseFirmsCsv(text, SOURCE_LABEL[source]);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
+  }
 }
 
 function aggregate(list: FireHotspot[]): FireHotspot[] {
@@ -158,28 +170,40 @@ function aggregate(list: FireHotspot[]): FireHotspot[] {
 
 const cache = new Map<string, { at: number; data: FireHotspot[] }>();
 
-export async function fetchFirmsHotspots(range: FirmsRange, signal?: AbortSignal): Promise<FireHotspot[]> {
+export async function fetchFirmsHotspots(
+  range: FirmsRange,
+  signal?: AbortSignal,
+  onProgress?: (progress: FirmsProgress, hotspots: FireHotspot[]) => void,
+): Promise<FireHotspot[]> {
   const hit = cache.get(range.id);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
-
-  const jobs = range.sources.flatMap((src) => planChunks(range.start, range.end).map((c) => fetchChunk(src, c.days, c.start, signal)));
-  const settled = await Promise.allSettled(jobs);
-  const ok = settled.filter((r): r is PromiseFulfilledResult<FireHotspot[]> => r.status === 'fulfilled');
-  if (ok.length === 0) {
-    const first = settled[0];
-    throw first && first.status === 'rejected' ? first.reason : new Error('FIRMS unavailable');
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+    onProgress?.({ completed: 0, total: 0, failed: 0 }, hit.data);
+    return hit.data;
   }
-
-  // Keep only detections inside the selected window (chunks are whole UTC days).
-  const from = range.start.toISOString();
-  const to = range.end.toISOString();
-  let list = ok
-    .flatMap((r) => r.value)
-    .filter((h) => h.confidence !== 'low' && h.acquiredAt >= from && h.acquiredAt <= to);
-  if (list.length > AGGREGATE_THRESHOLD) list = aggregate(list);
-  list.sort((a, b) => b.frp - a.frp); // strongest first
-
-  cache.set(range.id, { at: Date.now(), data: list });
+  const tasks = range.sources.flatMap(src => planChunks(range.start, range.end).map(chunk => ({ src, ...chunk })));
+  const progress = { completed: 0, total: tasks.length, failed: 0 };
+  const raw: FireHotspot[] = [];
+  let list: FireHotspot[] = [];
+  const from = range.start.toISOString(), to = range.end.toISOString();
+  onProgress?.({ ...progress }, []);
+  await Promise.all(tasks.map(async task => {
+    try {
+      const data = await fetchChunk(task.src, task.days, task.start, signal);
+      if (signal?.aborted) return;
+      for (const h of data) if (h.confidence !== 'low' && h.acquiredAt >= from && h.acquiredAt <= to) raw.push(h);
+      list = raw.length > AGGREGATE_THRESHOLD ? aggregate(raw) : [...raw];
+      list.sort((a, b) => b.frp - a.frp);
+    } catch {
+      progress.failed++;
+    } finally {
+      progress.completed++;
+      if (!signal?.aborted) onProgress?.({ ...progress }, list);
+    }
+  }));
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  if (progress.failed === tasks.length) throw new Error('FIRMS belum tersedia atau waktu tunggu habis.');
+  // Incomplete responses must be retried, not cached as complete data.
+  if (!progress.failed) cache.set(range.id, { at: Date.now(), data: list });
   return list;
 }
 
@@ -187,6 +211,7 @@ export function useFirmsHotspots(selectedDate: string) {
   const range = firmsRangeFromSelection(selectedDate);
   const [hotspots, setHotspots] = useState<FireHotspot[]>([]);
   const [status, setStatus] = useState<FirmsStatus>({ state: 'idle' });
+  const [progress, setProgress] = useState<FirmsProgress>({ completed: 0, total: 0, failed: 0 });
   const [refreshing, setRefreshing] = useState(false);
   const [nonce, setNonce] = useState(0);
 
@@ -194,11 +219,19 @@ export function useFirmsHotspots(selectedDate: string) {
     const ctrl = new AbortController();
     setRefreshing(true);
     setStatus({ state: 'loading' });
-    fetchFirmsHotspots(range, ctrl.signal)
+    setHotspots([]);
+    setProgress({ completed: 0, total: 0, failed: 0 });
+    let failed = 0;
+    fetchFirmsHotspots(range, ctrl.signal, (next, partial) => {
+      if (ctrl.signal.aborted) return;
+      failed = next.failed;
+      setProgress(next);
+      setHotspots(partial);
+    })
       .then((list) => {
         if (ctrl.signal.aborted) return;
         setHotspots(list);
-        setStatus({ state: 'ready', count: list.length, updatedAt: new Date().toISOString() });
+        setStatus({ state: 'ready', failed, count: list.length, updatedAt: new Date().toISOString() });
       })
       .catch((e: unknown) => {
         if (ctrl.signal.aborted) return;
@@ -216,5 +249,5 @@ export function useFirmsHotspots(selectedDate: string) {
     cache.clear();
     setNonce((n) => n + 1);
   }, []);
-  return { hotspots, status, refreshing, refresh, range };
+  return { hotspots, status, progress, refreshing, refresh, range };
 }
