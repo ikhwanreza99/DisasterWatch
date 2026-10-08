@@ -50,7 +50,7 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
             ? 'bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950 font-bold shadow-md'
             : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/50'
         }`}
-        title={activeCategory === 'all' ? 'Sembunyikan semua titik bencana' : 'Tampilkan semua bencana'}
+        title="Tampilkan semua bencana"
       >
         <LayoutGrid className="w-5 h-5 transition-transform group-hover:scale-110" />
         <span className="text-[9px] leading-tight sm:absolute sm:left-16 sm:px-2.5 sm:py-1 sm:rounded-md sm:bg-slate-900 sm:text-white sm:text-[11px] font-medium whitespace-nowrap sm:opacity-0 pointer-events-none sm:group-hover:opacity-100 transition-opacity sm:shadow-md z-30">
