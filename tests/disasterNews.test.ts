@@ -26,7 +26,7 @@ test('fresh cache skips Zapi even with an unusable key; missing key preserves la
   const dir = await mkdtemp(join(tmpdir(), 'dw-news-test-'));
   const file = join(dir, 'news.json');
   try {
-    const feed = { updatedAt: new Date().toISOString(), items: [{ title: 'Banjir', url: 'https://example.com', source: 'Test', publishedAt: new Date().toISOString() }] };
+    const feed = { updatedAt: new Date().toISOString(), items: [{ title: 'Banjir Indonesia', url: 'https://example.com', source: 'Test', publishedAt: new Date().toISOString() }] };
     await writeFile(file, JSON.stringify(feed));
     const run = (key: string) => spawnSync(process.execPath, ['--import', 'tsx', 'scripts/fetchDisasterNews.ts', file], { encoding: 'utf8', env: { ...process.env, ZAPI_API_KEY: key } });
     const cached = run('test-key-never-sent');
@@ -37,5 +37,34 @@ test('fresh cache skips Zapi even with an unusable key; missing key preserves la
     await writeFile(file, JSON.stringify(feed));
     assert.equal(run('').status, 0);
     assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), feed);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+
+test('metadata separates domestic aid, domestic disasters and foreign destinations', async () => {
+  const { extractNewsMetadata } = await import('../src/services/newsMetadata.ts');
+  const aid = extractNewsMetadata('BPBD kirim bantuan sembako untuk korban banjir Demak');
+  assert.equal(aid?.countryCode, 'ID');
+  assert.equal(aid?.aidRelated, true);
+  assert.deepEqual(aid?.aidCategories, ['logistics']);
+  assert.equal(aid?.verificationStatus, 'UNVERIFIED');
+  assert.equal(extractNewsMetadata('Gempa bumi mengguncang Cianjur')?.topic, 'disaster_event');
+  assert.equal(extractNewsMetadata('Indonesia kirim bantuan bencana ke Myanmar'), null);
+  assert.equal(extractNewsMetadata('Banjir besar melanda sebuah kota'), null);
+  assert.equal(extractNewsMetadata('Harga sembako turun di Jakarta'), null);
+});
+
+test('five-day interval does not request API for a four-day-old snapshot', async () => {
+  const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { spawnSync } = await import('node:child_process');
+  const dir = await mkdtemp(join(tmpdir(), 'dw-five-day-'));
+  try {
+    const file = join(dir, 'feed.json');
+    await writeFile(file, JSON.stringify({ updatedAt: new Date(Date.now() - 4 * 86400_000).toISOString(), items: [] }));
+    const run = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/fetchDisasterNews.ts', file], { encoding: 'utf8', env: { ...process.env, ZAPI_API_KEY: 'never-sent' } });
+    assert.equal(run.status, 0);
+    assert.match(run.stdout, /no API request/);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
