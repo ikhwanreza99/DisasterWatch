@@ -1,9 +1,9 @@
+import { DisasterNewsCard } from './DisasterNewsCard';
 import { useMobileLayout } from './useMobileLayout';
 import { MobileSheetHandle } from './MobileSheetHandle';
 import React from 'react';
 import {
   Compass,
-  ExternalLink,
   MessageCircle,
   Flame,
   Waves,
@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
-import { getNewsSource } from '../services/newsClassification';
 import { ExpandedDetailContent } from './ExpandedDetailContent';
 import { WeatherCard } from './WeatherCard';
 import { BmkgForecastPanel } from './BmkgForecastPanel';
@@ -413,88 +412,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           </div>        
         </div>*/}
 
-        {/* Update Berita Terkini */}
-        <div
-          className="
-            rounded-[20px]
-            border border-slate-200
-            bg-white
-            p-4
-          "
-        >
-          {/* Section Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-
-              <h4 className="text-[14px] font-bold text-slate-900">
-                Update Berita Terkini
-              </h4>
-            </div>
-
-            <button
-              type="button"
-              onClick={onExpandView}
-              className="
-                text-[10px]
-                font-semibold
-                text-blue-600
-                hover:text-blue-700
-                transition-colors
-              "
-            >
-              Lihat Semua
-            </button>
-          </div>
-
-          {/* Report List */}
-          <div className="mt-3 space-y-2">
-            {disaster.reports.slice(0, 2).map((rep) => {
-              const source = getNewsSource(rep);
-              return (
-              <div
-                key={rep.id}
-                className="
-                  rounded-xl
-                  bg-slate-50
-                  border border-slate-100
-                  px-3 py-3
-                "
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[10px] font-semibold text-slate-900">
-                    {rep.location}
-                  </span>
-
-                  <span className="text-[9px] text-slate-400 shrink-0">
-                    {rep.time}
-                  </span>
-                </div>
-
-                <p className="mt-1 text-[11px] leading-relaxed font-medium text-slate-600">
-                  {rep.desc}
-                </p>
-                <div className="mt-2 flex justify-end text-[10px]">
-                  {source ? (
-                    <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-slate-500 font-medium hover:text-blue-600 hover:underline"
-                      aria-label={`Buka sumber berita: ${source.name}`}
-                    >
-                      Sumber: {source.name}
-                      <ExternalLink className="w-3 h-3 shrink-0" />
-                    </a>
-                  ) : (
-                    <span className="text-slate-400 font-medium">{rep.author}</span>
-                  )}
-                </div>
-              </div>
-              );
-            })}
-          </div>
-        </div>
+        <DisasterNewsCard compact />
 
         {/* Cuaca lapangan (Google Weather) — below Update Berita Terkini */}
         <div className="rounded-[20px] border border-slate-200 bg-white p-4" data-purpose="mini-weather">
