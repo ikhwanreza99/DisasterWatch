@@ -8,7 +8,7 @@ Save an approved Flood Forecasting API key as the GitHub Actions repository secr
 
 The existing production workflow refreshes the snapshot approximately every 30 minutes (GitHub schedules may be delayed), plus each main-branch deployment. Browser refresh only downloads the published snapshot and makes no provider API requests. News retains its separate five-day refresh interval. Firestore synchronization remains paused.
 
-Only `regionCode: ID` gauges returned with `countryCode: ID` are included. API pagination is followed; metadata and forecasts use small batches. Missing chart data is explicit, expired statuses become unknown, and the snapshot timestamp is displayed. No dummy flood data is supplied. A snapshot failure deploys an unavailable state rather than silently suggesting normal conditions.
+Only gauges returned by `regionCode: ID` are included. HYBAS metadata may omit `countryCode`; an explicit different country is excluded. API pagination is followed; metadata and forecasts use small batches. Missing chart data is explicit, expired statuses become unknown, and the snapshot timestamp is displayed. No dummy flood data is supplied. A snapshot failure deploys an unavailable state rather than silently suggesting normal conditions.
 
 ## Coverage
 

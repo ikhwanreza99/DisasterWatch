@@ -34,8 +34,7 @@ try {
     pages('floodStatus:searchLatestFloodStatusByArea', 'floodStatuses'),
   ]);
   console.log(`Flood API returned ${gauges.length} gauges and ${statuses.length} statuses; countries: ${[...new Set(gauges.map(g => g.countryCode))].join(',')}`);
-  if (gauges.length) console.log('Public gauge sample:', JSON.stringify(gauges[0]));
-  const ids = gauges.filter(g => g.countryCode === 'ID' && g.hasModel).map(g => g.gaugeId);
+  const ids = gauges.filter(g => (!g.countryCode || g.countryCode === 'ID') && g.hasModel).map(g => g.gaugeId);
   const models: any[] = [];
   const forecasts: Record<string, any> = {};
   // Small batches also keep GET URLs within proxy limits.

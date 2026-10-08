@@ -17,6 +17,11 @@ test('flood snapshot includes only Indonesia and chooses latest forecast without
   assert.equal(data.gauges[0].unit, undefined);
   assert.equal(data.gauges[0].forecast[0].value, 80);
 });
+test('HYBAS gauges from the Indonesia query remain visible when optional country metadata is omitted', () => {
+  const data = normalizeFloodData([{ gaugeId: 'hybas_5120009480', location: { latitude: -6.077083333334088, longitude: 107.01458333332874 }, source: 'HYBAS', qualityVerified: true, hasModel: true }], [], [], {});
+  assert.equal(data.gauges.length, 1);
+  assert.equal(data.gauges[0].source, 'HYBAS');
+});
 test('expired or missing validity never presents a gauge as normal', () => {
   const gauge = normalizeFloodData([{ gaugeId: 'id', countryCode: 'ID', location: { latitude: 0, longitude: 110 } }],
     [{ gaugeId: 'id', severity: 'NO_FLOODING', forecastTimeRange: { end: '2026-10-10T00:00:00Z' } }], [], {}).gauges[0];

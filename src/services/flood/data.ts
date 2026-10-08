@@ -28,7 +28,8 @@ export function normalizeFloodData(gauges: any[], statuses: any[], models: any[]
   const statusById = new Map(statuses.map(s => [s.gaugeId, s]));
   const modelById = new Map(models.map(m => [m.gaugeId, m]));
   return { version: 1, state: 'ready', generatedAt: now.toISOString(), gauges: gauges
-    .filter(g => g.countryCode === 'ID' && typeof g.gaugeId === 'string' && Number.isFinite(g.location?.latitude) && Number.isFinite(g.location?.longitude))
+    // Input comes from searchGaugesByArea(regionCode: ID). HYBAS responses can omit countryCode.
+    .filter(g => (!g.countryCode || g.countryCode === 'ID') && typeof g.gaugeId === 'string' && Number.isFinite(g.location?.latitude) && Number.isFinite(g.location?.longitude))
     .map(g => {
       const status = statusById.get(g.gaugeId);
       const model = modelById.get(g.gaugeId);
