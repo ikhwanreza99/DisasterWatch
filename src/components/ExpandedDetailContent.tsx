@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   X,
   Share2,
@@ -25,6 +25,8 @@ import { classifyNews, newsCategoryStyles, getNewsSource, getNewsInsight } from 
 import { AidGapCard } from './AidGapCard';
 
 interface ExpandedDetailContentProps {
+  mobile?: boolean;
+  onOpenRoute: () => void;
   disaster: DisasterIncident;
   onClose: () => void;
   onOpenAIHelpdesk: () => void;
@@ -37,6 +39,8 @@ interface ExpandedDetailContentProps {
 
 export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
   disaster,
+  mobile = false,
+  onOpenRoute,
   onClose,
   onOpenAIHelpdesk,
   onOpenDonationModal,
@@ -44,7 +48,6 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
   intelReports = [],
   aidRecords = [],
 }) => {
-  const [isRouteVisible, setIsRouteVisible] = useState(true);
 
   const recoveryServiceConfig = {
     water: {
@@ -134,20 +137,20 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
   };
 
   return (
-    <div className="h-full min-h-0 flex flex-col">
+    <div className="h-full min-h-0 flex-1 flex flex-col">
       {/* Top Bar with Standalone 'Tutup X' Button Outside Boxes at Top-Right */}
-      <div className="relative z-50 flex items-center justify-between mb-3 px-2">
+      <div className="relative z-50 flex shrink-0 items-center justify-between gap-2 mb-3 px-2">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-orange-400 animate-ping"></span>
-          <span className="text-xs font-bold text-white uppercase tracking-wider">
-            Detail Situasi Wilayah & Jalur Logistik Terbuka
+          <span className={`text-xs font-bold uppercase tracking-wider ${mobile ? 'text-slate-800' : 'text-white'}`}>
+            {mobile ? 'Detail Situasi Wilayah' : 'Detail Situasi Wilayah & Jalur Logistik Terbuka'}
           </span>
         </div>
 
         {/* External Close Button positioned top-right */}
         <button
           onClick={onClose}
-          className="group flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-slate-100 text-slate-800 shadow-xl border border-slate-200 transition-all active:scale-95 text-xs font-bold cursor-pointer"
+          className={`group flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-slate-100 text-slate-800 ${mobile ? '' : 'shadow-xl'} border border-slate-200 transition-all active:scale-95 text-xs font-bold cursor-pointer`}
           title="Tutup & Kembali ke Homepage Peta"
         >
           <span>Tutup</span>
@@ -156,11 +159,12 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
       </div>
 
       {/* Multi-Column Grid (Aligned Top, Presisi) */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full items-stretch flex-1 min-h-0 overflow-hidden h-full pr-1">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full items-stretch flex-1 min-h-0 overflow-y-auto xl:overflow-hidden xl:h-full pr-1">
         {/* Left Column: Disaster Overview, Impact & Key Metrics */}
-        <div className="xl:col-span-6 space-y-4 min-w-0 overflow-y-auto h-full pb-4">
+        <div className="xl:col-span-6 space-y-4 min-w-0 xl:overflow-y-auto xl:h-full pb-4">
           {/* Status Card */}
           <article className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-shadow">
+            {!mobile && (
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-600 border border-rose-200">
@@ -178,6 +182,8 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
               </button>
             </div>
 
+            )}
+
             <div className="flex items-start gap-3.5 mb-4">
               <div
                 className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${getGradientClass()} shadow-md flex items-center justify-center p-3 transition-all shrink-0`}
@@ -191,6 +197,10 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
                 <p className="text-xs font-semibold text-slate-500 mt-1">
                   {disaster.fullTitleDisplay}
                 </p>
+                {mobile && <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                  STATUS {disaster.urgency.toUpperCase()}
+                </span>}
               </div>
             </div>
 
@@ -233,12 +243,8 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setIsRouteVisible(!isRouteVisible)}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] ${
-                  isRouteVisible
-                    ? 'bg-slate-900 hover:bg-slate-800 ring-2 ring-orange-500 shadow-orange-500/20'
-                    : 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/25'
-                }`}
+                onClick={onOpenRoute}
+                className="flex-1 min-h-11 py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
                 <Compass className="w-4 h-4 text-white" aria-hidden="true" />
                 <span>Lihat Posko Evakuasi</span>
@@ -323,7 +329,7 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
         </div>
 
         {/* Card 2: Update Berita Terkini */}
-        <div className="xl:col-span-6 min-w-0 flex flex-col gap-4 h-full min-h-0 overflow-y-auto pr-1 pb-4">
+        <div className="xl:col-span-6 min-w-0 flex flex-col gap-4 xl:h-full min-h-0 xl:overflow-y-auto pr-1 pb-4">
           <article
             className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col h-[min(70vh,640px)] min-h-[360px] shrink-0 transition-all hover:shadow-md"
             id="citizenReportsCard"

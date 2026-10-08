@@ -242,7 +242,7 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
       <header className="flex shrink-0 items-center justify-between gap-3 bg-slate-950 px-5 py-4 text-white">
         <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500"><Sparkles className="h-5 w-5" aria-hidden="true" /></div><div><h3 className="text-sm font-bold">DisasterAI Helpdesk</h3><p className="text-xs text-slate-400">Asisten informasi dan laporan bencana</p></div></div>
         <div className="flex shrink-0 items-center gap-1">
-        <button type="button" onClick={onToggleExpanded} aria-label={expanded ? 'Kecilkan obrolan' : 'Perluas obrolan ke layar penuh'} className="rounded-xl p-2 text-slate-300 hover:bg-white/10">
+        <button type="button" onClick={onToggleExpanded} aria-label={expanded ? 'Kecilkan obrolan' : 'Perluas obrolan ke layar penuh'} className="hidden sm:inline-flex rounded-xl p-2 text-slate-300 hover:bg-white/10">
           {expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
         </button>
         <button type="button" onClick={onClose} aria-label="Tutup DisasterAI Helpdesk" className="rounded-xl p-2 text-slate-300 hover:bg-white/10"><X className="h-5 w-5" /></button>

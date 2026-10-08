@@ -1,7 +1,9 @@
+import type { UserIdentity } from '../domain/intelligence';
+import { useMobileLayout } from './useMobileLayout';
 import React, { useEffect, useState } from 'react';
 import { DisasterTicker } from './DisasterTicker';
 import type { DisasterIncident } from '../types';
-import { Calendar, ChevronDown, Sparkles, Radio } from 'lucide-react';
+import { Calendar, ChevronDown, Sparkles, Radio, UserRound } from 'lucide-react';
 import {
   DATE_PRESETS,
   RANGE_LIMITS,
@@ -15,6 +17,7 @@ import {
 } from '../domain/dateRange';
 
 interface HeaderProps {
+  user: UserIdentity;
   /** Separate date selections for the FIRMS and MAGMA layers. */
   dates: Record<DateTarget, string>;
   onSelectDate: (target: DateTarget, value: string) => void;
@@ -26,12 +29,17 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  user,
   dates,
   onSelectDate,
   onReportDisaster,
   disasters,
   onHighlightDisaster,
 }) => {
+  const mobile = useMobileLayout();
+  const [failedPhoto, setFailedPhoto] = useState<string | undefined>();
+  const initials = user.displayName?.trim().split(/\s+/).slice(0, 2).map(part => Array.from(part)[0]).join('').toLocaleUpperCase('id-ID');
+  const showPhoto = !user.isAnonymous && user.photoURL && failedPhoto !== user.photoURL;
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const presets = DATE_PRESETS;
@@ -63,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
   const allSame = bmkgLabel === firmsLabel && firmsLabel === magmaLabel;
 
   return (
-    <header className="relative z-40 flex flex-wrap md:flex-nowrap items-center justify-between gap-2 px-3 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0b1329]/80 backdrop-blur-xl transition-colors duration-300">
+    <header className="app-header relative z-40 flex flex-wrap md:flex-nowrap items-center justify-between gap-2 px-3 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0b1329]/80 backdrop-blur-xl transition-colors duration-300">
       {/* Brand Identifier (Top-Left) */}
       <div className="flex items-center gap-2.5 pointer-events-auto">
         <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-orange-500 flex items-center justify-center shadow-md shadow-orange-500/20 text-white shrink-0">
@@ -83,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Disaster news ticker — between brand and controls; own row on phones, hidden on very short screens */}
       <div className="order-last w-full min-w-0 md:order-none md:w-auto md:flex-1 md:px-2 [@media(max-height:480px)]:hidden">
-        <DisasterTicker disasters={disasters} onHighlight={onHighlightDisaster} />
+        {!mobile && <DisasterTicker disasters={disasters} onHighlight={onHighlightDisaster} />}
       </div>
 
       {/* Date Filter Toolbar & Controls (Top-Right) */}
@@ -106,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {isCalendarOpen && (
-            <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#0b1329] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 p-4 z-50 text-xs transition-all">
+            <div className="fixed left-3 right-3 top-16 sm:absolute sm:left-auto sm:top-auto sm:right-0 mt-2 max-h-[calc(100dvh-8rem)] overflow-y-auto w-auto sm:w-72 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#0b1329] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 p-4 z-50 text-xs transition-all">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 font-semibold text-slate-700 dark:text-slate-200">
                 <span>Pilih Rentang Waktu</span>
                 <span className="text-[10px] text-slate-400 dark:text-cyan-400">
@@ -225,11 +233,17 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
+        <div className="sm:hidden flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-violet-200 bg-violet-50 text-xs font-bold text-violet-700"
+          role="img" aria-label={user.isAnonymous ? 'Pengguna tamu' : `Profil ${user.displayName || 'pengguna'}`} title={user.isAnonymous ? 'Pengguna tamu' : user.displayName || 'Pengguna'}>
+          {showPhoto ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" onError={() => setFailedPhoto(user.photoURL)} />
+            : !user.isAnonymous && initials ? initials : <UserRound className="h-4 w-4" aria-hidden="true" />}
+        </div>
+
         {/* Laporkan Bencana */}
         <button
           onClick={onReportDisaster}
           type="button"
-          className="flex shrink-0 items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 hover:brightness-110 text-white rounded-full text-xs font-bold shadow-md shadow-violet-500/25 transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+          className="hidden sm:flex shrink-0 items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 hover:brightness-110 text-white rounded-full text-xs font-bold shadow-md shadow-violet-500/25 transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
         >
           <Sparkles className="w-4 h-4" aria-hidden="true" />
           <span>Laporkan Bencana</span>

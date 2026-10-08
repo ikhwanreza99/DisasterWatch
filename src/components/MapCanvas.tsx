@@ -1,3 +1,5 @@
+import { DisasterTicker } from './DisasterTicker';
+import { useMobileLayout } from './useMobileLayout';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -273,7 +275,23 @@ function buildFirePopupHtml(h: FireHotspot): string {
   );
 }
 
+function CenteredDisasterMarker({ onClick, ...props }: React.ComponentProps<typeof AdvancedMarker>) {
+  const map = useMap();
+  return <AdvancedMarker {...props} onClick={event => {
+    if (map && props.position && window.matchMedia('(max-width: 639px)').matches) {
+      const lat = typeof props.position.lat === 'function' ? props.position.lat() : props.position.lat;
+      const lng = typeof props.position.lng === 'function' ? props.position.lng() : props.position.lng;
+      map.setZoom(Math.max(map.getZoom() ?? 5, 7));
+      map.panTo({ lat, lng });
+      map.panBy(0, -Math.min(130, map.getDiv().clientHeight * 0.25));
+    }
+    onClick?.(event);
+  }} />;
+}
+
 interface MapCanvasProps {
+  mobileFilterSlot?: React.ReactNode;
+  onHighlightDisaster?: (id: string | null) => void;
   disasters: Record<string, DisasterIncident>;
   activeDisasterKey: string;
   onSelectDisaster: (id: string) => void;
@@ -442,6 +460,7 @@ const GoogleMapCameraController: React.FC<{
     const { lat, lng } = activeDisaster.coords;
     if (typeof lat !== 'number' || typeof lng !== 'number') return;
     map.panTo({ lat, lng });
+    if (window.matchMedia('(max-width: 639px)').matches) map.panBy(0, -Math.min(130, map.getDiv().clientHeight * 0.25));
     const currentZ = map.getZoom() || 5;
     if (currentZ < 7) {
       map.setZoom(7);
@@ -583,8 +602,7 @@ const OSMMapRenderer: React.FC<{
   const [calloutPos, setCalloutPos] = useState<{ x: number; y: number } | null>(null);
   const activeData = disasters[activeDisasterKey];
   // User can dismiss the callout with the X button; re-opens on next marker click.
-  const [calloutClosed, setCalloutClosed] = useState(false);
-  useEffect(() => setCalloutClosed(false), [activeDisasterKey]);
+  const [calloutClosed, setCalloutClosed] = useState(true);
   // Bumped every time the Leaflet map is (re)created so imperative layers
   // (BMKG) re-render without any user action after a map reset.
   const [mapEpoch, setMapEpoch] = useState(0);
@@ -611,16 +629,23 @@ const OSMMapRenderer: React.FC<{
     };
   }, []);
 
+  // Keep the camera and map instance alive when the selected incident changes.
+  const calloutIncidentRef = useRef(activeData);
   const updatePos = useCallback(() => {
-    if (!mapRef.current || !activeData || !activeData.coords) {
+    const incident = calloutIncidentRef.current;
+    if (!mapRef.current || !incident?.coords) {
       setCalloutPos(null);
       return;
     }
-    const { lat, lng } = activeData.coords;
+    const { lat, lng } = incident.coords;
     if (typeof lat !== 'number' || typeof lng !== 'number') return;
     const pt = mapRef.current.latLngToContainerPoint([lat, lng]);
     setCalloutPos({ x: pt.x, y: pt.y });
-  }, [activeData]);
+  }, []);
+  useEffect(() => {
+    calloutIncidentRef.current = activeData;
+    updatePos();
+  }, [activeData, updatePos]);
 
   // Init map
   useEffect(() => {
@@ -728,7 +753,10 @@ const OSMMapRenderer: React.FC<{
         map.closePopup(); // close any open layer popup before showing the disaster callout
         setCalloutClosed(false);
         onSelectDisaster(incident.id);
-        map.flyTo([lat, lng], Math.max(map.getZoom(), 7), { duration: 1.0 });
+        const zoom = Math.max(map.getZoom(), 7);
+        const offset = window.matchMedia('(max-width: 639px)').matches ? Math.min(130, map.getSize().y * 0.25) : 0;
+        const center = map.unproject(map.project([lat, lng], zoom).subtract([0, offset]), zoom);
+        map.flyTo(center, zoom, { duration: 0.6 });
       });
       mGroup.addLayer(m);
 
@@ -1004,6 +1032,7 @@ const OSMMapRenderer: React.FC<{
       {calloutPos && !calloutClosed && activeData && (activeCategory === 'all' || activeData.category === activeCategory) && (
         <DisasterCallout
           incident={activeData}
+          onViewDetail={onExpandView}
           onClose={() => setCalloutClosed(true)}
           className="absolute z-40"
           style={{ left: `${calloutPos.x}px`, top: `${calloutPos.y}px`, transform: 'translate(-50%, calc(-100% - 30px))' }}
@@ -1014,6 +1043,8 @@ const OSMMapRenderer: React.FC<{
 };
 
 export const MapCanvas: React.FC<MapCanvasProps> = ({
+  mobileFilterSlot,
+  onHighlightDisaster,
   disasters,
   activeDisasterKey,
   onSelectDisaster,
@@ -1051,6 +1082,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   bmkgWeather = [],
   weatherStatus = 'idle',
 }) => {
+  const mobile = useMobileLayout();
+  const [showMobileNews, setShowMobileNews] = useState(true);
+
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
   // Master switch for every API data map layer (bottom-left toggle). OFF by default.
   const [showApiLayers, setShowApiLayers] = useState(false);
@@ -1063,8 +1097,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const [selectedFire, setSelectedFire] = useState<FireHotspot | null>(null);
   // Close a stale popup when the date range (dataset) changes.
   useEffect(() => setSelectedFire(null), [firmsHotspots]);
-  const [gCalloutClosed, setGCalloutClosed] = useState(false);
-  useEffect(() => setGCalloutClosed(false), [activeDisasterKey]);
+  const [gCalloutClosed, setGCalloutClosed] = useState(true);
   // Coordinates to pan/fly to when user clicks "Fokus Peta" in WeatherDetailSidebar
   const [weatherFocusCoords, setWeatherFocusCoords] = useState<{ lat: number; lng: number } | null>(null);
   const showWeather = showApiLayers;
@@ -1495,7 +1528,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
                 const isSelected = incident.id === activeDisasterKey;
                 return (
-                  <AdvancedMarker
+                  <CenteredDisasterMarker
                     key={incident.id}
                     position={{ lat, lng }}
                     zIndex={isSelected ? 9999 : 20}
@@ -1509,13 +1542,14 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                       {isSelected && !gCalloutClosed && (
                         <DisasterCallout
                           incident={incident}
+                          onViewDetail={onExpandView}
                           onClose={() => setGCalloutClosed(true)}
                           className="absolute bottom-[3.25rem] left-1/2 -translate-x-1/2 z-50"
                         />
                       )}
                       <DisasterMarker incident={incident} isSelected={isSelected || incident.id === highlightedDisasterKey} />
                     </div>
-                  </AdvancedMarker>
+                  </CenteredDisasterMarker>
                 );
               })}
 
@@ -2120,11 +2154,23 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         )}
       </div>
 
+      <div className="relative z-30 pointer-events-none">
+      {mobile && showMobileNews && onHighlightDisaster && (
+        <div className="mobile-news-capsule">
+          <DisasterTicker disasters={disasters} onHighlight={onHighlightDisaster} />
+          <button type="button" className="mobile-news-close" aria-label="Tutup berita berjalan" onClick={() => setShowMobileNews(false)}>
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
       {/* Top Left Header Overlay: Active Engine Pill & Layer Switcher */}
-      <div className="relative z-30 pt-3 sm:pt-4 px-3 sm:px-6 pointer-events-none flex items-center justify-between gap-2">
+      <div className="map-top-toolbar relative z-30 pt-3 sm:pt-4 px-3 sm:px-6 pointer-events-none flex items-center justify-between gap-2">
         <div className="pointer-events-auto flex items-center gap-2 min-w-0 overflow-x-auto no-scrollbar [&>*]:shrink-0 -mx-1 px-1 py-1">
           <MapSearch onSelect={handlePlaceSelect} />
         </div>
+
+        {mobileFilterSlot}
 
         {/* Floating Restore Pill on the top right when sidebar is minimized AND NO panel is open */}
         {isSidebarMinimized &&
@@ -2134,7 +2180,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           !isReportsOpen && (
             <button
               onClick={onToggleSidebar}
-              className="pointer-events-auto shrink-0 flex items-center gap-2 bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-800 dark:text-slate-200 px-3 md:px-4 py-2 rounded-full font-bold text-xs shadow-xl border border-slate-200/90 dark:border-slate-700/70 backdrop-blur-md transition-all active:scale-95 group cursor-pointer hover:shadow-2xl animate-fadeIn"
+              className="pointer-events-auto shrink-0 hidden sm:flex items-center gap-2 bg-white/95 dark:bg-[#0b1329]/90 hover:bg-white text-slate-800 dark:text-slate-200 px-3 md:px-4 py-2 rounded-full font-bold text-xs shadow-xl border border-slate-200/90 dark:border-slate-700/70 backdrop-blur-md transition-all active:scale-95 group cursor-pointer hover:shadow-2xl animate-fadeIn"
               title="Buka / Tampilkan Sidebar Menu"
             >
               <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
@@ -2142,6 +2188,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               <PanelRightOpen className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:translate-x-0.5 transition-transform" />
             </button>
           )}
+      </div>
+
       </div>
 
       {/* Bottom Bar: Controls & Quick Action Buttons */}
@@ -2210,12 +2258,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         <div className="pointer-events-auto flex items-end gap-3 sm:gap-4">
           {/* Map controls: zoom group + reset / my location / MAGMA legend (glass, vertical) */}
           <div className="flex flex-col gap-2" data-purpose="map-zoom-controls">
-            <span className="w-9 text-center text-xs font-bold tabular-nums text-slate-800 [text-shadow:0_1px_3px_rgba(255,255,255,0.95)]" aria-label={`Zoom peta ${currentZoom}x`}>{currentZoom}x</span>
+            <span className="w-11 text-center text-xs font-bold tabular-nums text-slate-800 [text-shadow:0_1px_3px_rgba(255,255,255,0.95)]" aria-label={`Zoom peta ${currentZoom}x`}>{currentZoom}x</span>
             <div className="flex flex-col overflow-hidden rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)]">
               <button
                 type="button"
                 onClick={() => handleZoomAction('in')}
-                className="flex h-9 w-9 items-center justify-center text-slate-200 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 cursor-pointer"
+                className="flex h-11 w-11 items-center justify-center text-slate-200 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 cursor-pointer"
                 title="Perbesar peta"
                 aria-label="Perbesar peta"
               >
@@ -2225,7 +2273,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               <button
                 type="button"
                 onClick={() => handleZoomAction('out')}
-                className="flex h-9 w-9 items-center justify-center text-slate-200 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 cursor-pointer"
+                className="flex h-11 w-11 items-center justify-center text-slate-200 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 cursor-pointer"
                 title="Perkecil peta"
                 aria-label="Perkecil peta"
               >
@@ -2235,7 +2283,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             <button
               type="button"
               onClick={() => handleZoomAction('reset')}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer text-slate-300"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer text-slate-300"
               title="Reset ke Indonesia"
               aria-label="Reset peta ke Indonesia"
             >
@@ -2248,7 +2296,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               aria-label="Tampilkan lokasi saya"
               title={locateError ?? 'Lokasi saya'}
               data-purpose="locate-me"
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer ${myLocation ? 'text-blue-300 ring-1 ring-blue-400/60' : 'text-slate-300'}`}
+              className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer ${myLocation ? 'text-blue-300 ring-1 ring-blue-400/60' : 'text-slate-300'}`}
             >
               {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
             </button>
@@ -2260,7 +2308,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               aria-label="Tampilkan layer data API"
               title={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
               data-purpose="api-layers-toggle"
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${showApiLayers ? 'text-emerald-300 ring-1 ring-emerald-400/60' : 'text-slate-400'}`}
+              className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${showApiLayers ? 'text-emerald-300 ring-1 ring-emerald-400/60' : 'text-slate-400'}`}
             >
               {showApiLayers ? <Layers className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4" aria-hidden="true" />}
             </button>
@@ -2270,7 +2318,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 onClick={() => setShowMagmaLegend((v) => !v)}
                 aria-expanded={showMagmaLegend}
                 aria-controls="magma-legend"
-                className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer ${showMagmaLegend ? 'text-amber-300 ring-1 ring-amber-400/60' : 'text-slate-300'}`}
+                className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer ${showMagmaLegend ? 'text-amber-300 ring-1 ring-amber-400/60' : 'text-slate-300'}`}
                 title={showMagmaLegend ? 'Sembunyikan legenda MAGMA' : 'Tampilkan legenda MAGMA'}
                 data-purpose="magma-legend-toggle"
               >

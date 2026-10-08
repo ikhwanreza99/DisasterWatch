@@ -28,6 +28,7 @@ export async function ensureUser(): Promise<UserIdentity> {
       uid: auth.currentUser.uid,
       isAnonymous: auth.currentUser.isAnonymous,
       displayName: auth.currentUser.displayName ?? undefined,
+      photoURL: auth.currentUser.photoURL ?? undefined,
       isMock: false,
     };
   }
@@ -46,7 +47,7 @@ export function watchUser(cb: (u: UserIdentity) => void): () => void {
     return () => undefined;
   }
   return onAuthStateChanged(auth, (u) => {
-    if (u) cb({ uid: u.uid, isAnonymous: u.isAnonymous, displayName: u.displayName ?? undefined, isMock: false });
+    if (u) cb({ uid: u.uid, isAnonymous: u.isAnonymous, displayName: u.displayName ?? undefined, photoURL: u.photoURL ?? undefined, isMock: false });
     else cb(mockUser());
   });
 }
@@ -56,7 +57,7 @@ export async function loginWithGoogle(): Promise<UserIdentity> {
   if (!auth) throw new Error('Login belum tersedia. Silakan coba lagi setelah layanan login diaktifkan.');
   const result = await signInWithPopup(auth, new GoogleAuthProvider());
   return { uid: result.user.uid, isAnonymous: result.user.isAnonymous,
-    displayName: result.user.displayName ?? undefined, isMock: false };
+    displayName: result.user.displayName ?? undefined, photoURL: result.user.photoURL ?? undefined, isMock: false };
 }
 
 /** Temporary local preview session; never authenticates with Firebase. */

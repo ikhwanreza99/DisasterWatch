@@ -1,3 +1,4 @@
+import { MobileSheetHandle } from './MobileSheetHandle';
 import React, { useState } from 'react';
 import {
   X,
@@ -56,9 +57,10 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
 
   return (
     <aside
-      className="absolute top-0 right-0 z-30 h-full w-full sm:w-[490px] sm:max-w-[95vw] p-4 sm:p-5 flex flex-col justify-between overflow-y-auto pointer-events-auto transition-all duration-300 ease-in-out bg-white/98 dark:bg-[#0b1329]/98 backdrop-blur-xl border-l border-slate-200/90 dark:border-slate-800/80 shadow-2xl animate-fadeIn"
+      className="mobile-sheet absolute top-0 right-0 z-30 h-full w-full sm:w-[490px] sm:max-w-[95vw] p-4 sm:p-5 flex flex-col justify-between overflow-y-auto pointer-events-auto transition-all duration-300 ease-in-out bg-white/98 dark:bg-[#0b1329]/98 backdrop-blur-xl border-l border-slate-200/90 dark:border-slate-800/80 shadow-2xl animate-fadeIn"
       id="citizenReportsStandaloneView"
     >
+      <MobileSheetHandle />
       <div className="space-y-4">
         {/* Header with Title and Single-Window Close Button */}
         <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
