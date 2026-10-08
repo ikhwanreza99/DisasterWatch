@@ -132,11 +132,6 @@ export default function App() {
   };
 
   const handleSelectCategory = (cat: CategoryFilter) => {
-    // "Semua Bencana" is a toggle: clicking it while active hides every incident marker.
-    if (cat === 'all' && activeCategory === 'all') {
-      setActiveCategory('none');
-      return;
-    }
     setActiveCategory(cat);
     // If the active disaster doesn't match the new category, pick the first visible
     if (cat !== 'all' && cat !== 'none' && activeDisaster.category !== cat) {

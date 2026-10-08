@@ -1,3 +1,4 @@
+import { apiLayerVisibility } from '../domain/apiLayerVisibility';
 import { DisasterTicker } from './DisasterTicker';
 import { useMobileLayout } from './useMobileLayout';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -20,7 +21,7 @@ import {
   Compass,
   Camera,
   PanelRightOpen,
-  Layers,
+  Eye,
   MapPin,
   AlertTriangle,
   Copy,
@@ -529,6 +530,7 @@ const OSMMapRenderer: React.FC<{
   bmkgWeather?: BmkgWeatherWarning[];
   weatherStatus?: 'idle' | 'loading' | 'ready' | 'unavailable';
   showWeather?: boolean;
+  showBmkgWeather?: boolean;
   cityWeather?: CityWeather[];
   magma?: MagmaData | null;
   showMagma?: boolean;
@@ -568,6 +570,7 @@ const OSMMapRenderer: React.FC<{
   bmkgWeather = [],
   weatherStatus = 'idle',
   showWeather = true,
+  showBmkgWeather = true,
   cityWeather = [],
   magma = null,
   showMagma = false,
@@ -834,7 +837,7 @@ const OSMMapRenderer: React.FC<{
     if (!mapRef.current || !weatherLayerRef.current) return;
     const wGroup = weatherLayerRef.current;
     wGroup.clearLayers();
-    if (!showWeather || weatherStatus === 'unavailable') return;
+    if (!showBmkgWeather || weatherStatus === 'unavailable') return;
     bmkgWeather.forEach((w) => {
       if (w.status !== 'ACTIVE') return;
       w.areas.forEach((a) => {
@@ -851,7 +854,7 @@ const OSMMapRenderer: React.FC<{
         wGroup.addLayer(poly);
       });
     });
-  }, [bmkgWeather, showWeather, weatherStatus, mapEpoch]);
+  }, [bmkgWeather, showBmkgWeather, weatherStatus, mapEpoch]);
 
   // Major-city weather chips (only while CUACA layer is ON)
   useEffect(() => {
@@ -1086,21 +1089,19 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const [showMobileNews, setShowMobileNews] = useState(true);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-  // Master switch for every API data map layer (bottom-left toggle). OFF by default.
-  const [showApiLayers, setShowApiLayers] = useState(false);
-  const showBmkg = showApiLayers;
+  // Master switch for every API data map layer (bottom-left toggle). ON by default; category selects the visible sources.
+  const [showApiLayers, setShowApiLayers] = useState(true);
+  const { showBmkg, showFirms, showWeather, showBmkgWeather, showMagma, showAsh } = apiLayerVisibility(activeCategory, showApiLayers);
   const [selectedBmkgId, setSelectedBmkgId] = useState<string | null>(null);
   const selectedBmkg = useMemo(() => bmkgEvents.find((e) => e.id === selectedBmkgId) ?? null, [bmkgEvents, selectedBmkgId]);
   // Time of the last BMKG marker click: lets the map's outside-click handler ignore that same click.
   const lastMarkerClickRef = useRef(0);
-  const showFirms = showApiLayers;
   const [selectedFire, setSelectedFire] = useState<FireHotspot | null>(null);
   // Close a stale popup when the date range (dataset) changes.
   useEffect(() => setSelectedFire(null), [firmsHotspots]);
   const [gCalloutClosed, setGCalloutClosed] = useState(true);
   // Coordinates to pan/fly to when user clicks "Fokus Peta" in WeatherDetailSidebar
   const [weatherFocusCoords, setWeatherFocusCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const showWeather = showApiLayers;
   const [selectedWeatherId, setSelectedWeatherId] = useState<string | null>(null);
   const activeWeather = useMemo(
     () => bmkgWeather.filter((w) => w.status === 'ACTIVE'),
@@ -1110,7 +1111,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   // Major-city weather points: always fetched; visibility follows the API layer toggle.
   const cityWx = useCityWeather(true);
   // MAGMA (PVMBG): always fetched; visibility follows the API layer toggle.
-  const showMagma = showApiLayers;
   // MAGMA legend is collapsed by default; (i) button next to zoom controls toggles it.
   const [showMagmaLegend, setShowMagmaLegend] = useState(false);
   const magmaFeed = useMagma(true);
@@ -1118,7 +1118,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     { kind: 'volcano'; v: Volcano } | { kind: 'landslide'; l: LandslideReport } | null
   >(null);
   // Darwin VAAC volcanic ash: always fetched; visibility follows the API layer toggle.
-  const showAsh = showApiLayers;
   const ash = useVaac(true);
   const [selectedAsh, setSelectedAsh] = useState<AshAdvisory | null>(null);
   const activeAshCount = ash.advisories.filter((a) => !a.terminated).length;
@@ -1157,6 +1156,15 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   useEffect(() => { if (selectedMagma) closeOtherPopups('magma'); }, [selectedMagma, closeOtherPopups]);
   useEffect(() => { if (selectedAsh) closeOtherPopups('ash'); }, [selectedAsh, closeOtherPopups]);
   useEffect(() => { if (selectedCityId) closeOtherPopups('city'); }, [selectedCityId, closeOtherPopups]);
+  // Dismiss selections from layers that no longer belong to the active category.
+  useEffect(() => {
+    if (!showBmkg) setSelectedBmkgId(null);
+    if (!showFirms) setSelectedFire(null);
+    if (!showBmkgWeather) setSelectedWeatherId(null);
+    if (!showWeather) setSelectedCityId(null);
+    if (!showMagma) { setSelectedMagma(null); setShowMagmaLegend(false); }
+    if (!showAsh) setSelectedAsh(null);
+  }, [showBmkg, showFirms, showBmkgWeather, showWeather, showMagma, showAsh]);
   const toggleApiLayers = useCallback(() => {
     setShowApiLayers((on) => {
       if (on) {
@@ -1688,7 +1696,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               )}
 
               {/* BMKG weather warning polygons — ACTIVE only, valid polygons only */}
-              {showWeather &&
+              {showBmkgWeather &&
                 weatherStatus !== 'unavailable' &&
                 activeWeather.flatMap((w) =>
                   w.areas.flatMap((a, ai) => {
@@ -2056,7 +2064,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 })}
 
               {/* Selected weather warning callout */}
-              {selectedWeather && (
+              {showBmkgWeather && selectedWeather && (
                 <AdvancedMarker
                   position={{
                     lat: selectedWeather.areas.find((a) => a.polygon.length > 0)?.polygon[0]?.[0] ?? -2.5,
@@ -2136,6 +2144,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             bmkgWeather={bmkgWeather}
             weatherStatus={weatherStatus}
             showWeather={showWeather}
+            showBmkgWeather={showBmkgWeather}
             cityWeather={cityWx.cities}
             magma={magmaFeed.data}
             showMagma={showMagma}
@@ -2305,12 +2314,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               type="button"
               onClick={toggleApiLayers}
               aria-pressed={showApiLayers}
-              aria-label="Tampilkan layer data API"
+              aria-label={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
               title={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
               data-purpose="api-layers-toggle"
               className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${showApiLayers ? 'text-emerald-300 ring-1 ring-emerald-400/60' : 'text-slate-400'}`}
             >
-              {showApiLayers ? <Layers className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4" aria-hidden="true" />}
+              {showApiLayers ? <Eye className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4" aria-hidden="true" />}
             </button>
             {showMagma && (
               <button
