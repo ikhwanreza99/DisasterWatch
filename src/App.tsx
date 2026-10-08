@@ -16,8 +16,27 @@ import { RANGE_LIMITS, resolveDateRange } from './domain/dateRange';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
 import { loadDisasters } from './services/store/disasterStore';
-import { ensureUser, watchUser, canReport } from './lib/firebase/auth';
+import { ensureUser, watchUser, canReport, consumeRedirectResult, signOutUser } from './lib/firebase/auth';
 import { mockUser } from './lib/firebase/auth';
+
+type LoginReason = 'report' | 'account';
+const LOGIN_INTENT_KEY = 'dw:postLoginIntent';
+function readLoginIntent(): LoginReason | null {
+  try {
+    const v = sessionStorage.getItem(LOGIN_INTENT_KEY);
+    return v === 'report' || v === 'account' ? v : null;
+  } catch {
+    return null;
+  }
+}
+function writeLoginIntent(v: LoginReason | null) {
+  try {
+    if (v) sessionStorage.setItem(LOGIN_INTENT_KEY, v);
+    else sessionStorage.removeItem(LOGIN_INTENT_KEY);
+  } catch {
+    /* storage unavailable (private mode) — popup flow still works */
+  }
+}
 import { LoginModal } from './components/LoginModal';
 
 export default function App() {
@@ -68,6 +87,8 @@ export default function App() {
   const [isAIExpanded, setIsAIExpanded] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState<boolean>(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [loginReason, setLoginReason] = useState<LoginReason>('report');
+  const [loginError, setLoginError] = useState('');
   const [aiWorkflow, setAiWorkflow] = useState<'menu' | 'report-disaster'>('menu');
   useEffect(() => watchUser(setCurrentUser), []);
 
@@ -200,9 +221,27 @@ export default function App() {
     setAiWorkflow('report-disaster');
   };
 
+  /** Opens the Google login modal; the intent survives a full-page redirect via sessionStorage. */
+  const openLogin = (reason: LoginReason) => {
+    setLoginReason(reason);
+    setLoginError('');
+    writeLoginIntent(reason);
+    setIsLoginOpen(true);
+  };
+
+  const handleLogout = async () => {
+    try {
+      setCurrentUser(await signOutUser());
+    } catch {
+      // Already logged (code only) in auth.ts; keep the current state.
+      return;
+    }
+    if (aiWorkflow === 'report-disaster') setIsAIOpen(false);
+  };
+
   const handleReportDisaster = () => {
     if (!canReport(currentUser)) {
-      setIsLoginOpen(true);
+      openLogin('report');
       return;
     }
     openReportForm();
@@ -253,9 +292,27 @@ export default function App() {
       setStoreNotice(status.message);
       if (!data[activeDisasterKey] && data['demak']) setActiveDisasterKey('demak');
     });
-    ensureUser().then((u) => {
-      if (!cancelled) setCurrentUser(u);
-    });
+    // Finish a pending Google redirect sign-in first so ensureUser() doesn't start an anonymous session.
+    consumeRedirectResult()
+      .then(({ user, source, error }) => {
+        if (cancelled) return;
+        const reason: LoginReason | null =
+          source === 'avatar' ? 'account' : source ? 'report' : readLoginIntent();
+        writeLoginIntent(null);
+        if (user) {
+          setCurrentUser(user);
+          if (reason === 'report') openReportForm();
+        } else if (error) {
+          setLoginReason(reason ?? 'report');
+          setLoginError(error.message);
+          setIsLoginOpen(true);
+        }
+      })
+      .finally(() => {
+        ensureUser().then((u) => {
+          if (!cancelled) setCurrentUser(u);
+        });
+      });
     return () => {
       cancelled = true;
     };
@@ -351,6 +408,8 @@ export default function App() {
           onReportDisaster={handleReportDisaster}
           disasters={disasters}
           onHighlightDisaster={setHighlightedDisasterKey}
+          onOpenLogin={() => openLogin('account')}
+          onSignOut={handleLogout}
         />
 
         {/* Main Work Area — map-first workspace (min 60vh desktop) */}
@@ -481,7 +540,7 @@ export default function App() {
               initialMessage={aiDraft?.message}
               initialAttachment={aiDraft?.file}
               user={currentUser}
-              onRequireLogin={() => setIsLoginOpen(true)}
+              onRequireLogin={() => openLogin('report')}
               disaster={activeDisaster}
               onClose={() => setIsAIOpen(false)}
               onReportSubmitted={handleNewReportSuccess}
@@ -495,11 +554,22 @@ export default function App() {
 
         {/* Standalone Report Modal (pipeline: extraction → validation → store) */}
       {isLoginOpen && (
-        <LoginModal onClose={() => setIsLoginOpen(false)} onSuccess={(user) => {
-          setCurrentUser(user);
-          setIsLoginOpen(false);
-          if (!isAIOpen) openReportForm();
-        }} />
+        <LoginModal
+          source={loginReason === 'account' ? 'avatar' : 'report'}
+          initialError={loginError}
+          onClose={() => {
+            setIsLoginOpen(false);
+            setLoginError('');
+            writeLoginIntent(null);
+          }}
+          onSuccess={(user) => {
+            setCurrentUser(user);
+            setIsLoginOpen(false);
+            setLoginError('');
+            writeLoginIntent(null);
+            if (loginReason === 'report' && !isAIOpen) openReportForm();
+          }}
+        />
       )}
       <ReportModal
         isOpen={isReportModalOpen}

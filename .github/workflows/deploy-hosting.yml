@@ -55,6 +55,24 @@ jobs:
       - name: Snapshot Darwin VAAC volcanic ash advisories
         run: npx tsx scripts/fetchVaacSnapshot.ts public/data/vaac.json || echo "::warning::VAAC snapshot failed; deploying without it"
 
+      - name: Restore last Google News snapshot
+        uses: actions/cache/restore@v4
+        with:
+          path: public/data/disaster-news.json
+          key: disaster-news-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: disaster-news-v1-
+
+      - name: Snapshot Indonesian disaster news
+        run: npx tsx scripts/fetchDisasterNews.ts
+        env:
+          ZAPI_API_KEY: ${{ secrets.ZAPI_API_KEY }}
+
+      - name: Cache Google News snapshot
+        uses: actions/cache/save@v4
+        with:
+          path: public/data/disaster-news.json
+          key: disaster-news-v1-${{ github.run_id }}-${{ github.run_attempt }}
+
       - name: Build (Vite production)
         run: npm run build
         env:

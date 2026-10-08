@@ -1,0 +1,192 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration test": {
+      "status": "passed",
+      "failingExample": "7 of 9 fail on baseline 5a6a493: (1,2) authErrors.ts has no mapAuthError export (only authErrorMessage); (3,4,5) src/lib/firebase/authFlow.ts missing, so no shouldFallbackToRedirect/prefersRedirect/saveLoginIntent/takeLoginIntent; (6) auth.ts imports and calls signInWithRedirect/getRedirectResult but does not export signInWithGoogle (still loginWithGoogle), consumeRedirectResult (still completeRedirectLogin), or signOutUser (still logout); (9) deploy-hosting.yml sources VITE_FIREBASE_AUTH_DOMAIN from secrets.*, not the literal disasterwatch-61ed5.web.app. Already passing: (7) Header avatar img is inside a <button> with an Indonesian aria-label plus a Keluar menuitem; (8) LoginModal guards previewUser() with import.meta.env.DEV && !isFirebaseConfigured(). Extra finding: WIP REDIRECT_FALLBACK_CODES uses 'auth/operation-not-supported-in-environment' (missing 'this-'), and authErrorMessage maps auth/cancelled-popup-request to the popup-closed text.",
+      "lastRunTimestamp": 1791340179285
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration test": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340044037
+      },
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340053639
+      },
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340203016
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fix)": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340044149
+      },
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340209916
+      },
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340389990
+      }
+    ],
+    "3.1 Add pure auth modules and extend identity": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340044221
+      },
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340397714
+      },
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340536277
+      }
+    ],
+    "3.2 Rework `src/lib/firebase/auth.ts`": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340044406
+      },
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340542170
+      },
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340768206
+      }
+    ],
+    "3.3 Update `src/components/LoginModal.tsx`": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340044602
+      },
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340782013
+      },
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340971302
+      }
+    ],
+    "3.4 Make the header avatar an accessible account control in `src/components/Header.tsx`": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340044662
+      },
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340980846
+      }
+    ],
+    "3.5 Wire login source and redirect result through `src/App.tsx`": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340044738
+      }
+    ],
+    "3.6 Production authDomain and documentation": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340044919
+      }
+    ],
+    "3.7 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340045085
+      }
+    ],
+    "3.8 Verify preservation tests still pass": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340045446
+      }
+    ],
+    "4. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340045635
+      }
+    ],
+    "5.1 Firebase console → Authentication → Sign-in method: Google provider enabled (otherwise `auth/operation-not-allowed`)": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340046019
+      }
+    ],
+    "5.2 Firebase console → Authentication → Settings → Authorized domains include `localhost`, `192.168.0.113`, `disasterwatch-61ed5.web.app`, `disasterwatch-61ed5.firebaseapp.com` (otherwise `auth/unauthorized-domain`)": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340046378
+      }
+    ],
+    "5.3 Google Cloud console → APIs & Services → Credentials → OAuth 2.0 Web client (auto-created by Firebase):": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340046680
+      }
+    ],
+    "5.4 Google Cloud console → OAuth consent screen configured: app name and support email set; published, or test users added while in Testing (otherwise `Error 403: access_denied` / \"Access blocked\")": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340046838
+      }
+    ],
+    "5.5 If the API key has restrictions, allow `disasterwatch-61ed5.web.app/*` referrers and the Identity Toolkit API (otherwise `auth/internal-error` / `auth/requests-from-referer-…-are-blocked`)": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340047000
+      }
+    ],
+    "5.6 Deploy: the workflow deploys from `main` only, so the `web.app` authDomain takes effect after `rafii-api` is merged; for a manual build, export `VITE_FIREBASE_AUTH_DOMAIN=disasterwatch-61ed5.web.app` first": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340047260
+      }
+    ],
+    "5.7 Manual verification on `https://disasterwatch-61ed5.web.app` (check DevTools console for `[auth]` lines containing only `{ code, phase }`):": [
+      {
+        "executionId": "8b89e1a0-83a6-4ecc-a92f-8bb7c0afb573",
+        "chatSessionId": "sess_2bfb628c-6a12-48df-9a07-a9931d1107d0",
+        "timestamp": 1791340047511
+      }
+    ]
+  }
+}

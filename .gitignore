@@ -38,3 +38,7 @@ scripts/.seed-done
 .firebase/
 # Generated at deploy time by scripts/fetchVaacSnapshot.ts (GitHub Actions)
 public/data/vaac.json
+
+# Generated Google News snapshot (contains public articles only)
+/public/data/disaster-news.json
+/public/data/disaster-news.json.tmp

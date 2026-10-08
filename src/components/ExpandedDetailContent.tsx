@@ -1,3 +1,4 @@
+import { DisasterNewsCard } from './DisasterNewsCard';
 import React from 'react';
 import {
   X,
@@ -15,13 +16,11 @@ import {
   Pill,
   Package,
   Newspaper,
-  ExternalLink,
   Zap,
   Radio,
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
-import { classifyNews, newsCategoryStyles, getNewsSource, getNewsInsight } from '../services/newsClassification';
 import { AidGapCard } from './AidGapCard';
 
 interface ExpandedDetailContentProps {
@@ -330,97 +329,7 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
 
         {/* Card 2: Update Berita Terkini */}
         <div className="xl:col-span-6 min-w-0 flex flex-col gap-4 xl:h-full min-h-0 xl:overflow-y-auto pr-1 pb-4">
-          <article
-            className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col h-[min(70vh,640px)] min-h-[360px] shrink-0 transition-all hover:shadow-md"
-            id="citizenReportsCard"
-          >
-            <div className="flex items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-slate-100 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-orange-500 text-white flex items-center justify-center shadow-xs shrink-0">
-                  <Newspaper className="w-4 h-4" />
-                </div>
-
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="text-[14px] font-bold text-slate-900">
-                      Update Berita Terkini
-                    </h4>
-
-                  </div>
-
-                  <span className="text-[10px] text-slate-400 font-medium block">
-                    Data Laporan Warga, Portal Berita, dan Internet
-                  </span>
-                </div>
-              </div>
-
-              <span className="inline-flex shrink-0 items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-200">
-                {disaster.reports.length} Berita
-              </span>
-            </div>
-
-            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-              <div className="space-y-3">
-                {disaster.reports.map((report) => {
-                  const category = newsCategoryStyles[classifyNews(report)];
-                  const source = getNewsSource(report);
-                  return (
-                  <div
-                    key={report.id}
-                    className="p-3 bg-slate-50/80 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all shrink-0 "
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-2 h-2 shrink-0 rounded-full ${category.dot}`}></span>
-                        <span className="font-bold text-slate-900 text-xs">{report.location}</span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-medium shrink-0">
-                        {report.time}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 leading-snug mb-2">{report.desc}</p>
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px]">
-                      <span className={`font-semibold px-2 py-0.5 rounded-full border ${category.badge}`}>
-                        {getNewsInsight(report)}
-                      </span>
-                      {source ? (
-                        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                          <span className="text-slate-400 font-medium">Sumber: {source.name}</span>
-                          <a
-                            href={source.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 font-semibold text-orange-600 hover:bg-orange-100 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
-                            aria-label={`Buka sumber berita: ${source.name}`}
-                          >
-                            Buka Sumber<ExternalLink className="w-3 h-3 shrink-0" aria-hidden="true" />
-                          </a>
-                        </div>
-                      ) : (
-                        <span className="ml-auto text-slate-400 font-medium">{report.author}</span>
-                      )}
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="pt-3.5 mt-3 border-t border-slate-100 flex items-center justify-between shrink-0">
-              <button
-                onClick={onOpenAIHelpdesk}
-                className="text-[11px] text-slate-500 font-semibold hover:text-red-600 hover:underline cursor-pointer text-left"
-              >
-                Berita tidak Valid? Laporkan
-              </button>
-              <button
-                onClick={onOpenAIHelpdesk}
-                className="text-xs font-bold text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <span>Kirim Laporan Baru</span>
-              </button>
-            </div>
-          </article>
+          <DisasterNewsCard />
 
         </div>
       </div>
