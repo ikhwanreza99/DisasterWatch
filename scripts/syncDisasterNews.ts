@@ -6,6 +6,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import type { DisasterNewsFeed } from '../src/services/disasterNews.ts';
 import { extractNewsMetadata } from '../src/services/newsMetadata.ts';
 
+let stage = 'snapshot-validation';
 async function main() {
   const feed = JSON.parse(await readFile(process.argv[2] || 'public/data/disaster-news.json', 'utf8')) as DisasterNewsFeed;
   if (!feed.updatedAt || !feed.items.length) { console.log('No news snapshot to sync.'); return; }
@@ -18,6 +19,7 @@ async function main() {
       fetchedAt: feed.updatedAt, schemaVersion: 1, provider: 'zapi_google_news', isMock: false };
   });
   if (process.argv.includes('--dry-run')) { console.log(JSON.stringify({ updatedAt: feed.updatedAt, articles: records }, null, 2)); return; }
+  stage = 'credentials';
   const raw = process.env.FIREBASE_NEWS_SERVICE_ACCOUNT;
   if (!raw) throw new Error('Missing service account');
   const account = JSON.parse(raw);
@@ -26,6 +28,7 @@ async function main() {
   try {
     const db = getFirestore(app);
     const state = db.collection('newsFeeds').doc('indonesia-disasters');
+    stage = 'firestore-transaction';
     const result = await db.runTransaction(async transaction => {
       const previous = await transaction.get(state);
       const prior = Date.parse(previous.data()?.updatedAt || '');
@@ -37,7 +40,10 @@ async function main() {
     console.log(result ? `Firestore: synced ${records.length} news articles.` : 'Firestore: snapshot already synced.');
   } finally { await deleteApp(app); }
 }
-main().catch(() => {
+main().catch((error: unknown) => {
+  const code = (error as { code?: unknown })?.code;
+  const safeCode = typeof code === 'number' ? String(code) : ['app/invalid-credential', 'permission-denied', 'unauthenticated'].includes(String(code)) ? String(code) : 'unknown';
+  console.error(`Firestore sync stage: ${stage}; error code: ${safeCode}`);
   console.error('News Firestore sync failed. Check snapshot, service account secret and Firestore IAM access.');
   process.exitCode = 1;
 });
