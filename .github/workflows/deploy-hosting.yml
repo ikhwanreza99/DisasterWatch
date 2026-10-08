@@ -74,7 +74,9 @@ jobs:
           path: public/data/disaster-news.json
           key: disaster-news-v2-${{ github.run_id }}-${{ github.run_attempt }}
 
+      # Temporarily paused until Firestore IAM access is configured.
       - name: Sync news metadata to Firestore
+        if: ${{ false }}
         run: npx tsx scripts/syncDisasterNews.ts
         env:
           FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}

@@ -25,6 +25,8 @@ UI nasional terpisah dari titik bencana terpilih. Sidebar menampilkan 2 artikel 
 
 ## Firestore JSON
 
+Sinkronisasi workflow saat ini dinonaktifkan sementara (`if: ${{ false }}`) atas permintaan pengguna, sambil menunggu izin Firestore. Snapshot berita statis dan deployment Hosting tetap berjalan. Aktifkan kembali langkah tersebut setelah kredensial/izin siap.
+
 Admin SDK melakukan transaksi atomik pada:
 
 - `newsArticles/{sha256(url)}`: dokumen per artikel, idempotent berdasarkan URL; artikel lama disimpan sebagai arsip.
