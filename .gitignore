@@ -42,3 +42,4 @@ public/data/vaac.json
 # Generated Google News snapshot (contains public articles only)
 /public/data/disaster-news.json
 /public/data/disaster-news.json.tmp
+/public/data/flood.json

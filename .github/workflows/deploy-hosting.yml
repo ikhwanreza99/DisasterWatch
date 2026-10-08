@@ -51,6 +51,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Snapshot Indonesian river flood forecasts
+        run: npx tsx scripts/fetchFloodSnapshot.ts
+        env:
+          GOOGLE_FLOOD_API_KEY: ${{ secrets.GOOGLE_FLOOD_API_KEY }}
+
       # BOM blocks browser requests, so fetch server-side and ship it as a static file.
       # Non-fatal: if BOM is down the site still deploys (ABU layer shows N/A).
       - name: Snapshot Darwin VAAC volcanic ash advisories
