@@ -14,8 +14,6 @@ import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
 import { ExpandedDetailContent } from './ExpandedDetailContent';
 import { WeatherCard } from './WeatherCard';
-import { BmkgForecastPanel } from './BmkgForecastPanel';
-import { resolveForecastAdm4 } from '../services/bmkg/bmkgWeatherForecast';
 
 
 interface SlimSidebarProps {
@@ -425,8 +423,6 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           />
         </div>
 
-        {/* Prakiraan cuaca BMKG */}
-        <BmkgForecastPanel adm4={resolveForecastAdm4(disaster)} locationLabel={`${disaster.name}, ${disaster.province}`} />
       </div>
         
 
