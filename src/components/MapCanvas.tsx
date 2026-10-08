@@ -1,4 +1,7 @@
 import { apiLayerVisibility } from '../domain/apiLayerVisibility';
+import { useFlood } from '../services/flood/useFlood';
+import { currentSeverity, floodLevels, type FloodGauge } from '../services/flood/data';
+import { FloodPanel } from './map/FloodPanel';
 import { DisasterTicker } from './DisasterTicker';
 import { useMobileLayout } from './useMobileLayout';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -59,6 +62,11 @@ import { useMagmaEruptions, MAGMA_ERUPTIONS_URL, type EruptionNotice } from '../
 import type { ResolvedRange } from '../domain/dateRange';
 
 const ASH_FILL = '#64748b';
+function FloodCamera({ gauge }: { gauge: FloodGauge | null }) {
+  const map = useMap();
+  useEffect(() => { if (map && gauge) { map.panTo({ lat: gauge.lat, lng: gauge.lng }); map.setZoom(8); } }, [map, gauge]);
+  return null;
+}
 const ASH_FCST = '#94a3b8';
 
 function formatUtc(iso: string): string {
@@ -509,6 +517,9 @@ const GoogleMapCameraController: React.FC<{
 
 // OpenStreetMap Component
 const OSMMapRenderer: React.FC<{
+  floodGauges: FloodGauge[];
+  selectedFlood: FloodGauge | null;
+  onSelectFlood: (id: string) => void;
   disasters: Record<string, DisasterIncident>;
   activeDisasterKey: string;
   onSelectDisaster: (id: string) => void;
@@ -549,6 +560,9 @@ const OSMMapRenderer: React.FC<{
   searchedPlace?: PlaceResult | null;
   myLocation?: MyLocation | null;
 }> = ({
+  floodGauges,
+  selectedFlood,
+  onSelectFlood,
   disasters,
   activeDisasterKey,
   onSelectDisaster,
@@ -611,6 +625,17 @@ const OSMMapRenderer: React.FC<{
   // Bumped every time the Leaflet map is (re)created so imperative layers
   // (BMKG) re-render without any user action after a map reset.
   const [mapEpoch, setMapEpoch] = useState(0);
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const group = L.layerGroup().addTo(mapRef.current);
+    floodGauges.forEach(g => {
+      L.circleMarker([g.lat, g.lng], { radius: selectedFlood?.id === g.id ? 12 : 8, color: '#fff', weight: 3,
+        fillColor: floodLevels[currentSeverity(g)].color, fillOpacity: 1 })
+        .on('click', () => onSelectFlood(g.id)).addTo(group);
+    });
+    return () => { group.remove(); };
+  }, [floodGauges, selectedFlood, onSelectFlood, mapEpoch]);
+  useEffect(() => { if (selectedFlood) mapRef.current?.flyTo([selectedFlood.lat, selectedFlood.lng], 8); }, [selectedFlood, mapEpoch]);
 
   const getTileConfig = useCallback((type: OSMTileType, dark: boolean) => {
     if (type === 'osm-hot') {
@@ -1096,6 +1121,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
   // Master switch for every API data map layer (bottom-left toggle). ON by default; category selects the visible sources.
   const [showApiLayers, setShowApiLayers] = useState(true);
+  const showFlood = showApiLayers && (activeCategory === 'flood' || activeCategory === 'all');
+  const flood = useFlood(showFlood);
+  const [selectedFloodId, setSelectedFloodId] = useState<string | null>(null);
+  const [showNormalFlood, setShowNormalFlood] = useState(true);
+  const floodGauges = useMemo(() => showFlood ? (flood.data?.gauges ?? []).filter(g => showNormalFlood || currentSeverity(g) !== 'NO_FLOODING') : [], [showFlood, flood.data, showNormalFlood]);
+  const selectedFlood = floodGauges.find(g => g.id === selectedFloodId) ?? null;
+  useEffect(() => { setSelectedFloodId(null); }, [activeCategory]);
   const { showBmkg, showFirms, showWeather, showBmkgWeather, showMagma, showAsh } = apiLayerVisibility(activeCategory, showApiLayers);
   const [selectedBmkgId, setSelectedBmkgId] = useState<string | null>(null);
   const selectedBmkg = useMemo(() => bmkgEvents.find((e) => e.id === selectedBmkgId) ?? null, [bmkgEvents, selectedBmkgId]);
@@ -1462,6 +1494,11 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 weatherFocusCoords={weatherFocusCoords}
                 focusTarget={focusTarget}
               />
+
+              <FloodCamera gauge={selectedFlood}/>
+              {floodGauges.map(g => <AdvancedMarker key={`flood-${g.id}`} position={{ lat: g.lat, lng: g.lng }} onClick={() => setSelectedFloodId(g.id)} zIndex={selectedFloodId === g.id ? 1100 : 800}>
+                <button aria-label={`Prakiraan sungai ${g.name}: ${floodLevels[currentSeverity(g)].label}`} className="w-7 h-7 rounded-full border-[3px] border-white shadow-lg" style={{background: floodLevels[currentSeverity(g)].color}}/>
+              </AdvancedMarker>)}
 
               {/* Hazard Impact Perimeter */}
               {activeData &&
@@ -2129,6 +2166,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           </APIProvider>
         ) : (
           <OSMMapRenderer
+            floodGauges={floodGauges}
+            selectedFlood={selectedFlood}
+            onSelectFlood={setSelectedFloodId}
             disasters={disasters}
             activeDisasterKey={activeDisasterKey}
             onSelectDisaster={onSelectDisaster}
@@ -2171,6 +2211,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         )}
       </div>
 
+      {showFlood && (activeCategory === 'flood' || selectedFlood) && <FloodPanel
+        data={flood.data} state={flood.state} selected={selectedFlood} onSelect={setSelectedFloodId}
+        showNormal={showNormalFlood} onShowNormal={setShowNormalFlood} refresh={flood.refresh}
+      />}
       <div className="relative z-30 pointer-events-none">
       {mobile && showMobileNews && onHighlightDisaster && (
         <div className="mobile-news-capsule">
