@@ -1,14 +1,17 @@
+import { extractNewsMetadata } from './newsMetadata';
+export const NEWS_REFRESH_MS = 5 * 24 * 3600_000;
 export interface DisasterNewsItem {
   title: string;
   url: string;
   publishedAt: string;
   source: string;
+  metadata?: NonNullable<ReturnType<typeof extractNewsMetadata>>;
 }
 export interface DisasterNewsFeed {
   updatedAt: string | null;
   items: DisasterNewsItem[];
 }
-export const NEWS_QUERY = '(banjir OR "gempa bumi" OR longsor OR tsunami OR erupsi OR karhutla OR "puting beliung" OR "bencana alam") Indonesia when:7d';
+export const NEWS_QUERY = '(banjir OR "gempa bumi" OR longsor OR tsunami OR erupsi OR karhutla OR "puting beliung" OR "bencana alam" OR "bantuan bencana" OR "evakuasi korban" OR "kekeringan") Indonesia when:7d';
 
 export function normalizeNews(response: unknown, now = Date.now()): DisasterNewsItem[] {
   const payload = response as { data?: { ok?: boolean; items?: unknown[] } };
@@ -22,14 +25,15 @@ export function normalizeNews(response: unknown, now = Date.now()): DisasterNews
     let url: URL;
     try { url = new URL(item.link); } catch { return []; }
     if (url.protocol !== 'https:' || url.username || url.password || !title || !Number.isFinite(date) || date > now + 300_000 || now - date > 7 * 86400_000) return [];
-    // Query defines geography; reject clearly unrelated headlines returned by the provider.
-    if (!/banjir|gempa|longsor|tsunami|erupsi|karhutla|kebakaran hutan|puting beliung|bencana/i.test(title)) return [];
+    const separator = title.lastIndexOf(' - ');
+    const headline = separator > 0 ? title.slice(0, separator) : title;
+    const metadata = extractNewsMetadata(headline);
+    if (!metadata) return [];
     url.hash = '';
     const key = url.href;
     if (seen.has(key)) return [];
     seen.add(key);
-    const separator = title.lastIndexOf(' - ');
-    return [{ title: separator > 0 ? title.slice(0, separator) : title, url: key,
+    return [{ metadata, title: separator > 0 ? title.slice(0, separator) : title, url: key,
       publishedAt: new Date(date).toISOString(), source: separator > 0 ? title.slice(separator + 3) : url.hostname }];
   }).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt)).slice(0, 15);
 }

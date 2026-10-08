@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { NEWS_QUERY, normalizeNews, type DisasterNewsFeed } from '../src/services/disasterNews.ts';
+import { NEWS_QUERY, NEWS_REFRESH_MS, normalizeNews, type DisasterNewsFeed } from '../src/services/disasterNews.ts';
 
 const output = process.argv[2] || 'public/data/disaster-news.json';
 let feed: DisasterNewsFeed & { lastAttemptAt?: string } = { updatedAt: null, items: [] };
@@ -8,8 +8,8 @@ let feed: DisasterNewsFeed & { lastAttemptAt?: string } = { updatedAt: null, ite
 try { feed = JSON.parse(await readFile(output, 'utf8')); } catch { /* first run */ }
 try {
   const lastUpdate = Date.parse(feed.lastAttemptAt || feed.updatedAt || '');
-  if (Number.isFinite(lastUpdate) && Date.now() >= lastUpdate && Date.now() - lastUpdate < 2 * 3600_000) {
-    console.log('Google News: snapshot is less than 2 hours old; no API request.');
+  if (Number.isFinite(lastUpdate) && Date.now() >= lastUpdate && Date.now() - lastUpdate < NEWS_REFRESH_MS) {
+    console.log('Google News: last attempt is less than 5 days old; no API request.');
   } else {
     const key = process.env.ZAPI_API_KEY;
     if (!key) throw new Error('missing key');
