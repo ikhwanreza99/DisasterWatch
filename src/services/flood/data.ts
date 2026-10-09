@@ -12,6 +12,8 @@ export interface FloodGauge {
   severity: Severity; issuedTime?: string; validUntil?: string;
   unit?: string;
   thresholds?: { warningLevel?: number; dangerLevel?: number; extremeDangerLevel?: number };
+  /** Optional provider metadata. The Flood Forecasting API may omit basin area. */
+  basinAreaKm2?: number;
   forecastIssuedTime?: string;
   forecast: { time: string; endTime: string; value: number }[];
 }
@@ -41,6 +43,7 @@ export function normalizeFloodData(gauges: any[], statuses: any[], models: any[]
         severity: Object.hasOwn(floodLevels, status?.severity) ? status.severity : 'UNKNOWN',
         issuedTime: status?.issuedTime, validUntil: status?.forecastTimeRange?.end,
         unit: model?.gaugeValueUnit, thresholds: model?.thresholds, forecastIssuedTime: latest?.issuedTime,
+        basinAreaKm2: Number.isFinite(g.basinAreaKm2) ? g.basinAreaKm2 : Number.isFinite(g.drainageBasinAreaKm2) ? g.drainageBasinAreaKm2 : undefined,
         forecast: (latest?.forecastRanges ?? []).filter((p: { value: number; forecastStartTime: string }) => Number.isFinite(p.value) && Number.isFinite(Date.parse(p.forecastStartTime)))
           .map((p: { value: number; forecastStartTime: string; forecastEndTime: string }) => ({ time: p.forecastStartTime, endTime: p.forecastEndTime, value: p.value }))
           .sort((a: { time: string },b: { time: string }) => Date.parse(a.time) - Date.parse(b.time)),

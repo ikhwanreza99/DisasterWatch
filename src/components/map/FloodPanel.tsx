@@ -3,6 +3,7 @@ import { Waves, X, ArrowLeft, RefreshCw, Layers3, Info, MapPinned, Radio, Drople
 import { currentSeverity, floodLevels, type FloodGauge, type FloodSnapshot } from '../../services/flood/data';
 
 const date = (value?: string) => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Belum tersedia';
+const whole = (value: number) => String(Math.round(value));
 function ForecastChart({ gauge }: { gauge: FloodGauge }) {
   const unit = gauge.unit === 'METERS' ? 'm' : gauge.unit === 'CUBIC_METERS_PER_SECOND' ? 'm³/dtk' : null;
   const points = gauge.forecast;
@@ -13,23 +14,29 @@ function ForecastChart({ gauge }: { gauge: FloodGauge }) {
     { name: 'Ekstrem', value: gauge.thresholds?.extremeDangerLevel, color: '#b91c1c' },
   ].filter(t => Number.isFinite(t.value));
   const values = [...points.map(p => p.value), ...thresholds.map(t => t.value!)];
-  const min = Math.min(0, ...values), max = Math.max(...values, min + 1);
+  const min = 0;
+  const rawMax = Math.max(...values, 1);
+  const max = Math.max(50, Math.ceil(rawMax / 50) * 50);
   const first = Date.parse(points[0].time), last = Date.parse(points.at(-1)!.time);
   const x = (time: string) => 38 + (Date.parse(time) - first) / (last - first || 1) * 272;
   const y = (v: number) => 145 - (v - min) / (max - min) * 120;
+  const currentIndex = Math.min(points.length - 1, Math.max(1, Math.floor(points.length * 0.55)));
+  const currentTime = points[currentIndex].time;
+  const observed = points.slice(0, currentIndex + 1);
+  const forecast = points.slice(currentIndex);
   return <div className="space-y-2">
     <p className="font-medium">{unit === 'm' ? 'Tinggi air' : 'Debit air'} dalam {unit}</p>
     <svg viewBox="0 0 330 180" role="img" aria-label={`Grafik prakiraan ${gauge.name}, satuan ${unit}`} className="w-full rounded-lg bg-white">
-      {[min, (max + min) / 2, max].map(v => <g key={v}><line x1="38" x2="310" y1={y(v)} y2={y(v)} stroke="#e2e8f0"/><text x="33" y={y(v)+4} textAnchor="end" fontSize="10" fill="#64748b">{Math.round(v*10)/10}</text></g>)}
+      {[min, max / 2, max].map(v => <g key={v}><line x1="38" x2="310" y1={y(v)} y2={y(v)} stroke="#e2e8f0"/><text x="33" y={y(v)+4} textAnchor="end" fontSize="10" fill="#64748b">{whole(v)}</text></g>)}
       {thresholds.map(t => <line key={t.name} x1="38" x2="310" y1={y(t.value!)} y2={y(t.value!)} stroke={t.color} strokeWidth="2"/>)}
-      <line x1={x(points[0].time)} x2={x(points[0].time)} y1="12" y2="148" stroke="#334155" strokeDasharray="4 3" strokeWidth="2"/>
-      <polyline points={points.map(p => `${x(p.time)},${y(p.value)}`).join(' ')} fill="none" stroke="#2563eb" strokeWidth="3"/>
-      <polyline points={points.slice(-Math.max(2, Math.ceil(points.length / 3))).map(p => `${x(p.time)},${y(p.value)}`).join(' ')} fill="none" stroke="#2563eb" strokeWidth="3" strokeDasharray="4 4"/>
-      <text x={x(points[0].time) + 4} y="24" fontSize="11" fontWeight="600" fill="#334155">Saat ini</text>
+      <line x1={x(currentTime)} x2={x(currentTime)} y1="12" y2="148" stroke="#334155" strokeDasharray="4 3" strokeWidth="2"/>
+      <polyline points={observed.map(p => `${x(p.time)},${y(p.value)}`).join(' ')} fill="none" stroke="#2563eb" strokeWidth="3"/>
+      <polyline points={forecast.map(p => `${x(p.time)},${y(p.value)}`).join(' ')} fill="none" stroke="#2563eb" strokeWidth="3" strokeDasharray="4 4"/>
+      <text x={x(currentTime) + 4} y="24" fontSize="11" fontWeight="600" fill="#334155">Saat ini</text>
       <text x="38" y="168" fontSize="10" fill="#64748b">{new Date(first).toLocaleDateString('id-ID')}</text>
       <text x="310" y="168" textAnchor="end" fontSize="10" fill="#64748b">{new Date(last).toLocaleDateString('id-ID')}</text>
     </svg>
-    <div className="grid grid-cols-3 gap-2 border-b border-slate-200 pb-3">{thresholds.map(t => <span key={t.name} className="text-[11px]" style={{ color: t.color }}><i className="mr-1 inline-block h-2 w-2 rounded-full" style={{background:t.color}}/>{t.name}<strong className="block text-slate-700">{t.value} {unit}</strong></span>)}</div>
+    <div className="grid grid-cols-3 gap-2 border-b border-slate-200 pb-3">{thresholds.map(t => <span key={t.name} className="text-[11px]" style={{ color: t.color }}><i className="mr-1 inline-block h-2 w-2 rounded-full" style={{background:t.color}}/>{t.name}<strong className="block text-slate-700">{whole(t.value!)} {unit}</strong></span>)}</div>
     <p className="mt-2 text-slate-500">Diterbitkan {date(gauge.forecastIssuedTime)}. Garis putus-putus adalah prakiraan, bukan pengukuran langsung.</p>
   </div>;
 }
@@ -41,12 +48,12 @@ function FloodOptions({ data, state, showNormal, onShowNormal, refresh }: {
   const [showEvents, setShowEvents] = useState(true);
   const [showProbability, setShowProbability] = useState(true);
   const count = (level: string) => state === 'ready' ? data?.gauges.filter(g => currentSeverity(g) === level).length ?? 0 : '—';
-  return <aside aria-label="Opsi lapisan banjir" className="pointer-events-auto absolute z-30 bottom-24 left-16 right-3 sm:left-auto sm:top-4 sm:bottom-auto sm:right-4 sm:w-[310px] rounded-2xl border border-slate-200 bg-white/95 text-slate-800 shadow-xl overflow-hidden backdrop-blur">
+  return <aside aria-label="Opsi lapisan banjir" className="pointer-events-auto absolute z-20 top-[5.25rem] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-[min(30vw,8rem)] right-3 rounded-2xl border border-slate-200 bg-white/95 text-slate-800 shadow-xl overflow-hidden backdrop-blur sm:left-auto sm:top-20 sm:bottom-auto sm:right-4 sm:w-[280px] sm:max-h-[calc(100dvh-6rem)]">
     <div className="flex items-center justify-between border-b border-slate-100 p-4">
       <h3 className="flex items-center gap-2 font-semibold"><Layers3 className="h-5 w-5"/>Lihat opsi <Info className="h-4 w-4 text-slate-400"/></h3>
       <button aria-label="Tutup opsi banjir" className="rounded-full p-1 hover:bg-slate-100"><X className="h-5 w-5"/></button>
     </div>
-    <div className="max-h-[42dvh] space-y-3 overflow-y-auto p-3 text-sm sm:max-h-[calc(100dvh-120px)]">
+    <div className="h-full space-y-3 overflow-y-auto p-3 text-sm sm:h-auto sm:max-h-[calc(100dvh-7rem)]">
       <div className="rounded-xl bg-slate-50 p-3">
         <div className="mb-2 flex items-center justify-between font-medium">Data banjir <Info className="h-4 w-4 text-slate-400"/></div>
         {Object.entries(floodLevels).map(([level, item]) => <div key={level} className="flex items-center gap-2 py-1"><span className="h-3 w-3 rounded-full" style={{background:item.color}}/>{item.label}<span className="ml-auto text-xs text-slate-500">{count(level)}</span></div>)}
@@ -78,12 +85,12 @@ export function FloodPanel({ data, state, selected, onSelect, showNormal, onShow
   if (!selected) return <FloodOptions data={data} state={state} showNormal={showNormal} onShowNormal={onShowNormal} refresh={refresh}/>;
   return <>
     <div className="hidden sm:block"><FloodOptions data={data} state={state} showNormal={showNormal} onShowNormal={onShowNormal} refresh={refresh}/></div>
-    <section aria-label="Prakiraan banjir sungai" className="pointer-events-auto absolute z-40 bottom-24 left-3 right-3 sm:bottom-auto sm:left-4 sm:top-4 sm:w-[370px] rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-xl overflow-hidden backdrop-blur">
+    <section aria-label="Prakiraan banjir sungai" className="pointer-events-auto absolute z-20 top-[5.25rem] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-[min(30vw,8rem)] right-3 rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-xl overflow-hidden backdrop-blur sm:bottom-auto sm:left-4 sm:top-4 sm:w-[370px] sm:max-h-none">
     <div className="flex items-center justify-between p-4 border-b border-slate-100">
       <button className="flex items-center gap-2 font-semibold text-sm min-h-8" onClick={() => setCollapsed(false)}><MapPinned className="w-5 h-5 text-emerald-600"/>Prakiraan sungai <Info className="h-4 w-4 text-slate-400"/></button>
       <button aria-label={collapsed ? 'Buka panel banjir' : 'Tutup panel banjir'} onClick={() => setCollapsed(!collapsed)} className="p-2">{collapsed ? <span>+</span> : <X className="w-4 h-4"/>}</button>
     </div>
-    {!collapsed && <div className="p-4 space-y-3 text-xs overflow-y-auto max-h-[62dvh] sm:max-h-[calc(100dvh-120px)]">
+    {!collapsed && <div className="h-full p-4 space-y-3 text-xs overflow-y-auto sm:h-auto sm:max-h-[calc(100dvh-120px)]">
       <p className="text-slate-500">Debit air dalam {selected.unit === 'METERS' ? 'meter' : 'm³/dtk'}</p>
       {state === 'loading' && <p role="status">Memuat prakiraan banjir…</p>}
       {state === 'unavailable' && <p role="status">Data prakiraan belum tersedia. Silakan coba lagi nanti.</p>}
@@ -99,6 +106,10 @@ export function FloodPanel({ data, state, selected, onSelect, showNormal, onShow
           <div><dt className="text-slate-500">Sungai</dt><dd>{selected.river || 'Tidak tersedia'}</dd></div>
           <div><dt className="text-slate-500">Koordinat</dt><dd>{selected.lat.toFixed(4)}, {selected.lng.toFixed(4)}</dd></div>
         </dl>
+        <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+          <span className="text-slate-500">Ukuran daerah aliran sungai (km²)</span>
+          <strong>{Number.isFinite(selected.basinAreaKm2) ? whole(selected.basinAreaKm2!) : 'Belum tersedia'}</strong>
+        </div>
         <p>{selected.qualityVerified ? 'Model terverifikasi kualitas' : 'Model belum terverifikasi kualitas'}</p>
         <p>Status diterbitkan {date(selected.issuedTime)}<br/>Berlaku sampai {date(selected.validUntil)}</p>
         <a className="text-blue-600 underline" href={`https://sites.research.google/floods/l/${selected.lat}/${selected.lng}/8/g/${encodeURIComponent(selected.id)}`} target="_blank" rel="noreferrer">Lihat di Flood Hub ↗</a>
