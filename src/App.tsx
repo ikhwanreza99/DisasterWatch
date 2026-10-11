@@ -38,6 +38,10 @@ function writeLoginIntent(v: LoginReason | null) {
   }
 }
 import { LoginModal } from './components/LoginModal';
+import { NttCaseView } from './components/NttCaseView';
+import { NTT_CASE_ID } from './domain/nttCase';
+import { loadNttCase, refreshNttCase, type NttCaseState } from './services/nttCaseStore';
+import { nttIncident } from './data/nttIncident';
 
 export default function App() {
   // Follow the visible viewport when the on-screen keyboard opens on phones.
@@ -55,7 +59,10 @@ export default function App() {
       document.documentElement.style.removeProperty('--app-height');
     };
   }, []);
-  const [disasters, setDisasters] = useState<Record<string, DisasterIncident>>(disastersData);
+  const [disasters, setDisasters] = useState<Record<string, DisasterIncident>>({ ...disastersData, [nttIncident.id]: nttIncident });
+  const [ntt, setNtt] = useState<NttCaseState | null>(null);
+  const [isNttOpen, setIsNttOpen] = useState<boolean>(false);
+  const [nttRefreshing, setNttRefreshing] = useState<boolean>(false);
   const [activeDisasterKey, setActiveDisasterKey] = useState<string>('demak');
   const [intelReports, setIntelReports] = useState<IntelligenceReport[]>(demoReports);
   const [aidRecords, setAidRecords] = useState<AidRecord[]>(demoAid);
@@ -120,6 +127,16 @@ export default function App() {
     // the new incident — the mini sidebar only renders when no other panel is open.
     if (disasters[key]) {
       setActiveDisasterKey(key);
+      if (key === NTT_CASE_ID) {
+        setIsDetailOpen(false);
+        setIsRouteOpen(false);
+        setIsReportsOpen(false);
+        setIsAIOpen(false);
+        setIsSidebarMinimized(true);
+        setIsSidebarExpanded(false);
+        setIsNttOpen(true);
+        return;
+      }
       if (window.matchMedia('(max-width: 639px)').matches) {
         setIsSidebarMinimized(true);
         setIsSidebarExpanded(false);
@@ -144,6 +161,7 @@ export default function App() {
 
   // Mutually exclusive single-window openers (ensures ZERO dual window anywhere)
   const handleOpenDetail = () => {
+    setIsNttOpen(false);
     setIsDetailOpen(false);
     setIsRouteOpen(false);
     setIsReportsOpen(false);
@@ -165,6 +183,7 @@ export default function App() {
   };
 
   const handleOpenRoute = () => {
+    setIsNttOpen(false);
     setIsDetailOpen(false);
     setIsReportsOpen(false);
     setIsAIOpen(false);
@@ -182,6 +201,7 @@ export default function App() {
   };
 
   const handleOpenReports = () => {
+    setIsNttOpen(false);
     setIsDetailOpen(false);
     setIsRouteOpen(false);
     setIsAIOpen(false);
@@ -199,6 +219,7 @@ export default function App() {
   };
 
   const handleOpenAI = (withContext = false) => {
+    setIsNttOpen(false);
     setAiDraft(null);
     setIsAIExpanded(false);
     setHasAIContext(withContext);
@@ -258,10 +279,33 @@ export default function App() {
       setIsRouteOpen(false);
       setIsReportsOpen(false);
       setIsAIOpen(false);
+      setIsNttOpen(false);
       setIsSidebarMinimized(false);
     } else {
       setIsSidebarExpanded(false);
       setIsSidebarMinimized(true);
+    }
+  };
+
+  /** Open the NTT earthquake case: single-window, map follows the epicenter. */
+  const handleOpenNtt = () => {
+    if (disasters[NTT_CASE_ID]) setActiveDisasterKey(NTT_CASE_ID);
+    setIsDetailOpen(false);
+    setIsRouteOpen(false);
+    setIsReportsOpen(false);
+    setIsAIOpen(false);
+    setIsSidebarMinimized(true);
+    setIsSidebarExpanded(false);
+    setIsNttOpen(true);
+  };
+
+  const handleRefreshNtt = async () => {
+    if (!ntt || nttRefreshing) return;
+    setNttRefreshing(true);
+    try {
+      setNtt(await refreshNttCase(ntt));
+    } finally {
+      setNttRefreshing(false);
     }
   };
 
@@ -279,11 +323,22 @@ export default function App() {
   };
 
   // Load Firestore (fallback to mock) + ensure auth session once.
+  // NTT case loads independently (localStorage seed → Firestore best-effort); never blocks dashboard.
+  useEffect(() => {
+    let cancelled = false;
+    loadNttCase().then((s) => {
+      if (cancelled) return;
+      setNtt(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   useEffect(() => {
     let cancelled = false;
     loadDisasters().then(({ data, status }) => {
       if (cancelled) return;
-      setDisasters(data);
+      setDisasters({ ...data, [nttIncident.id]: nttIncident });
       setStoreNotice(status.message);
       if (!data[activeDisasterKey] && data['demak']) setActiveDisasterKey('demak');
     });
@@ -480,7 +535,7 @@ export default function App() {
           />
 
           {/* MODE 1: Compact Homepage Menu Sidebar (Only rendered when no other window is open and user un-minimizes sidebar) */}
-          {!isDetailOpen && !isRouteOpen && !isReportsOpen && !isAIOpen && !isSidebarMinimized && (
+          {!isDetailOpen && !isRouteOpen && !isReportsOpen && !isAIOpen && !isNttOpen && !isSidebarMinimized && (
             <SlimSidebar
               disaster={activeDisaster}
               isExpanded={isSidebarExpanded}
@@ -545,6 +600,31 @@ export default function App() {
               intelReports={intelReports}
               aidRecords={aidRecords}
               onIntelReport={handleIntelReport}
+              nttCase={ntt}
+            />
+          )}
+
+          {/* NTT case entry point — always visible, map follows on open */}
+          {!isNttOpen && (
+            <button
+              type="button"
+              onClick={handleOpenNtt}
+              title="Buka kasus gempa Sumba Barat Daya 4 Okt 2026 (data nyata BMKG + berita)"
+              className="absolute bottom-3 left-3 z-40 flex items-center gap-2 rounded-full border border-rose-200 bg-white/95 px-3 py-2 text-xs font-bold text-rose-700 shadow-lg backdrop-blur hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-rose-500"
+            >
+              <span aria-hidden="true">🌋</span>
+              Kasus NTT · M6,1 Sumba Barat Daya
+              {ntt && <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px]">{ntt.articles.length} berita</span>}
+            </button>
+          )}
+
+          {/* MODE 6: Dedicated Single-Window "Kasus Gempa NTT" (real-data case, not demo) */}
+          {isNttOpen && ntt && (
+            <NttCaseView
+              state={ntt}
+              refreshing={nttRefreshing}
+              onRefresh={handleRefreshNtt}
+              onClose={() => setIsNttOpen(false)}
             />
           )}
         </main>

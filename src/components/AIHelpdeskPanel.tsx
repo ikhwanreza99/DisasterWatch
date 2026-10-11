@@ -8,6 +8,8 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { MAJOR_CITIES } from '../services/weather/cityWeather';
 import { detectReportIntent } from '../services/ai/reportIntent';
 import { askAssistant } from '../services/ai/disasterAssistant';
+import { askNttAssistant, isNttQuestion } from '../services/ai/nttAssistant';
+import type { NttCaseState } from '../services/nttCaseStore';
 import { submitReportPipeline } from '../services/pipeline/reportPipeline';
 
 export type WorkflowType = 'menu' | 'report-disaster' | 'report-needs' | 'find-posts' | 'learn-disaster';
@@ -27,6 +29,8 @@ interface AIHelpdeskPanelProps {
   intelReports?: IntelligenceReport[];
   aidRecords?: AidRecord[];
   onIntelReport?: (rep: IntelligenceReport) => void;
+  /** Grounded NTT case (real-data). When present + question is case-specific, it answers from case context. */
+  nttCase?: NttCaseState | null;
 }
 interface Message { id: number; sender: 'ai' | 'user'; text: string }
 interface Question { key: string; text: string }
@@ -61,7 +65,7 @@ const services: { workflow: WorkflowType; label: string }[] = [
 ];
 
 export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, hasContext = true, initialMessage, initialAttachment, initialWorkflow = 'menu', user, onRequireLogin, onClose,
-  onReportSubmitted, disasters, intelReports = [], aidRecords = [], onIntelReport }: AIHelpdeskPanelProps) {
+  onReportSubmitted, disasters, intelReports = [], aidRecords = [], onIntelReport, nttCase }: AIHelpdeskPanelProps) {
   const context = hasContext ? disaster : undefined;
   const intro = context
     ? `Halo, saya DisasterAI. Anda sedang melihat ${context.fullTitleDisplay} di ${context.name}, ${context.province}. Saya bisa membantu melaporkan bencana, melaporkan kebutuhan, atau mempelajari bencana. Konfirmasi lokasi dan jenis bencana saat membuat laporan agar informasi Anda tepat.`
@@ -215,7 +219,10 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
           if (mounted.current) add('ai', result.answer);
         } else add('ai', 'Bencana apa yang ingin Anda pelajari, misalnya banjir, gempa, atau kebakaran? Sebutkan juga kota/kabupatennya agar saya dapat memilih konteks yang sesuai.');
       } else {
-        const result = await askAssistant(text, { disasters: available, reports: intelReports, aid: aidRecords });
+        // Case-specific NTT questions answer from persisted case data (grounded, with source links).
+        const result = nttCase && isNttQuestion(text)
+          ? await askNttAssistant(text, nttCase)
+          : await askAssistant(text, { disasters: available, reports: intelReports, aid: aidRecords });
         if (mounted.current) add('ai', result.answer);
       }
     } catch { if (mounted.current) add('ai', 'Jawaban belum tersedia. Silakan coba lagi.'); }

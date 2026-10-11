@@ -36,5 +36,32 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+    // NTT real-data case (additive; existing rules untouched).
+    // Reads open for the dashboard; writes require auth + constrained fields.
+    // Never accept isMock:true (real articles must never be overwritten by mock content).
+    match /nttCases/{id} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.resource.data.caseId is string
+        && request.resource.data.isMock == false;
+      allow delete: if false;
+    }
+    match /nttArticles/{id} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.resource.data.keys().hasAll(['caseId', 'title', 'url'])
+        && request.resource.data.title is string
+        && request.resource.data.url is string
+        && request.resource.data.isMock == false;
+      allow delete: if false;
+    }
+    match /nttClaims/{id} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.resource.data.keys().hasAll(['caseId', 'articleId', 'claimText', 'sourceUrl'])
+        && request.resource.data.claimText is string
+        && request.resource.data.sourceUrl is string;
+      allow delete: if false;
+    }
   }
 }

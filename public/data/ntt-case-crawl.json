@@ -1,0 +1,25 @@
+{
+  "caseId": "ntt-sumba-barat-daya-2026-10-04",
+  "at": "2026-10-11T08:58:46.856Z",
+  "steps": [
+    {
+      "step": "zapi-google-news",
+      "status": "FAILED",
+      "reason": "ZAPI_API_KEY missing — no request sent (same guard as scripts/fetchDisasterNews.ts)."
+    },
+    {
+      "step": "bmkg-event-page",
+      "status": "FULL",
+      "http": 200,
+      "bytes": 131875,
+      "checks": {
+        "hasM61": true,
+        "hasM59": true,
+        "hasTsunami": true,
+        "hasAftershocks": true,
+        "hasPerokonda": true
+      }
+    }
+  ],
+  "bmkgVerified": true
+}
