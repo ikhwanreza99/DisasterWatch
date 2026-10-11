@@ -50,3 +50,14 @@ export function normalizeFloodData(gauges: any[], statuses: any[], models: any[]
       };
     }) };
 }
+
+/** Select only a forecast interval covering now, never a future/expired sample. */
+export function currentFloodForecast(gauge: FloodGauge, now = Date.now()) {
+  if (!['METERS', 'CUBIC_METERS_PER_SECOND'].includes(gauge.unit || '')) return null;
+  if (Date.parse(gauge.forecastIssuedTime || '') > now) return null;
+  return [...gauge.forecast].filter(p => {
+    const start = Date.parse(p.time), end = Date.parse(p.endTime);
+    return Number.isFinite(p.value) && start <= now &&
+      (end === start ? now === start : now < end);
+  }).sort((a, b) => Date.parse(b.time) - Date.parse(a.time))[0] ?? null;
+}

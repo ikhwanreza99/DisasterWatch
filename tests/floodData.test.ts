@@ -29,3 +29,17 @@ test('expired or missing validity never presents a gauge as normal', () => {
   assert.equal(currentSeverity(gauge, Date.parse('2026-10-11T00:00:00Z')), 'UNKNOWN');
   assert.equal(currentSeverity({ ...gauge, validUntil: undefined }), 'UNKNOWN');
 });
+
+test('current forecast uses the actual interval and preserves discharge units', async () => {
+  const { currentFloodForecast } = await import('../src/services/flood/data');
+  const gauge = { id: 'g', name: 'g', river: '', source: '', lat: 0, lng: 0, qualityVerified: false, severity: 'UNKNOWN' as const, unit: 'CUBIC_METERS_PER_SECOND', forecastIssuedTime: '2026-10-11T00:00:00Z', forecast: [
+    { time: '2026-10-11T01:00:00Z', endTime: '2026-10-11T02:00:00Z', value: 31.25 },
+    { time: '2026-10-11T02:00:00Z', endTime: '2026-10-11T03:00:00Z', value: 32 },
+  ] };
+  assert.equal(currentFloodForecast(gauge, Date.parse('2026-10-11T01:30:00Z'))?.value, 31.25);
+  assert.equal(currentFloodForecast(gauge, Date.parse('2026-10-11T02:00:00Z'))?.value, 32);
+  assert.equal(currentFloodForecast(gauge, Date.parse('2026-10-11T03:00:00Z')), null);
+  assert.equal(currentFloodForecast(gauge, Date.parse('2026-10-10T23:00:00Z')), null);
+  assert.equal(currentFloodForecast({ ...gauge, unit: undefined }, Date.parse('2026-10-11T01:30:00Z')), null);
+  assert.equal(currentFloodForecast({ ...gauge, forecast: [{ ...gauge.forecast[0], endTime: 'invalid' }] }, Date.parse('2026-10-11T01:30:00Z')), null);
+});

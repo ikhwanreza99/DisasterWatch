@@ -2213,6 +2213,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
       {showFlood && (activeCategory === 'flood' || selectedFlood) && <FloodPanel
         data={flood.data} state={flood.state} selected={selectedFlood} onSelect={setSelectedFloodId}
+        mapType={googleMapType} onMapType={setGoogleMapType} googleAvailable={mapEngine === 'google' && !!apiKey && !hasAuthError}
         showNormal={showNormalFlood} onShowNormal={setShowNormalFlood} refresh={flood.refresh}
       />}
       <div className="relative z-30 pointer-events-none">
