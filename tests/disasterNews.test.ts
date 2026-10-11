@@ -68,3 +68,28 @@ test('five-day interval does not request API for a four-day-old snapshot', async
     assert.match(run.stdout, /no API request/);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+test('fills a short feed from fallback searches, deduplicates and stops at 15', async () => {
+  const { collectDisasterNews } = await import('../src/services/disasterNews.ts');
+  let calls = 0;
+  const result = await collectDisasterNews(async () => {
+    calls++;
+    return { data: { ok: true, items: Array.from({ length: calls === 1 ? 5 : 20 }, (_, i) => item(i)) } };
+  }, now);
+  assert.equal(calls, 2);
+  assert.equal(result.length, 15);
+  assert.equal(new Set(result.map(x => x.url)).size, 15);
+  assert.equal(result[0].title, 'Banjir Indonesia 0');
+});
+
+test('keeps a partial feed when fallbacks fail and never invents extra articles', async () => {
+  const { collectDisasterNews, NEWS_QUERIES } = await import('../src/services/disasterNews.ts');
+  let calls = 0;
+  const result = await collectDisasterNews(async () => {
+    if (++calls > 1) throw new Error('unavailable');
+    return { data: { ok: true, items: [item(0)] } };
+  }, now);
+  assert.equal(calls, NEWS_QUERIES.length);
+  assert.equal(result.length, 1);
+  await assert.rejects(collectDisasterNews(async () => { throw new Error('unavailable'); }, now));
+});

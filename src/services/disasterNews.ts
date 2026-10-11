@@ -37,3 +37,30 @@ export function normalizeNews(response: unknown, now = Date.now()): DisasterNews
       publishedAt: new Date(date).toISOString(), source: separator > 0 ? title.slice(separator + 3) : url.hostname }];
   }).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt)).slice(0, 15);
 }
+
+// Broaden the candidate pool only when the first search cannot fill the feed.
+export const NEWS_QUERIES = [
+  NEWS_QUERY,
+  '(banjir OR longsor OR "puting beliung") Indonesia when:7d',
+  '("gempa bumi" OR erupsi OR tsunami) Indonesia when:7d',
+  '(karhutla OR kekeringan OR "bantuan bencana" OR "evakuasi korban") Indonesia when:7d',
+];
+
+export async function collectDisasterNews(
+  request: (query: string) => Promise<unknown>, now = Date.now(),
+): Promise<DisasterNewsItem[]> {
+  const candidates: unknown[] = [];
+  let items: DisasterNewsItem[] = [];
+  for (const query of NEWS_QUERIES) {
+    try {
+      const response = await request(query);
+      // Validate each response before merging; a failed fallback keeps valid results.
+      normalizeNews(response, now);
+      candidates.push(...(response as { data: { items: unknown[] } }).data.items);
+      items = normalizeNews({ data: { ok: true, items: candidates } }, now);
+      if (items.length >= 15) break;
+    } catch { /* Try the next search without discarding successful candidates. */ }
+  }
+  if (!items.length) throw new Error('no relevant articles');
+  return items;
+}

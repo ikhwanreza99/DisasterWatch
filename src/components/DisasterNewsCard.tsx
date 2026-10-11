@@ -31,7 +31,8 @@ export function DisasterNewsCard({ compact = false }: { compact?: boolean }) {
       <h4 className="text-sm font-bold text-slate-900">Update Berita Terkini</h4>
       {compact && items.length > 2 && <button type="button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)} className="text-xs font-semibold text-blue-600 shrink-0">{expanded ? 'Ringkas' : `Lihat Semua (${items.length})`}</button>}
     </div>
-    <p className="mt-2 text-[11px] text-slate-500">Bencana Indonesia · Pembaruan 5 hari</p>
+    <p className="mt-2 text-[11px] text-slate-500">Bencana Indonesia · Diperbarui setiap 5 hari</p>
+    {feed && items.length > 0 && <p className="mt-1 text-[10px] text-slate-500">{items.length} dari maksimal 15 berita terbaru tersedia</p>}
     {feed?.updatedAt && <p className="mt-1 text-[10px] text-slate-500">Diperbarui {formatDate(feed.updatedAt)} WIB{stale ? ' · Data belum diperbarui' : ''}</p>}
     {failed && <p role="status" className="mt-3 text-xs text-amber-700">Berita belum dapat diperbarui. {items.length ? 'Menampilkan data terakhir.' : 'Silakan coba lagi nanti.'}</p>}
     {!feed && !failed && <p role="status" className="mt-3 text-xs text-slate-500">Memuat berita…</p>}
