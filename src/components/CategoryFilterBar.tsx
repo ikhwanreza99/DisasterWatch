@@ -26,7 +26,7 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
     return <div className="mobile-filter-menu sm:hidden">
       {open && <div id="mobile-disaster-options" className="mobile-filter-options" role="group" aria-label="Jenis bencana">
         {choices.map(({ id, label, Icon }) => <button key={id} type="button" aria-pressed={activeCategory === id}
-          onClick={() => onSelectCategory(id)} className={activeCategory === id ? 'selected' : ''}>
+          onClick={() => { onSelectCategory(id); setOpen(false); }} className={activeCategory === id ? 'selected' : ''}>
           <Icon size={17} aria-hidden="true" /><span>{label}</span>
         </button>)}
       </div>}

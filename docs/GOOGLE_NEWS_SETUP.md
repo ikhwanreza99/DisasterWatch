@@ -11,13 +11,13 @@ Tidak ada kredensial yang disertakan dalam JSON publik atau bundle Vite.
 
 ## Frekuensi dan data
 
-Workflow Hosting tetap dijalankan sekitar 30 menit sesuai kebutuhan snapshot layer lain. Request Zapi hanya dilakukan setelah 5 x 24 jam dari percobaan terakhir, sekitar 6–7 request/bulan. Waktu percobaan tersimpan di Actions cache, termasuk kegagalan. Cache eviction dapat memicu request tambahan. Scheduled runs GitHub dapat terlambat. Cache v2 memulai pengambilan pertama dengan metadata baru.
+Workflow Hosting tetap dijalankan sekitar 30 menit sesuai kebutuhan snapshot layer lain. Request Zapi hanya dilakukan setelah 5 x 24 jam dari percobaan terakhir, 1–4 pencarian per pembaruan (sekitar 6–28 request/bulan). Waktu percobaan tersimpan di Actions cache, termasuk kegagalan. Cache eviction dapat memicu request tambahan. Scheduled runs GitHub dapat terlambat. Cache v2 memulai pengambilan pertama dengan metadata baru.
 
 Endpoint: https://api.zapi.ink/v1/news:google-news/feed
 Dokumentasi: https://zapi.ink/api/news/google-news/llms.txt
 Header autentikasi: `x-api-key`.
 
-Query mencari berita bencana serta bantuan bencana terkait Indonesia dalam 7 hari terakhir. Dari maksimal 50 kandidat, pilih maksimal 15 valid, unik, dan terbaru. Hanya headline dengan kata bencana serta petunjuk lokasi Indonesia yang diterima. Headline yang menyebut lokasi luar negeri yang dikenali ditolak, termasuk Indonesia sebagai pemberi bantuan ke luar negeri. Filter konservatif dapat melewatkan berita daerah; ini bukan verifikasi geografis penuh. Artikel tanpa bukti lokasi tidak diterbitkan. Nama penerbit tidak digunakan sebagai bukti lokasi.
+Query mencari berita bencana serta bantuan bencana terkait Indonesia dalam 7 hari terakhir. Setiap pencarian mengambil maksimal 50 kandidat. Jika pencarian utama menghasilkan kurang dari 15 artikel valid, script mencoba hingga tiga pencarian cadangan per kelompok bencana dan berhenti ketika 15 artikel terkumpul. Hasil digabung, dibuang duplikat URL-nya, lalu diurutkan terbaru. Kegagalan satu pencarian tidak membuang hasil pencarian yang berhasil. Jika tetap kurang dari 15, UI menampilkan jumlah aktual; artikel tidak digandakan untuk memenuhi kuota. Hanya headline dengan kata bencana serta petunjuk lokasi Indonesia yang diterima. Headline yang menyebut lokasi luar negeri yang dikenali ditolak, termasuk Indonesia sebagai pemberi bantuan ke luar negeri. Filter konservatif dapat melewatkan berita daerah; ini bukan verifikasi geografis penuh. Artikel tanpa bukti lokasi tidak diterbitkan. Nama penerbit tidak digunakan sebagai bukti lokasi.
 
 Metadata diekstrak dari headline, bukan isi artikel penuh: `countryCode`, `locationEvidence`, `disasterTypes`, `topic`, `aidRelated`, `aidCategories`, `verificationStatus`, `extractionMethod`. Semua berstatus UNVERIFIED; tidak membuat angka korban, koordinat, jumlah bantuan, atau klaim bantuan telah diterima.
 

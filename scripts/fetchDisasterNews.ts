@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { NEWS_QUERY, NEWS_REFRESH_MS, normalizeNews, type DisasterNewsFeed } from '../src/services/disasterNews.ts';
+import { NEWS_REFRESH_MS, collectDisasterNews, type DisasterNewsFeed } from '../src/services/disasterNews.ts';
 
 const output = process.argv[2] || 'public/data/disaster-news.json';
 let feed: DisasterNewsFeed & { lastAttemptAt?: string } = { updatedAt: null, items: [] };
@@ -14,13 +14,14 @@ try {
     const key = process.env.ZAPI_API_KEY;
     if (!key) throw new Error('missing key');
     feed.lastAttemptAt = new Date().toISOString();
-    const url = new URL('https://api.zapi.ink/v1/news:google-news/feed');
-    url.searchParams.set('query', NEWS_QUERY);
-    url.searchParams.set('limit', '50');
-    const response = await fetch(url, { headers: { 'x-api-key': key }, signal: AbortSignal.timeout(20_000), redirect: 'error' });
-    if (!response.ok) throw new Error('upstream failure');
-    const items = normalizeNews(await response.json());
-    if (!items.length) throw new Error('no relevant articles');
+    const items = await collectDisasterNews(async query => {
+      const url = new URL('https://api.zapi.ink/v1/news:google-news/feed');
+      url.searchParams.set('query', query);
+      url.searchParams.set('limit', '50');
+      const response = await fetch(url, { headers: { 'x-api-key': key }, signal: AbortSignal.timeout(20_000), redirect: 'error' });
+      if (!response.ok) throw new Error('upstream failure');
+      return response.json();
+    });
     feed = { updatedAt: new Date().toISOString(), lastAttemptAt: feed.lastAttemptAt, items };
     console.log(`Google News: ${items.length} articles fetched.`);
   }

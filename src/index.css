@@ -254,3 +254,50 @@
 @media (max-width: 639px) and (prefers-reduced-motion: reduce) {
   #slimHomepageSidebar.mobile-sheet { animation: none; }
 }
+
+/* One flood panel occupies a lane beside the map controls, below the toolbar.
+   Size against the map workspace, not the viewport (which includes the header). */
+.flood-panel {
+  position: absolute; z-index: 20; pointer-events: auto;
+  top: 80px; bottom: calc(88px + env(safe-area-inset-bottom));
+  left: 76px; right: 12px; display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden; border: 1px solid #e2e8f0;
+  border-radius: 16px; background: white; color: #1e293b;
+  box-shadow: 0 12px 32px #0f172a26;
+}
+.flood-panel-reopen {
+  position: absolute; z-index: 20; top: 80px; left: 76px;
+  display: flex; align-items: center; gap: 8px; min-height: 44px;
+  padding: 8px 14px; border-radius: 14px; background: white;
+  color: #1e293b; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px #0f172a26;
+}
+@media (min-width: 640px) {
+  .flood-panel { top: 72px; left: 100px; right: auto; width: min(370px, calc(100% - 116px)); }
+  .flood-panel-reopen { top: 72px; left: 100px; }
+}
+@media (min-width: 640px) and (max-height: 560px) {
+  .flood-panel, .flood-panel-reopen { top: 132px; }
+}
+
+/* The mobile ticker adds a row above search/filter. Reserve that row for
+   both the open panel and its reopen button. */
+@media (max-width: 639px) {
+  [data-purpose="map-viewport"]:has(.mobile-news-capsule) {
+    --flood-panel-top: 136px;
+  }
+  .flood-panel, .flood-panel-reopen { top: var(--flood-panel-top, 80px); }
+  .flood-panel { left: 68px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .flood-panel-reopen { left: 68px; right: 12px; width: fit-content; max-width: calc(100% - 80px); }
+  .flood-panel h3 { min-width: 0; overflow-wrap: anywhere; }
+  .flood-panel dl > div { min-width: 0; overflow-wrap: anywhere; }
+  .mobile-filter-options { right: 0; top: calc(100% + 8px); }
+}
+@media (max-width: 374px) {
+  .flood-panel dl { grid-template-columns: 1fr; }
+}
+@media (max-width: 374px) {
+  .app-header { padding-inline: 8px; gap: 4px; }
+  .app-header > div:first-child { gap: 6px; }
+  .app-header h1 { font-size: 14px; }
+  .app-header > div:last-child > div:first-child > button { gap: 4px; padding-inline: 8px; }
+}
