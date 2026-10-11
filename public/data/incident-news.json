@@ -1,0 +1,70 @@
+{
+  "at": "2026-10-11T09:23:45.185Z",
+  "incidents": [
+    {
+      "incidentId": "cianjur",
+      "queries": [
+        "Cianjur gempa dampak kerusakan",
+        "Cianjur gempa bantuan logistik posko pengungsian",
+        "Cianjur gempa BPBD BNPB update"
+      ],
+      "zapi": {
+        "status": "FAILED",
+        "reason": "ZAPI_API_KEY missing — no request sent (same guard as scripts/fetchDisasterNews.ts)."
+      },
+      "officialFetch": {
+        "url": null,
+        "status": "NO_URL"
+      },
+      "classification": {
+        "matched": 0,
+        "review": 0,
+        "rejected": 10
+      }
+    },
+    {
+      "incidentId": "lombok-2018-08-05",
+      "queries": [
+        "Lombok gempa dampak kerusakan",
+        "Lombok gempa bantuan logistik posko pengungsian",
+        "Lombok gempa BPBD BNPB update"
+      ],
+      "zapi": {
+        "status": "FAILED",
+        "reason": "ZAPI_API_KEY missing — no request sent (same guard as scripts/fetchDisasterNews.ts)."
+      },
+      "officialFetch": {
+        "url": "https://bnpb.go.id/berita/gempa-7-sr-guncang-lombok-utara-peringatan-dini-tsunami-diaktivasi",
+        "status": "OK",
+        "http": 200
+      },
+      "classification": {
+        "matched": 0,
+        "review": 0,
+        "rejected": 10
+      }
+    },
+    {
+      "incidentId": "ntt-sumba-barat-daya-2026-10-04",
+      "queries": [
+        "Sumba Barat Daya gempa dampak kerusakan",
+        "Sumba Barat Daya gempa bantuan logistik posko pengungsian",
+        "Sumba Barat Daya gempa BPBD BNPB update"
+      ],
+      "zapi": {
+        "status": "FAILED",
+        "reason": "ZAPI_API_KEY missing — no request sent (same guard as scripts/fetchDisasterNews.ts)."
+      },
+      "officialFetch": {
+        "url": "https://www.bmkg.go.id/gempabumi/20261004055834",
+        "status": "OK",
+        "http": 200
+      },
+      "classification": {
+        "matched": 10,
+        "review": 0,
+        "rejected": 0
+      }
+    }
+  ]
+}

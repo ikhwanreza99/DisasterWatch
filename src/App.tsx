@@ -42,6 +42,7 @@ import { NttCaseView } from './components/NttCaseView';
 import { NTT_CASE_ID } from './domain/nttCase';
 import { loadNttCase, refreshNttCase, type NttCaseState } from './services/nttCaseStore';
 import { nttIncident } from './data/nttIncident';
+import { lombokIncident } from './data/lombokIncident';
 
 export default function App() {
   // Follow the visible viewport when the on-screen keyboard opens on phones.
@@ -59,7 +60,7 @@ export default function App() {
       document.documentElement.style.removeProperty('--app-height');
     };
   }, []);
-  const [disasters, setDisasters] = useState<Record<string, DisasterIncident>>({ ...disastersData, [nttIncident.id]: nttIncident });
+  const [disasters, setDisasters] = useState<Record<string, DisasterIncident>>({ ...disastersData, [nttIncident.id]: nttIncident, [lombokIncident.id]: lombokIncident });
   const [ntt, setNtt] = useState<NttCaseState | null>(null);
   const [isNttOpen, setIsNttOpen] = useState<boolean>(false);
   const [nttRefreshing, setNttRefreshing] = useState<boolean>(false);
@@ -127,16 +128,9 @@ export default function App() {
     // the new incident — the mini sidebar only renders when no other panel is open.
     if (disasters[key]) {
       setActiveDisasterKey(key);
-      if (key === NTT_CASE_ID) {
-        setIsDetailOpen(false);
-        setIsRouteOpen(false);
-        setIsReportsOpen(false);
-        setIsAIOpen(false);
-        setIsSidebarMinimized(true);
-        setIsSidebarExpanded(false);
-        setIsNttOpen(true);
-        return;
-      }
+      // Every incident — NTT and Lombok included — shares one detail template.
+      // The NTT deep-dive intel view is opened explicitly (shortcut / detail button).
+      setIsNttOpen(false);
       if (window.matchMedia('(max-width: 639px)').matches) {
         setIsSidebarMinimized(true);
         setIsSidebarExpanded(false);
@@ -287,8 +281,8 @@ export default function App() {
     }
   };
 
-  /** Open the NTT earthquake case: single-window, map follows the epicenter. */
-  const handleOpenNtt = () => {
+  /** Open the NTT deep-dive intelligence view (single-window, map follows epicenter). */
+  const handleOpenNttIntel = () => {
     if (disasters[NTT_CASE_ID]) setActiveDisasterKey(NTT_CASE_ID);
     setIsDetailOpen(false);
     setIsRouteOpen(false);
@@ -338,7 +332,7 @@ export default function App() {
     let cancelled = false;
     loadDisasters().then(({ data, status }) => {
       if (cancelled) return;
-      setDisasters({ ...data, [nttIncident.id]: nttIncident });
+      setDisasters({ ...data, [nttIncident.id]: nttIncident, [lombokIncident.id]: lombokIncident });
       setStoreNotice(status.message);
       if (!data[activeDisasterKey] && data['demak']) setActiveDisasterKey('demak');
     });
@@ -552,6 +546,8 @@ export default function App() {
               onOpenReports={handleOpenReports}
               intelReports={intelReports}
               aidRecords={aidRecords}
+              nttCase={ntt}
+              onOpenNttIntelligence={handleOpenNttIntel}
             />
           )}
 
@@ -608,7 +604,7 @@ export default function App() {
           {!isNttOpen && (
             <button
               type="button"
-              onClick={handleOpenNtt}
+              onClick={handleOpenNttIntel}
               title="Buka kasus gempa Sumba Barat Daya 4 Okt 2026 (data nyata BMKG + berita)"
               className="absolute bottom-3 left-3 z-40 flex items-center gap-2 rounded-full border border-rose-200 bg-white/95 px-3 py-2 text-xs font-bold text-rose-700 shadow-lg backdrop-blur hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-rose-500"
             >

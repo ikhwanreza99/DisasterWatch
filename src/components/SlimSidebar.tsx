@@ -1,5 +1,8 @@
-import { DisasterNewsCard } from './DisasterNewsCard';
+import { useMemo } from 'react';
 import { useMobileLayout } from './useMobileLayout';
+import { buildIncidentDetail } from '../services/incidentDetailAdapter';
+import { filterIncidentNews, reviewQueue } from '../services/incidentNews';
+import { IncidentNewsPanel } from './detail/IncidentNewsPanel';
 import { MobileSheetHandle } from './MobileSheetHandle';
 import React from 'react';
 import {
@@ -12,6 +15,7 @@ import {
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
+import type { NttCaseState } from '../services/nttCaseStore';
 import { ExpandedDetailContent } from './ExpandedDetailContent';
 import { WeatherCard } from './WeatherCard';
 
@@ -32,6 +36,8 @@ interface SlimSidebarProps {
   onOpenReports?: () => void;
   intelReports?: IntelligenceReport[];
   aidRecords?: AidRecord[];
+  nttCase?: NttCaseState | null;
+  onOpenNttIntelligence?: () => void;
 }
 
 export const SlimSidebar: React.FC<SlimSidebarProps> = ({
@@ -47,8 +53,19 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
   onOpenReports,
   intelReports,
   aidRecords,
+  nttCase,
+  onOpenNttIntelligence,
 }) => {
   const mobile = useMobileLayout();
+  // Mini card news: incident-filtered (MATCHED only), never the generic national feed.
+  const miniNews = useMemo(() => {
+    const { detail } = buildIncidentDetail(disaster, nttCase ?? null);
+    return {
+      matched: filterIncidentNews(detail.articles, detail.incidentId),
+      review: reviewQueue(detail.articles, detail.incidentId),
+      crawl: detail.crawl,
+    };
+  }, [disaster, nttCase]);
   const getCategoryIcon = () => {
     switch (disaster.category) {
       case 'fire':
@@ -127,6 +144,8 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           onOpenDisasterBrief={onOpenDisasterBrief}
           intelReports={intelReports}
           aidRecords={aidRecords}
+          nttCase={nttCase}
+          onOpenNttIntelligence={onOpenNttIntelligence}
         />
       ) : (
         <>
@@ -410,7 +429,13 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           </div>        
         </div>*/}
 
-        <DisasterNewsCard compact />
+        <IncidentNewsPanel
+          compact
+          incidentName={disaster.name}
+          matched={miniNews.matched}
+          review={miniNews.review}
+          freshness={{ lastAttemptAt: miniNews.crawl.lastAttemptAt, lastSuccessAt: miniNews.crawl.lastSuccessAt, error: miniNews.crawl.error }}
+        />
 
         {/* Cuaca lapangan (Google Weather) — below Update Berita Terkini */}
         <div className="rounded-[20px] border border-slate-200 bg-white p-4" data-purpose="mini-weather">
