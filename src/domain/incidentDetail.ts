@@ -96,6 +96,30 @@ export function poskoMapMarkers(posko: PoskoRecord[]): Array<{ id: string; lat: 
   );
 }
 
+/** Official event parameter revision (e.g. BMKG initial vs updated). Revisions are never merged. */
+export interface OfficialParam {
+  label: string;
+  value: string;
+  revision: string | null;
+  reportedAt: string | null;
+  sourceUrl: string | null;
+  sourceName: string | null;
+}
+
+/**
+ * A factual claim with its verification status preserved — a reported claim is
+ * never promoted to a verified fact during refactor or display.
+ */
+export interface ClaimRef {
+  claimId: string;
+  claimType: string;
+  claimText: string;
+  location: string | null;
+  sourceUrl: string | null;
+  sourceName: string | null;
+  verificationStatus: 'UNVERIFIED' | 'AI_REVIEWED' | 'VERIFIED' | 'CONFLICTING';
+}
+
 /** Common detail data every incident adapter must supply. */
 export interface IncidentDetailData {
   incidentId: string;
@@ -111,5 +135,9 @@ export interface IncidentDetailData {
   articles: IncidentArticle[];
   aidEvents: AidEventRecord[];
   posko: PoskoRecord[];
+  /** Official parameters (empty when unavailable — same empty treatment as other sections). */
+  officialParams: OfficialParam[];
+  /** Extracted claims with verification status (conflicts kept visible, never merged). */
+  claims: ClaimRef[];
   crawl: { lastAttemptAt: string | null; lastSuccessAt: string | null; error: string | null };
 }

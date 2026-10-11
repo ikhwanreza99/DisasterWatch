@@ -7,6 +7,14 @@ export interface IncidentDescriptor {
   disasterType: 'earthquake' | 'flood' | 'fire' | 'landslide' | 'other';
   /** Location aliases that count as strong evidence (regency/city/villages from real records). */
   aliases: string[];
+  /**
+   * Broad single-word areas (e.g. 'Sumba', 'Bima', 'Lombok') that also match
+   * neighboring regencies / different events. A broad-alias hit alone is never
+   * sufficient for MATCHED — it needs distinctive supporting evidence.
+   * Must be a subset of `aliases`. Province names must never appear here or in
+   * `aliases`: province-only matching must not qualify an article.
+   */
+  broadAliases: string[];
   /** Distinctive non-location keywords (fault names, scale markers, program names). */
   keywords: string[];
   /** ISO event date when known; null for ongoing demo scenarios (date check skipped). */
@@ -22,6 +30,7 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
     province: 'Jawa Barat',
     disasterType: 'earthquake',
     aliases: ['Cianjur', 'Cugenang', 'Sukabumi', 'Gasol', 'Prawatasari'],
+    broadAliases: ['Cianjur', 'Sukabumi'],
     keywords: ['Sesar Cugenang', 'Cugenang', 'Sayang Cianjur'],
     eventDate: null,
     windowDays: null,
@@ -35,6 +44,7 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
       'Lombok', 'Lombok Utara', 'Lombok Timur', 'Lombok Barat', 'Lombok Tengah',
       'Mataram', 'Rinjani', 'Gili', 'Tanjung', 'Pemenang',
     ],
+    broadAliases: ['Lombok', 'Mataram', 'Gili'],
     keywords: ['Sesar Naik Flores', 'Flores Back Arc Thrust', 'MMI VIII', 'peringatan dini tsunami'],
     eventDate: '2018-08-05',
     windowDays: 3650,
@@ -49,6 +59,7 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
       'Tambolaka', 'Waikabubak', 'Waibakul', 'Perokonda', 'Bondo Kodi',
       'Waikadada', 'Weerena', 'Raba', 'Bima',
     ],
+    broadAliases: ['Sumba', 'Bima', 'Raba'],
     keywords: ['Sesar Waikabubak', 'Waikabubak', 'M5,9', 'M6,1', '62 susulan', '62 gempa susulan'],
     eventDate: '2026-10-04',
     windowDays: 60,
@@ -59,6 +70,7 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
     province: 'Sulawesi Tengah',
     disasterType: 'earthquake',
     aliases: ['Palu', 'Donggala', 'Palu-Koro', 'Sulteng'],
+    broadAliases: ['Sulteng'],
     keywords: ['Sesar Palu-Koro', 'likuifaksi'],
     eventDate: null,
     windowDays: null,
@@ -69,6 +81,7 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
     province: 'Jawa Tengah',
     disasterType: 'flood',
     aliases: ['Demak', 'Kudus', 'Karanganyar', 'Sungai Wulan', 'Tanggulangin'],
+    broadAliases: ['Demak', 'Kudus'],
     keywords: ['Tanggul Sungai Wulan', 'Waduk Kedungombo'],
     eventDate: null,
     windowDays: null,
@@ -79,6 +92,7 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
     province: 'Sumatera Barat',
     disasterType: 'flood',
     aliases: ['Padang', 'Pesisir Selatan', 'Kuranji', 'Batang Kuranji'],
+    broadAliases: ['Padang'],
     keywords: ['Galodo', 'Batang Kuranji'],
     eventDate: null,
     windowDays: null,
@@ -89,6 +103,7 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
     province: 'Papua',
     disasterType: 'flood',
     aliases: ['Sentani', 'Jayapura', 'Cycloop', 'Danau Sentani'],
+    broadAliases: ['Jayapura'],
     keywords: ['Danau Sentani', 'Cycloop'],
     eventDate: null,
     windowDays: null,
@@ -99,6 +114,7 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
     province: 'Kalimantan Selatan',
     disasterType: 'fire',
     aliases: ['Martapura', 'Banjar', 'Karang Intan', 'Sungai Batang'],
+    broadAliases: ['Banjar'],
     keywords: ['Manggala Agni', 'Karhutla Martapura'],
     eventDate: null,
     windowDays: null,
@@ -109,6 +125,7 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
     province: 'Riau',
     disasterType: 'fire',
     aliases: ['Pekanbaru', 'Kampar', 'Rimbo Panjang', 'Siak'],
+    broadAliases: ['Pekanbaru', 'Siak'],
     keywords: ['Manggala Agni', 'gambut Kampar'],
     eventDate: null,
     windowDays: null,
@@ -129,7 +146,9 @@ const TYPE_WORDS: Record<IncidentDescriptor['disasterType'], RegExp> = {
 
 /** Incident-specific search queries (location + type + aid/posko/official angles). */
 export function buildIncidentQueries(d: IncidentDescriptor): string[] {
-  const loc = d.aliases[0] ?? d.name;
+  const raw = d.aliases[0] ?? d.name;
+  // Quote multi-word places so the provider prioritizes the exact incident location.
+  const loc = raw.includes(' ') ? `"${raw}"` : raw;
   const typeWord =
     d.disasterType === 'earthquake' ? 'gempa' : d.disasterType === 'flood' ? 'banjir' : d.disasterType === 'fire' ? 'karhutla' : 'bencana';
   return [

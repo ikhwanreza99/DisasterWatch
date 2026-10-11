@@ -1,5 +1,7 @@
 {
-  "at": "2026-10-11T09:23:45.185Z",
+  "at": "2026-10-11T09:39:45.376Z",
+  "poolSize": 0,
+  "fetchedTotal": 0,
   "incidents": [
     {
       "incidentId": "cianjur",
@@ -10,7 +12,8 @@
       ],
       "zapi": {
         "status": "FAILED",
-        "reason": "ZAPI_API_KEY missing — no request sent (same guard as scripts/fetchDisasterNews.ts)."
+        "reason": "ZAPI_API_KEY missing — no request sent (same guard as scripts/fetchDisasterNews.ts).",
+        "fetched": 0
       },
       "officialFetch": {
         "url": null,
@@ -19,7 +22,7 @@
       "classification": {
         "matched": 0,
         "review": 0,
-        "rejected": 10
+        "rejected": 0
       }
     },
     {
@@ -31,7 +34,8 @@
       ],
       "zapi": {
         "status": "FAILED",
-        "reason": "ZAPI_API_KEY missing — no request sent (same guard as scripts/fetchDisasterNews.ts)."
+        "reason": "ZAPI_API_KEY missing — no request sent (same guard as scripts/fetchDisasterNews.ts).",
+        "fetched": 0
       },
       "officialFetch": {
         "url": "https://bnpb.go.id/berita/gempa-7-sr-guncang-lombok-utara-peringatan-dini-tsunami-diaktivasi",
@@ -41,19 +45,20 @@
       "classification": {
         "matched": 0,
         "review": 0,
-        "rejected": 10
+        "rejected": 0
       }
     },
     {
       "incidentId": "ntt-sumba-barat-daya-2026-10-04",
       "queries": [
-        "Sumba Barat Daya gempa dampak kerusakan",
-        "Sumba Barat Daya gempa bantuan logistik posko pengungsian",
-        "Sumba Barat Daya gempa BPBD BNPB update"
+        "\"Sumba Barat Daya\" gempa dampak kerusakan",
+        "\"Sumba Barat Daya\" gempa bantuan logistik posko pengungsian",
+        "\"Sumba Barat Daya\" gempa BPBD BNPB update"
       ],
       "zapi": {
         "status": "FAILED",
-        "reason": "ZAPI_API_KEY missing — no request sent (same guard as scripts/fetchDisasterNews.ts)."
+        "reason": "ZAPI_API_KEY missing — no request sent (same guard as scripts/fetchDisasterNews.ts).",
+        "fetched": 0
       },
       "officialFetch": {
         "url": "https://www.bmkg.go.id/gempabumi/20261004055834",
@@ -61,7 +66,7 @@
         "http": 200
       },
       "classification": {
-        "matched": 10,
+        "matched": 0,
         "review": 0,
         "rejected": 0
       }

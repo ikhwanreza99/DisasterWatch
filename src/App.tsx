@@ -281,7 +281,7 @@ export default function App() {
     }
   };
 
-  /** Open the NTT deep-dive intelligence view (single-window, map follows epicenter). */
+  /** Open the NTT deep-dive intelligence view (secondary action inside the standard NTT detail). */
   const handleOpenNttIntel = () => {
     if (disasters[NTT_CASE_ID]) setActiveDisasterKey(NTT_CASE_ID);
     setIsDetailOpen(false);
@@ -291,6 +291,22 @@ export default function App() {
     setIsSidebarMinimized(true);
     setIsSidebarExpanded(false);
     setIsNttOpen(true);
+  };
+
+  /**
+   * Shortcut entry: opens the NTT incident in the SAME shared detail template as
+   * Cianjur/Lombok (never a different page layout). The claim-level deep-dive
+   * remains one click away inside the standard view.
+   */
+  const handleOpenNttIncident = () => {
+    if (disasters[NTT_CASE_ID]) setActiveDisasterKey(NTT_CASE_ID);
+    setIsNttOpen(false);
+    setIsDetailOpen(false);
+    setIsRouteOpen(false);
+    setIsReportsOpen(false);
+    setIsAIOpen(false);
+    setIsSidebarMinimized(false);
+    setIsSidebarExpanded(!window.matchMedia('(max-width: 639px)').matches);
   };
 
   const handleRefreshNtt = async () => {
@@ -600,12 +616,12 @@ export default function App() {
             />
           )}
 
-          {/* NTT case entry point — always visible, map follows on open */}
+          {/* NTT case entry point — opens the standard shared detail template */}
           {!isNttOpen && (
             <button
               type="button"
-              onClick={handleOpenNttIntel}
-              title="Buka kasus gempa Sumba Barat Daya 4 Okt 2026 (data nyata BMKG + berita)"
+              onClick={handleOpenNttIncident}
+              title="Buka detail gempa Sumba Barat Daya 4 Okt 2026 (tampilan standar yang sama)"
               className="absolute bottom-3 left-3 z-40 flex items-center gap-2 rounded-full border border-rose-200 bg-white/95 px-3 py-2 text-xs font-bold text-rose-700 shadow-lg backdrop-blur hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-rose-500"
             >
               <span aria-hidden="true">🌋</span>

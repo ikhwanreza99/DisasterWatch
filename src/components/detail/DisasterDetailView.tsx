@@ -10,6 +10,8 @@ import { IncidentOverviewCard } from './IncidentOverviewCard';
 import { RecoveryStatusCards } from './RecoveryStatusCards';
 import { IncidentNewsPanel } from './IncidentNewsPanel';
 import { AidAndPoskoPanel } from './AidAndPoskoPanel';
+import { IncidentOfficialParams } from './IncidentOfficialParams';
+import { IncidentClaimsPanel } from './IncidentClaimsPanel';
 import { IncidentTimeline, type DetailTimelineEvent } from './IncidentTimeline';
 import type { IncidentDetailData } from '../../domain/incidentDetail';
 import { filterIncidentNews, reviewQueue } from '../../services/incidentNews';
@@ -66,6 +68,7 @@ export const DisasterDetailView: React.FC<Props> = ({
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full items-stretch flex-1 min-h-0 overflow-y-auto xl:overflow-hidden xl:h-full pr-1">
         <div className="xl:col-span-6 space-y-4 min-w-0 xl:overflow-y-auto xl:h-full pb-4">
           <IncidentOverviewCard disaster={disaster} detail={detail} onOpenRoute={onOpenRoute} onOpenBrief={onOpenDisasterBrief} />
+          <IncidentOfficialParams params={detail.officialParams} />
           <RecoveryStatusCards services={disaster.recoveryServices} />
           {extraAction && (
             <button
@@ -104,6 +107,7 @@ export const DisasterDetailView: React.FC<Props> = ({
             freshness={{ lastAttemptAt: detail.crawl.lastAttemptAt, lastSuccessAt: detail.crawl.lastSuccessAt, error: detail.crawl.error }}
           />
           <AidAndPoskoPanel aid={detail.aidEvents} posko={detail.posko} />
+          <IncidentClaimsPanel claims={detail.claims} />
         </div>
       </div>
     </div>
@@ -111,5 +115,5 @@ export const DisasterDetailView: React.FC<Props> = ({
 };
 
 // Re-exported so callers migrate to the shared template without hunting imports.
-export { IncidentOverviewCard, RecoveryStatusCards, IncidentNewsPanel, AidAndPoskoPanel, IncidentTimeline };
+export { IncidentOverviewCard, RecoveryStatusCards, IncidentNewsPanel, AidAndPoskoPanel, IncidentTimeline, IncidentOfficialParams, IncidentClaimsPanel };
 export type { DetailTimelineEvent };

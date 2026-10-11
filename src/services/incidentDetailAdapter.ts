@@ -1,7 +1,8 @@
 // Adapter: any incident → IncidentDetailData for the shared template.
 // Provenance is explicit per metric; unavailable stays unavailable.
 import type { DisasterIncident } from '../types';
-import type { IncidentArticle, IncidentDetailData } from '../domain/incidentDetail';
+import type { ClaimRef, IncidentArticle, IncidentDetailData, OfficialParam } from '../domain/incidentDetail';
+import { canonicalUrl } from '../domain/nttCase';
 import { descriptorFor } from './incidentRegistry';
 import { classifyForIncident } from './incidentNews';
 import { extractAidEvents, extractFromReport, extractPosko } from './incidentIntel';
@@ -10,6 +11,54 @@ import { nttArticlesSeed } from '../data/nttCase';
 import { buildNttTimeline, type NttCaseState } from './nttCaseStore';
 
 const DEMO_IDS = new Set(['padang', 'banjar', 'pekanbaru', 'cianjur', 'demak', 'palu', 'jayapura', 'lombok-2018-08-05']);
+
+/** Official parameters from real records only — never demo values, never invented. */
+function officialParams(incidentId: string, ntt: NttCaseState | null): OfficialParam[] {
+  if (incidentId === 'ntt-sumba-barat-daya-2026-10-04') {
+    const kase = ntt?.kase;
+    if (!kase) return [];
+    return kase.revisions.map((r) => ({
+      label: r.revision === 'initial' ? 'Parameter awal BMKG' : 'Parameter update BMKG',
+      value: `M${r.magnitude} · kedalaman ${r.depthKm} km · ${r.latitude}°LS ${r.longitude}°BT — ${r.locationText}. ${r.tsunamiAssessment}.`,
+      revision: r.revision,
+      reportedAt: r.reportedAt,
+      sourceUrl: r.sourceUrl,
+      sourceName: 'BMKG',
+    }));
+  }
+  if (incidentId === 'lombok-2018-08-05') {
+    return [
+      {
+        label: 'Parameter BMKG (dimutakhirkan)',
+        value: 'M7,0 · kedalaman 15 km · 8,37°LS 116,48°BT — 18 km barat laut Lombok Timur. Sesar Naik Flores. Peringatan dini tsunami diaktivasi; terdeteksi 0,135 m di Carik dan 0,100 m di Badas; berakhir 20:25 WIB.',
+        revision: 'update',
+        reportedAt: '2018-08-05T18:46:37+07:00',
+        sourceUrl: 'https://bnpb.go.id/berita/gempa-7-sr-guncang-lombok-utara-peringatan-dini-tsunami-diaktivasi',
+        sourceName: 'BMKG via BNPB',
+      },
+    ];
+  }
+  return [];
+}
+
+/** Claims with verification status preserved — reported claims never become verified facts. */
+function incidentClaims(incidentId: string, ntt: NttCaseState | null): ClaimRef[] {
+  if (incidentId === 'ntt-sumba-barat-daya-2026-10-04') {
+    const claims = ntt?.claims;
+    if (!claims) return [];
+    const sourceOf = new Map((ntt?.articles ?? []).map((a) => [a.id, a.sourceName] as const));
+    return claims.map((c) => ({
+      claimId: c.claimId,
+      claimType: c.claimType,
+      claimText: c.claimText,
+      location: c.location,
+      sourceUrl: c.sourceUrl,
+      sourceName: sourceOf.get(c.articleId) ?? null,
+      verificationStatus: c.verificationStatus,
+    }));
+  }
+  return [];
+}
 
 function nttCandidates(): IncidentArticle[] {
   return nttArticlesSeed.map((a) => ({
@@ -29,13 +78,25 @@ function nttCandidates(): IncidentArticle[] {
 export function buildIncidentDetail(
   disaster: DisasterIncident,
   ntt: NttCaseState | null,
+  /** Extra crawled candidates (persisted pool) — deduped, classified, never trusted blindly. */
+  pool: IncidentArticle[] = [],
 ): { detail: IncidentDetailData; timeline: DetailTimelineEvent[] } {
   const d = descriptorFor(disaster.id);
   const isDemo = DEMO_IDS.has(disaster.id);
   const isNtt = disaster.id === 'ntt-sumba-barat-daya-2026-10-04';
 
-  // Candidate pool: NTT explicit records + (general feed when present — none today).
-  let candidates: IncidentArticle[] = d ? nttCandidates().map((a) => classifyForIncident(a, d)) : [];
+  // Candidate pool: NTT explicit records + persisted crawl pool (dedup by canonical URL).
+  // A search result is never marked relevant merely because a query returned it —
+  // every candidate below is classified before display.
+  const seen = new Set<string>();
+  const raw: IncidentArticle[] = [];
+  for (const a of [...nttCandidates(), ...pool]) {
+    const key = canonicalUrl(a.url) ?? a.url;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    raw.push(a);
+  }
+  const candidates: IncidentArticle[] = d ? raw.map((a) => classifyForIncident(a, d)) : [];
   // Reports linked to this incident also contribute aid/posko evidence.
   const aid = [];
   const posko = [];
@@ -105,6 +166,8 @@ export function buildIncidentDetail(
       articles: candidates,
       aidEvents: aid,
       posko,
+      officialParams: officialParams(disaster.id, ntt),
+      claims: incidentClaims(disaster.id, ntt),
       crawl: {
         lastAttemptAt: isNtt ? (ntt?.kase.lastCrawlAt ?? null) : null,
         lastSuccessAt: isNtt ? (ntt?.kase.lastCrawlAt ?? null) : null,

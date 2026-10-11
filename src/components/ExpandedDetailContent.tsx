@@ -5,6 +5,7 @@ import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
 import { DisasterDetailView } from './detail/DisasterDetailView';
 import { buildIncidentDetail } from '../services/incidentDetailAdapter';
+import type { IncidentArticle } from '../domain/incidentDetail';
 import { NTT_CASE_ID } from '../domain/nttCase';
 import type { NttCaseState } from '../services/nttCaseStore';
 
@@ -19,6 +20,7 @@ interface ExpandedDetailContentProps {
   intelReports?: IntelligenceReport[];
   aidRecords?: AidRecord[];
   nttCase?: NttCaseState | null;
+  pool?: IncidentArticle[];
   onOpenNttIntelligence?: () => void;
 }
 
@@ -33,12 +35,13 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
   intelReports = [],
   aidRecords = [],
   nttCase = null,
+  pool = [],
   onOpenNttIntelligence,
 }) => {
   void onOpenAIHelpdesk;
   const { detail, timeline } = useMemo(
-    () => buildIncidentDetail(disaster, nttCase),
-    [disaster, nttCase],
+    () => buildIncidentDetail(disaster, nttCase, pool),
+    [disaster, nttCase, pool],
   );
   return (
     <DisasterDetailView
@@ -54,7 +57,10 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
       aidRecords={aidRecords}
       extraAction={
         disaster.id === NTT_CASE_ID && onOpenNttIntelligence
-          ? { label: 'Buka Intelijen NTT (10 berita, 11 klaim)', onClick: onOpenNttIntelligence }
+          ? {
+              label: `Analisis Klaim & Sumber NTT (${nttCase?.articles.length ?? 0} berita, ${nttCase?.claims.length ?? 0} klaim)`,
+              onClick: onOpenNttIntelligence,
+            }
           : undefined
       }
     />

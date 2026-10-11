@@ -63,9 +63,11 @@ export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched, revi
           Crawl terakhir gagal ({freshness.error}); menampilkan data terakhir yang berhasil.
         </p>
       )}
-      {list.length === 0 && !freshness.error && (
+      {list.length === 0 && (
         <p role="status" className="mt-3 text-xs text-slate-500" data-testid="news-empty">
-          Belum ada berita yang cocok untuk insiden ini dari sumber yang tersedia.
+          {showReview
+            ? 'Belum ada artikel yang memerlukan review untuk insiden ini.'
+            : 'Belum ada berita yang relevan dengan lokasi bencana ini.'}
         </p>
       )}
       <div className="mt-3 space-y-2 max-h-[60vh] overflow-y-auto">

@@ -1,6 +1,15 @@
 // Incident-specific news relevance (data-service level, not UI hiding).
-// Scoring: alias hit +3 (strong), keyword +1, type-word +0.5 (never sufficient alone).
-// Explicit incidentId link forces MATCHED for that incident only.
+// STRICT, fail-closed rules:
+// - A generic disaster keyword (gempa/banjir/...) alone is NEVER sufficient.
+// - Province-only matching NEVER qualifies (province names are not aliases).
+// - A broad-area alias (Sumba, Bima, Lombok, ...) alone is NEVER sufficient:
+//   MATCHED needs a strong (distinctive) alias plus supporting evidence, or two
+//   distinct broad aliases plus supporting evidence.
+// - Supporting evidence = distinctive keyword, a second distinct alias, or
+//   (disaster-type word AND in-window publication date).
+// - Explicit incidentId link from a trusted record decides immediately (per-incident).
+// - Being returned by a location query does NOT mark an article relevant;
+//   every candidate is classified and only MATCHED enters the default feed.
 import { canonicalUrl } from '../domain/nttCase';
 import type { IncidentArticle, RelevanceStatus } from '../domain/incidentDetail';
 import { typeWordPresent, type IncidentDescriptor } from './incidentRegistry';
@@ -15,6 +24,14 @@ export interface RelevanceResult {
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function inEventWindow(d: IncidentDescriptor, publishedAt: string | null): boolean | null {
+  if (!d.eventDate || d.windowDays == null || !publishedAt) return null;
+  const t = Date.parse(publishedAt);
+  const e = Date.parse(d.eventDate);
+  if (!Number.isFinite(t) || !Number.isFinite(e)) return null;
+  return Math.abs(t - e) / 86400_000 <= d.windowDays;
 }
 
 export function classifyRelevance(article: IncidentArticle, d: IncidentDescriptor, now = Date.now()): RelevanceResult {
@@ -38,33 +55,41 @@ export function classifyRelevance(article: IncidentArticle, d: IncidentDescripto
     };
   }
   const text = `${article.title} ${article.summary ?? ''}`;
+  const broad = new Set(d.broadAliases.map((a) => a.toLowerCase()));
   const matchedAliases = d.aliases.filter((a) => new RegExp(`\\b${escapeRegExp(a)}\\b`, 'i').test(text));
+  const strongAliases = matchedAliases.filter((a) => !broad.has(a.toLowerCase()));
+  const weakAliases = matchedAliases.filter((a) => broad.has(a.toLowerCase()));
+  const distinctAliases = new Set(matchedAliases.map((a) => a.toLowerCase())).size;
   const matchedKeywords = d.keywords.filter((k) => new RegExp(escapeRegExp(k), 'i').test(text));
   const hasType = typeWordPresent(d, text);
-  let score = matchedAliases.length * 3 + matchedKeywords.length * 1 + (hasType ? 0.5 : 0);
-
-  // Event-date window (only when the incident has a known date and article has one).
-  if (d.eventDate && d.windowDays != null && article.publishedAt) {
-    const t = Date.parse(article.publishedAt);
-    const e = Date.parse(d.eventDate);
-    if (Number.isFinite(t) && Number.isFinite(e)) {
-      const days = Math.abs(t - e) / 86400_000;
-      if (days <= d.windowDays) score += 1;
-      else score -= 2;
-    }
-  }
+  const windowHit = inEventWindow(d, article.publishedAt);
+  // Supporting evidence beyond a bare place-name mention.
+  const supported =
+    matchedKeywords.length >= 1 || distinctAliases >= 2 || (hasType && windowHit === true);
+  const score = matchedAliases.length * 3 + matchedKeywords.length * 1 + (hasType ? 0.5 : 0) + (windowHit === true ? 1 : windowHit === false ? -2 : 0);
   void now;
 
-  if (matchedAliases.length >= 1 && score >= 4) {
+  // MATCHED: strong alias + support, or two distinct broad aliases + support.
+  // A single broad alias (even with type word + date) stays out of the default feed.
+  if (strongAliases.length >= 1 && supported) {
     return {
       status: 'MATCHED',
       score,
       matchedAliases,
       matchedKeywords,
-      reason: `Location alias (${matchedAliases.slice(0, 3).join(', ')}) + supporting evidence (score ${score}).`,
+      reason: `Strong location alias (${strongAliases.slice(0, 3).join(', ')}) + supporting evidence (score ${score}).`,
     };
   }
-  if (score >= 2) {
+  if (distinctAliases >= 2 && weakAliases.length >= 1 && strongAliases.length === 0 && supported) {
+    return {
+      status: 'MATCHED',
+      score,
+      matchedAliases,
+      matchedKeywords,
+      reason: `Two distinct broad-area aliases (${matchedAliases.slice(0, 3).join(', ')}) + supporting evidence (score ${score}).`,
+    };
+  }
+  if (strongAliases.length >= 1 || (weakAliases.length >= 1 && hasType) || (matchedKeywords.length >= 1 && (hasType || weakAliases.length >= 1))) {
     return {
       status: 'REVIEW_REQUIRED',
       score,

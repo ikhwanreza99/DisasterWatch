@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useMobileLayout } from './useMobileLayout';
 import { buildIncidentDetail } from '../services/incidentDetailAdapter';
+import { useIncidentPool } from '../services/incidentPool';
 import { filterIncidentNews, reviewQueue } from '../services/incidentNews';
 import { IncidentNewsPanel } from './detail/IncidentNewsPanel';
 import { MobileSheetHandle } from './MobileSheetHandle';
@@ -57,15 +58,16 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
   onOpenNttIntelligence,
 }) => {
   const mobile = useMobileLayout();
+  const pool = useIncidentPool();
   // Mini card news: incident-filtered (MATCHED only), never the generic national feed.
   const miniNews = useMemo(() => {
-    const { detail } = buildIncidentDetail(disaster, nttCase ?? null);
+    const { detail } = buildIncidentDetail(disaster, nttCase ?? null, pool);
     return {
       matched: filterIncidentNews(detail.articles, detail.incidentId),
       review: reviewQueue(detail.articles, detail.incidentId),
       crawl: detail.crawl,
     };
-  }, [disaster, nttCase]);
+  }, [disaster, nttCase, pool]);
   const getCategoryIcon = () => {
     switch (disaster.category) {
       case 'fire':
@@ -145,6 +147,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           intelReports={intelReports}
           aidRecords={aidRecords}
           nttCase={nttCase}
+          pool={pool}
           onOpenNttIntelligence={onOpenNttIntelligence}
         />
       ) : (

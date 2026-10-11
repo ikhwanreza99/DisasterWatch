@@ -168,3 +168,124 @@ test('14: existing NTT intelligence, BMKG, and AI features remain functional', a
   const { askAssistant } = await import('../src/services/ai/disasterAssistant.ts');
   assert.equal(typeof askAssistant, 'function');
 });
+
+test('15: broad single-word alias alone never MATCHES (Bima quake is not NTT news)', () => {
+  // Root-cause regression: "Gempa Bima" must not appear in the Sumba Barat Daya feed.
+  const a = art({ url: 'https://example.com/bima', title: 'Gempa Bima M4,2 dirasakan warga sore ini', publishedAt: '2026-10-05T00:00:00.000Z' });
+  const r = classifyRelevance(a, ntt);
+  assert.notEqual(r.status, 'MATCHED');
+  assert.equal(classifyRelevance(a, cianjur).status, 'REJECTED');
+  assert.equal(classifyRelevance(a, lombok).status, 'REJECTED');
+});
+
+test('16: province-only matching never qualifies (Nusa Tenggara Barat ≠ Lombok incident)', () => {
+  const a = art({ url: 'https://example.com/prov', title: 'Gempa di Nusa Tenggara Barat, BMKG catat M5,0', summary: 'Getaran dirasakan di beberapa daerah' });
+  assert.equal(classifyRelevance(a, lombok).status, 'REJECTED');
+  assert.equal(classifyRelevance(a, ntt).status, 'REJECTED');
+  assert.equal(classifyRelevance(a, cianjur).status, 'REJECTED');
+});
+
+test('17: REVIEW_REQUIRED and REJECTED never enter the default feed', async () => {
+  const { classifyForIncident, reviewQueue } = await import('../src/services/incidentNews.ts');
+  const pool = [
+    art({ url: 'https://example.com/m', title: 'Gempa Cianjur: posko Cugenang salurkan bantuan', summary: 'Desa Gasol' }),
+    art({ url: 'https://example.com/r', title: 'Gempa Sukabumi dirasakan warga', publishedAt: '2026-10-05T00:00:00.000Z' }),
+    art({ url: 'https://example.com/x', title: 'Gempa Lombok Utara rusak berat', summary: 'Mataram' }),
+  ].map((a) => classifyForIncident(a, cianjur));
+  const feed = filterIncidentNews(pool, 'cianjur');
+  assert.equal(feed.length, 1);
+  assert.equal(feed[0]!.url, 'https://example.com/m');
+  assert.ok(feed.every((a) => a.incidentRelevance?.status === 'MATCHED'));
+  assert.equal(reviewQueue(pool, 'cianjur').length, 1);
+});
+
+test('18: zero matches render the exact required empty state', async () => {
+  const { renderToStaticMarkup } = await import('react-dom/server');
+  const React = await import('react');
+  const { IncidentNewsPanel } = await import('../src/components/detail/IncidentNewsPanel.tsx');
+  const html = renderToStaticMarkup(React.createElement(IncidentNewsPanel, {
+    incidentName: 'Cianjur', matched: [], review: [],
+    freshness: { lastAttemptAt: null, lastSuccessAt: null, error: null },
+  }));
+  assert.ok(html.includes('Belum ada berita yang relevan dengan lokasi bencana ini.'));
+  assert.ok(!html.includes('data-testid="news-card"'));
+});
+
+test('19: no generic fallback bypasses the incident filter', async () => {
+  const { buildIncidentDetail } = await import('../src/services/incidentDetailAdapter.ts');
+  const { disastersData } = await import('../src/data/disasters.ts');
+  const { detail } = buildIncidentDetail(disastersData['cianjur']!, null);
+  const feed = filterIncidentNews(detail.articles, 'cianjur');
+  // Every displayed article must carry a MATCHED relevance decision for THIS incident.
+  assert.ok(feed.every((a) => a.incidentRelevance?.incidentId === 'cianjur' && a.incidentRelevance.status === 'MATCHED'));
+  // Unclassified articles (no relevance decision at all) are never displayed.
+  const sneaky = { ...art({ url: 'https://example.com/s', title: 'Gempa Cianjur Cugenang darurat' }) };
+  delete (sneaky as Partial<IncidentArticle>).incidentRelevance;
+  assert.equal(filterIncidentNews([sneaky], 'cianjur').length, 0);
+});
+
+test('20: NTT renders the exact same detail shell as Cianjur and Lombok', async () => {
+  const { renderToStaticMarkup } = await import('react-dom/server');
+  const React = await import('react');
+  const { DisasterDetailView } = await import('../src/components/detail/DisasterDetailView.tsx');
+  const { buildIncidentDetail } = await import('../src/services/incidentDetailAdapter.ts');
+  const { disastersData } = await import('../src/data/disasters.ts');
+  const { lombokIncident } = await import('../src/data/lombokIncident.ts');
+  const { nttIncident } = await import('../src/data/nttIncident.ts');
+  const { nttArticlesSeed, nttCaseSeed, nttClaimsSeed } = await import('../src/data/nttCase.ts');
+  const noop = () => {};
+  const nttState = { kase: nttCaseSeed, articles: nttArticlesSeed, claims: nttClaimsSeed, mode: 'seed' as const, notice: '' };
+  const shells: string[] = [];
+  for (const [inc, state] of [[disastersData['cianjur']!, null], [lombokIncident, null], [nttIncident, nttState]] as const) {
+    const { detail, timeline } = buildIncidentDetail(inc, state);
+    shells.push(renderToStaticMarkup(
+      React.createElement(DisasterDetailView, {
+        disaster: inc, detail, timeline, onOpenRoute: noop, onClose: noop,
+        onOpenDonationModal: noop, onOpenDisasterBrief: noop, intelReports: [], aidRecords: [],
+      }),
+    ));
+  }
+  // Core shared inventory, in identical order, for all three incidents.
+  // (Presence is proven by the inventory itself; only data and source records differ.)
+  const inventory = (html: string) => [...html.matchAll(/data-testid="(disaster-detail|incident-overview|incident-news|aid-posko|claims)"/g)].map((m) => m[1]);
+  const base = inventory(shells[0]!);
+  assert.deepEqual(base, ['disaster-detail', 'incident-overview', 'incident-news', 'aid-posko', 'claims']);
+  assert.deepEqual(inventory(shells[1]!), base);
+  assert.deepEqual(inventory(shells[2]!), base);
+});
+
+test('21: NTT standard detail carries official params + claims without inventing metrics', async () => {
+  const { buildIncidentDetail } = await import('../src/services/incidentDetailAdapter.ts');
+  const { nttIncident } = await import('../src/data/nttIncident.ts');
+  const { nttArticlesSeed, nttCaseSeed, nttClaimsSeed } = await import('../src/data/nttCase.ts');
+  const nttState = { kase: nttCaseSeed, articles: nttArticlesSeed, claims: nttClaimsSeed, mode: 'seed' as const, notice: '' };
+  const { detail } = buildIncidentDetail(nttIncident, nttState);
+  // Both BMKG revisions preserved separately, never merged.
+  assert.equal(detail.officialParams.length, 2);
+  assert.ok(detail.officialParams.some((p) => p.revision === 'initial'));
+  assert.ok(detail.officialParams.some((p) => p.revision === 'update'));
+  // Claims keep verification status; conflicts stay visible.
+  assert.equal(detail.claims.length, nttClaimsSeed.length);
+  assert.ok(detail.claims.some((c) => c.verificationStatus === 'CONFLICTING'));
+  assert.ok(detail.claims.some((c) => c.verificationStatus === 'VERIFIED'));
+  assert.ok(detail.claims.every((c) => typeof c.claimText === 'string' && typeof c.sourceUrl === 'string'));
+  // Unavailable stays unavailable — no invented recovery/cost.
+  assert.equal(detail.provenance.cost, 'UNAVAILABLE');
+  assert.equal(detail.provenance.recovery, 'UNAVAILABLE');
+  // Default news feed contains only NTT-matched articles.
+  const feed = filterIncidentNews(detail.articles, nttIncident.id);
+  assert.equal(feed.length, nttArticlesSeed.length);
+});
+
+test('22: Lombok detail carries real official params; Cianjur has honest empty states', async () => {
+  const { buildIncidentDetail } = await import('../src/services/incidentDetailAdapter.ts');
+  const { lombokIncident } = await import('../src/data/lombokIncident.ts');
+  const { disastersData } = await import('../src/data/disasters.ts');
+  const lb = buildIncidentDetail(lombokIncident, null);
+  assert.equal(lb.detail.officialParams.length, 1);
+  assert.match(lb.detail.officialParams[0]!.value, /M7,0/);
+  const cj = buildIncidentDetail(disastersData['cianjur']!, null);
+  assert.deepEqual(cj.detail.officialParams, []);
+  assert.deepEqual(cj.detail.claims, []);
+  assert.equal(filterIncidentNews(cj.detail.articles, 'cianjur').length, 0);
+});
