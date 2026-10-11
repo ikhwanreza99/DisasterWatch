@@ -10,6 +10,22 @@ import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore, type WriteBatch } from 'firebase-admin/firestore';
 import { disastersData } from '../src/data/disasters.js';
 import { DEMO_SCENARIO_ID, demoAid, demoReports } from '../src/data/seedDemo.js';
+import { INCIDENT_DESCRIPTORS, descriptorFor } from '../src/services/incidentRegistry.js';
+import { classifyForIncident } from '../src/services/incidentNews.js';
+import { nttArticlesSeed, nttClaimsSeed } from '../src/data/nttCase.js';
+import {
+  markConflicts,
+  remainingNeed,
+  stableId,
+  type IncidentAidEventDoc,
+  type IncidentAidNeedDoc,
+  type IncidentArticleDoc,
+  type IncidentClaimDoc,
+  type IncidentDoc,
+  type IncidentPoskoDoc,
+  type IncidentRecoveryDoc,
+  type NeedItemCategory,
+} from '../src/domain/humanitarian.js';
 
 const PROJECT_ID = 'disasterwatch-61ed5';
 const SEED_BATCH = 'disasterwatch-demo-v1';
@@ -138,12 +154,221 @@ const locationDocs = [
 const DISASTER_KEYS = Object.keys(disastersData) as (keyof typeof disastersData)[];
 const disasterDocs = DISASTER_KEYS.map((k) => ({ ...disastersData[k], isMock: true, seedBatch: SEED_BATCH, seededAt: SEED_AT, demoNotice: DEMO_NOTICE }));
 
+// --- Humanitarian source-of-truth collections (additive; legacy collections above untouched) ---
+// Demo docs carry isMock:true + seedBatch. Real NTT records carry isMock:false
+// (migrated from src/data/nttCase.ts — same objects the dashboard already renders).
+const REAL_IDS = new Set(['ntt-sumba-barat-daya-2026-10-04', 'lombok-2018-08-05']);
+const incidentDocs: IncidentDoc[] = INCIDENT_DESCRIPTORS.map((d) => ({
+  id: d.incidentId,
+  incidentId: d.incidentId,
+  name: d.name,
+  province: d.province,
+  disasterType: d.disasterType,
+  eventDate: d.eventDate,
+  status: 'ACTIVE',
+  aliases: d.aliases,
+  isMock: !REAL_IDS.has(d.incidentId),
+  provenanceNote: REAL_IDS.has(d.incidentId) ? 'Real incident record (BMKG/BNPB-backed).' : DEMO_NOTICE,
+  schemaVersion: 1,
+  updatedAt: SEED_AT,
+}));
+
+const nttDesc = descriptorFor('ntt-sumba-barat-daya-2026-10-04')!;
+const incidentArticleDocs: IncidentArticleDoc[] = nttArticlesSeed.map((a) => {
+  const classified = classifyForIncident(
+    { url: a.url, title: a.title, sourceName: a.sourceName, sourceType: a.sourceType, publishedAt: a.publishedAt, retrievedAt: a.retrievedAt, summary: a.summary, contentStatus: a.contentStatus, incidentId: a.caseId, discoveredBy: a.discoveredBy },
+    nttDesc,
+  );
+  const canonical = a.url;
+  return {
+    id: `${a.caseId}__${stableId(canonical)}`,
+    incidentId: a.caseId,
+    canonicalUrl: canonical,
+    url: a.url,
+    title: a.title,
+    sourceName: a.sourceName,
+    sourceType: a.sourceType,
+    publishedAt: a.publishedAt,
+    retrievedAt: a.retrievedAt,
+    updatedAt: a.retrievedAt,
+    summary: a.summary,
+    contentHash: a.contentHash,
+    contentStatus: a.contentStatus,
+    discoveredBy: a.discoveredBy,
+    relevance: classified.incidentRelevance!,
+    verificationStatus: a.verificationStatus,
+    isMock: false,
+    schemaVersion: 1,
+  };
+});
+
+const incidentClaimDocs: IncidentClaimDoc[] = markConflicts(
+  nttClaimsSeed.map((c) => ({
+    id: stableId(c.caseId, c.sourceUrl, c.claimType, c.claimText),
+    incidentId: c.caseId,
+    articleId: c.articleId,
+    claimType: c.claimType,
+    claimText: c.claimText,
+    location: c.location,
+    quantity: c.quantity,
+    unit: c.unit,
+    sourceUrl: c.sourceUrl,
+    sourceOrganization: null,
+    verificationStatus: c.verificationStatus,
+    conflictingWith: [],
+    extraction: { engine: c.extractionStatus, at: SEED_AT },
+    isMock: false,
+    schemaVersion: 1,
+  })),
+);
+
+const LEGACY_NEED_CAT: Record<string, NeedItemCategory> = {
+  clean_water: 'WASH', food: 'FOOD_WATER', medicine: 'HEALTH_PROTECTION', shelter: 'SHELTER_BEDDING',
+  mask: 'HEALTH_PROTECTION', boat: 'RESCUE_EVACUATION', genset: 'LOGISTICS_EQUIPMENT', clothing: 'CLOTHING',
+};
+const allAid = [...baseAid, ...extraAid];
+function receivedFor(disasterId: string, legacy: string): number {
+  return allAid.filter((a) => a.disasterId === disasterId && a.needCategory === legacy).reduce((s, a) => s + (a.quantity || 0), 0);
+}
+const incidentAidNeedDocs: IncidentAidNeedDoc[] = needsDocs.flatMap((n) => {
+  const spec = LEGACY_NEED_CAT[n.category] ?? 'OTHER';
+  const received = receivedFor(n.disasterId, n.category);
+  const remaining = remainingNeed(n.estimated, received, null);
+  const status = remaining === 0 ? 'FULFILLED' : received > 0 ? 'PARTIALLY_FULFILLED' : 'REPORTED';
+  return [{
+    id: stableId(n.disasterId, spec, n.category, '', 'seed'),
+    incidentId: n.disasterId,
+    itemCategory: spec,
+    itemName: n.category,
+    quantityNeeded: n.estimated,
+    unit: n.unit,
+    quantityReceived: received,
+    quantityDistributed: null,
+    quantityRemaining: remaining,
+    priority: 'NORMAL',
+    beneficiaryGroup: null,
+    affectedArea: null,
+    status,
+    statusReason: null,
+    sourceUrl: null,
+    sourceOrganization: n.source,
+    verificationStatus: 'AI_REVIEWED',
+    reportedAt: null,
+    lastUpdatedAt: SEED_AT,
+    isMock: true,
+    schemaVersion: 1,
+  }];
+});
+
+const incidentAidEventDocs: IncidentAidEventDoc[] = allAid.map((a) => ({
+  id: stableId(a.disasterId, 'ARRIVED', a.needCategory, a.quantity, a.unit, a.sourceName, a.receivedAt),
+  incidentId: a.disasterId,
+  articleId: null,
+  aidStage: 'ARRIVED',
+  itemCategory: LEGACY_NEED_CAT[a.needCategory] ?? 'OTHER',
+  itemName: a.needCategory,
+  quantity: a.quantity,
+  unit: a.unit,
+  estimatedValue: null,
+  recipientOrDestination: null,
+  location: null,
+  distributingOrganization: a.sourceName,
+  sourceUrl: null,
+  sourceOrganization: a.sourceName,
+  verificationStatus: 'AI_REVIEWED',
+  eventTime: a.receivedAt,
+  isMock: true,
+  schemaVersion: 1,
+}));
+
+const LEGACY_REC_SVC = { water: 'WASH', electricity: 'POWER', access: 'ACCESS_TRANSPORT', telecommunication: 'TELECOMMUNICATIONS' } as const;
+function legacyRecStatus(svc: keyof typeof LEGACY_REC_SVC, text: string): 'OUTAGE' | 'UNAVAILABLE' | 'CLOSED' | 'PARTIAL_OUTAGE' | 'LIMITED' | 'RESTRICTED' | 'RESTORED' | 'AVAILABLE' | 'OPEN' | 'OPERATIONAL' | 'UNKNOWN' {
+  if (text === 'Pulih') return svc === 'water' ? 'AVAILABLE' : svc === 'access' ? 'OPEN' : 'OPERATIONAL';
+  if (text === 'Terganggu') return svc === 'water' ? 'UNAVAILABLE' : svc === 'access' ? 'CLOSED' : 'OUTAGE';
+  return svc === 'water' ? 'LIMITED' : svc === 'access' ? 'RESTRICTED' : 'PARTIAL_OUTAGE'; // Dalam Pemulihan / Hampir Pulih
+}
+const incidentRecoveryDocs: IncidentRecoveryDoc[] = DISASTER_KEYS.flatMap((k) =>
+  (disastersData[k].recoveryServices ?? []).map((s) => {
+    const serviceType = LEGACY_REC_SVC[s.type];
+    const status = legacyRecStatus(s.type, s.status);
+    return {
+      id: `${k}__${serviceType}__general`,
+      incidentId: k as string,
+      serviceType,
+      affectedArea: null,
+      affectedEntity: null,
+      impactDescription: `Status demo: ${s.status} (${s.recovery}%). ${DEMO_NOTICE}`,
+      affectedCount: null,
+      unit: null,
+      waterSafety: serviceType === 'WASH' ? 'UNKNOWN' : null,
+      estimatedRestorationAt: null,
+      restoredAt: null,
+      history: [{ status, at: SEED_AT, sourceUrl: null, sourceOrganization: 'DEMO seed', note: `Seeded from disasters.ts (${s.status}).` }],
+      sourceUrl: null,
+      sourceOrganization: 'DEMO seed',
+      verificationStatus: 'AI_REVIEWED',
+      reportedAt: null,
+      lastUpdatedAt: SEED_AT,
+      isMock: true,
+      schemaVersion: 1,
+    };
+  }),
+);
+
+const incidentPoskoDocs: IncidentPoskoDoc[] = DISASTER_KEYS.flatMap((k) =>
+  (disastersData[k].route?.checkpoints ?? []).map((c, i) => {
+    const name = c.name ?? c.title ?? `Posko ${i + 1}`;
+    const lat = typeof c.lat === 'number' ? c.lat : null;
+    const lng = typeof c.lng === 'number' ? c.lng : null;
+    const hasCoords = lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
+    return {
+      id: stableId(k as string, name, c.location ?? '', 'seed'),
+      poskoId: `${k}-posko-${c.id}`,
+      incidentId: k as string,
+      articleId: null,
+      name,
+      poskoType: /utama|komando/i.test(name) ? 'COMMAND_POST' : /pengungsi|evakuasi/i.test(name) ? 'EVACUATION_SHELTER' : 'FIELD_POST',
+      address: null,
+      village: null,
+      district: null,
+      regency: null,
+      province: disastersData[k].province,
+      latitude: hasCoords ? lat : null,
+      longitude: hasCoords ? lng : null,
+      coordinateSource: hasCoords ? 'SEED_DEMO' : 'NONE',
+      coordinateAccuracy: null,
+      operationalStatus: c.capacityStatus ?? null,
+      capacity: c.capacity?.total ?? null,
+      currentOccupancy: c.capacity?.used ?? null,
+      availableFacilities: (c.aid ?? []).map((a) => `${a.name} ${a.quantity}`),
+      neededSupplies: [],
+      contact: null,
+      sourceUrl: c.googleMapsUrl ?? null,
+      sourceOrganization: 'DEMO seed',
+      verificationStatus: 'AI_REVIEWED',
+      reportedAt: null,
+      lastVerifiedAt: null,
+      lastUpdatedAt: SEED_AT,
+      isMock: true,
+      schemaVersion: 1,
+    };
+  }),
+);
+
 const plan: Array<{ col: string; docs: Array<Record<string, unknown> & { id: string }> }> = [
   { col: 'disasters', docs: disasterDocs as unknown as Array<Record<string, unknown> & { id: string }> },
   { col: 'locations', docs: locationDocs },
   { col: 'reports', docs: [...baseReports, ...extraReports] as unknown as Array<Record<string, unknown> & { id: string }> },
   { col: 'needs', docs: needsDocs },
   { col: 'aid', docs: [...baseAid, ...extraAid] as unknown as Array<Record<string, unknown> & { id: string }> },
+  // Humanitarian source-of-truth collections (demo docs isMock:true+seedBatch; NTT real docs isMock:false).
+  { col: 'incidents', docs: incidentDocs as unknown as Array<Record<string, unknown> & { id: string }> },
+  { col: 'incidentArticles', docs: incidentArticleDocs as unknown as Array<Record<string, unknown> & { id: string }> },
+  { col: 'incidentClaims', docs: incidentClaimDocs as unknown as Array<Record<string, unknown> & { id: string }> },
+  { col: 'incidentAidNeeds', docs: incidentAidNeedDocs as unknown as Array<Record<string, unknown> & { id: string }> },
+  { col: 'incidentAidEvents', docs: incidentAidEventDocs as unknown as Array<Record<string, unknown> & { id: string }> },
+  { col: 'incidentPoskos', docs: incidentPoskoDocs as unknown as Array<Record<string, unknown> & { id: string }> },
+  { col: 'incidentRecovery', docs: incidentRecoveryDocs as unknown as Array<Record<string, unknown> & { id: string }> },
 ];
 
 async function main() {
@@ -171,11 +396,18 @@ async function main() {
     console.log('dry-run        : no writes, no network (dataset assembly only)');
     // In-memory sanity: deterministic IDs unique, demo metadata present, statuses mixed.
     const ids = new Set<string>();
+    const HUMANITARIAN = new Set(['incidents', 'incidentArticles', 'incidentClaims', 'incidentAidNeeds', 'incidentAidEvents', 'incidentPoskos', 'incidentRecovery']);
     for (const g of plan) {
       for (const d of g.docs) {
         if (ids.has(`${g.col}/${d.id}`)) throw new Error(`duplicate ID ${g.col}/${d.id}`);
         ids.add(`${g.col}/${d.id}`);
-        if (d.isMock !== true || d.seedBatch !== SEED_BATCH) throw new Error(`missing demo metadata on ${g.col}/${d.id}`);
+        if (HUMANITARIAN.has(g.col)) {
+          // New schema: schemaVersion required; isMock must be an explicit boolean.
+          if (d.schemaVersion !== 1) throw new Error(`missing schemaVersion on ${g.col}/${d.id}`);
+          if (typeof d.isMock !== 'boolean') throw new Error(`missing isMock on ${g.col}/${d.id}`);
+        } else if (d.isMock !== true || d.seedBatch !== SEED_BATCH) {
+          throw new Error(`missing demo metadata on ${g.col}/${d.id}`);
+        }
       }
     }
     const statuses = new Set((plan.find((g) => g.col === 'reports')?.docs ?? []).map((d) => d.verificationStatus));

@@ -1,0 +1,47 @@
+# Incident humanitarian crawl (daily cheap check, paid calls only when due).
+#
+# - Runs daily + on demand. The FIRST thing the script does is read
+#   `incidentCrawlRuns` for the last SUCCESS/SUCCESS_EMPTY; when <5 days elapsed
+#   it exits 0 before any paid ZAPI call (one Firestore read total).
+# - Writes use Firebase Admin SDK with a least-privilege service account:
+#   grant ONLY roles/datastore.user on disasterwatch-61ed5 (no rules deploy,
+#   no Hosting, no IAM changes happen here).
+# - Secrets (ZAPI_API_KEY, FIREBASE_NEWS_SERVICE_ACCOUNT) come from GitHub
+#   Secrets; values are never logged (the script records safe error codes only).
+# - A failed crawl preserves all stored docs and exits non-zero for visibility.
+name: Incident humanitarian crawl (gated, daily)
+
+on:
+  schedule:
+    # Daily cheap gate check (05:00 UTC). Paid calls only when the 5-day gate passes.
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: incident-crawl
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Gated incident crawl → Firestore
+        run: npx tsx scripts/incidentCrawlRun.ts
+        env:
+          ZAPI_API_KEY: ${{ secrets.ZAPI_API_KEY }}
+          FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}

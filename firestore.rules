@@ -63,5 +63,41 @@ service cloud.firestore {
         && request.resource.data.sourceUrl is string;
       allow delete: if false;
     }
+    // Humanitarian source-of-truth collections (additive; existing rules untouched).
+    // Reads open for the dashboard. Writes are Admin-SDK-only (crawler/seed scripts
+    // bypass rules with least-privilege IAM); client writes stay on the legacy
+    // `aid`/`reports` collections above. No rule is loosened here.
+    match /incidents/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /incidentArticles/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /incidentClaims/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /incidentAidNeeds/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /incidentAidEvents/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /incidentPoskos/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /incidentRecovery/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /incidentCrawlRuns/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }

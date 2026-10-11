@@ -139,5 +139,7 @@ export interface IncidentDetailData {
   officialParams: OfficialParam[];
   /** Extracted claims with verification status (conflicts kept visible, never merged). */
   claims: ClaimRef[];
+  /** Aid needs from Firestore (null quantities preserved; dedicated panel is future work). */
+  needs: import('./humanitarian').IncidentAidNeedDoc[];
   crawl: { lastAttemptAt: string | null; lastSuccessAt: string | null; error: string | null };
 }

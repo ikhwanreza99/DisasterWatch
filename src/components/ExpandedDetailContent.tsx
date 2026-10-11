@@ -5,6 +5,7 @@ import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
 import { DisasterDetailView } from './detail/DisasterDetailView';
 import { buildIncidentDetail } from '../services/incidentDetailAdapter';
+import { useHumanitarian } from '../services/store/humanitarianRepo';
 import type { IncidentArticle } from '../domain/incidentDetail';
 import { NTT_CASE_ID } from '../domain/nttCase';
 import type { NttCaseState } from '../services/nttCaseStore';
@@ -20,10 +21,10 @@ interface ExpandedDetailContentProps {
   intelReports?: IntelligenceReport[];
   aidRecords?: AidRecord[];
   nttCase?: NttCaseState | null;
-  pool?: IncidentArticle[];
+pool?: IncidentArticle[];
   onOpenNttIntelligence?: () => void;
 }
-
+ 
 export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
   disaster,
   mobile = false,
@@ -39,9 +40,11 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
   onOpenNttIntelligence,
 }) => {
   void onOpenAIHelpdesk;
+  // Firestore-first humanitarian snapshot (explicit fallback when null).
+  const remote = useHumanitarian(disaster.id);
   const { detail, timeline } = useMemo(
-    () => buildIncidentDetail(disaster, nttCase, pool),
-    [disaster, nttCase, pool],
+    () => buildIncidentDetail(disaster, nttCase, pool, remote),
+    [disaster, nttCase, pool, remote],
   );
   return (
     <DisasterDetailView

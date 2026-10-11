@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useMobileLayout } from './useMobileLayout';
 import { buildIncidentDetail } from '../services/incidentDetailAdapter';
 import { useIncidentPool } from '../services/incidentPool';
+import { useHumanitarian } from '../services/store/humanitarianRepo';
 import { filterIncidentNews, reviewQueue } from '../services/incidentNews';
 import { IncidentNewsPanel } from './detail/IncidentNewsPanel';
 import { MobileSheetHandle } from './MobileSheetHandle';
@@ -59,15 +60,17 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 }) => {
   const mobile = useMobileLayout();
   const pool = useIncidentPool();
+  // Firestore-first humanitarian snapshot; explicit local fallback when absent.
+  const remote = useHumanitarian(disaster.id);
   // Mini card news: incident-filtered (MATCHED only), never the generic national feed.
   const miniNews = useMemo(() => {
-    const { detail } = buildIncidentDetail(disaster, nttCase ?? null, pool);
+    const { detail } = buildIncidentDetail(disaster, nttCase ?? null, pool, remote);
     return {
       matched: filterIncidentNews(detail.articles, detail.incidentId),
       review: reviewQueue(detail.articles, detail.incidentId),
       crawl: detail.crawl,
     };
-  }, [disaster, nttCase, pool]);
+  }, [disaster, nttCase, pool, remote]);
   const getCategoryIcon = () => {
     switch (disaster.category) {
       case 'fire':

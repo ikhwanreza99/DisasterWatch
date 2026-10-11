@@ -19,4 +19,13 @@ export const COLLECTIONS = {
   needs: 'needs',
   aid: 'aid',
   locations: 'locations',
+  // Humanitarian source-of-truth collections (writes via Admin SDK only).
+  incidents: 'incidents',
+  incidentArticles: 'incidentArticles',
+  incidentClaims: 'incidentClaims',
+  incidentAidNeeds: 'incidentAidNeeds',
+  incidentAidEvents: 'incidentAidEvents',
+  incidentPoskos: 'incidentPoskos',
+  incidentRecovery: 'incidentRecovery',
+  incidentCrawlRuns: 'incidentCrawlRuns',
 } as const;
