@@ -39,7 +39,7 @@ import {
 } from '../src/domain/humanitarian.ts';
 
 const PROJECT_ID = 'disasterwatch-61ed5';
-const TARGETS = ['cianjur', 'lombok-2018-08-05', 'ntt-sumba-barat-daya-2026-10-04'];
+const TARGETS = INCIDENT_DESCRIPTORS.map(d => d.incidentId);
 const args = new Set(process.argv.slice(2));
 const DRY_RUN = args.has('--dry-run');
 const FORCE = args.has('--force');
@@ -70,6 +70,7 @@ async function latestSuccess(db: Firestore): Promise<string | null> {
   for (const d of snap.docs) {
     const r = d.data() as IncidentCrawlRunDoc;
     if (r.outcome !== 'SUCCESS' && r.outcome !== 'SUCCESS_EMPTY') continue;
+    if (r.errorCode || !TARGETS.every(id => r.perIncident.some(p => p.incidentId === id))) continue;
     const t = r.finishedAt ?? r.startedAt;
     if (best == null || t > best) best = t;
   }

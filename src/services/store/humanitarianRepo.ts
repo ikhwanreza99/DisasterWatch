@@ -3,7 +3,7 @@
 // fallbacks with notices. Never throws to UI. Writes happen via Admin SDK
 // scripts only (rules deny client writes on these collections).
 import { useEffect, useState } from 'react';
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, getDocs, orderBy, limit, query, where } from 'firebase/firestore';
 import { getDb } from '../../lib/firebase/firestore';
 import { HUMANITARIAN_COLLECTIONS } from '../../domain/humanitarian';
 import type {
@@ -46,7 +46,7 @@ async function readCol<T>(db: NonNullable<ReturnType<typeof getDb>>, col: string
   const q =
     incidentId != null && col !== HUMANITARIAN_COLLECTIONS.incidentCrawlRuns
       ? query(ref, where('incidentId', '==', incidentId), limit(max))
-      : query(ref, limit(max));
+      : col === HUMANITARIAN_COLLECTIONS.incidentCrawlRuns ? query(ref, orderBy('startedAt', 'desc'), limit(max)) : query(ref, limit(max));
   const snap = await getDocs(q);
   return snap.docs.map((d) => d.data() as T);
 }
@@ -103,15 +103,15 @@ export function latestSuccessAt(runs: IncidentCrawlRunDoc[]): string | null {
 
 /** React hook: Firestore-first humanitarian snapshot (null until loaded). */
 export function useHumanitarian(incidentId: string): RemoteSnapshot | null {
-  const [snap, setSnap] = useState<RemoteSnapshot | null>(null);
+  const [snap, setSnap] = useState<{ incidentId: string; data: RemoteSnapshot } | null>(null);
   useEffect(() => {
     let cancelled = false;
     loadHumanitarian(incidentId).then((s) => {
-      if (!cancelled) setSnap(s);
+      if (!cancelled) setSnap({ incidentId, data: s });
     });
     return () => {
       cancelled = true;
     };
   }, [incidentId]);
-  return snap;
+  return snap?.incidentId === incidentId ? snap.data : null;
 }

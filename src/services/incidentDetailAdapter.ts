@@ -1,3 +1,4 @@
+import { incidentFreshness } from './incidentFreshness';
 // Adapter: any incident → IncidentDetailData for the shared template.
 // Provenance is explicit per metric; unavailable stays unavailable.
 import type { DisasterIncident } from '../types';
@@ -94,7 +95,7 @@ function articleDocToCandidate(a: IncidentArticleDoc): IncidentArticle {
     retrievedAt: a.retrievedAt,
     summary: a.summary,
     contentStatus: a.contentStatus,
-    incidentId: a.incidentId,
+    incidentId: null, // Crawl target is not proof that an article matches.
     discoveredBy: a.discoveredBy,
   };
   // Reuse the persisted relevance decision when it targets this incident.
@@ -317,11 +318,7 @@ export function buildIncidentDetail(
       officialParams: officialParams(disaster.id, ntt),
       claims: [...baseClaims, ...remoteClaims],
       needs: remoteNeeds,
-      crawl: {
-        lastAttemptAt: isNtt ? (ntt?.kase.lastCrawlAt ?? null) : null,
-        lastSuccessAt: isNtt ? (ntt?.kase.lastCrawlAt ?? null) : null,
-        error: isNtt ? null : 'Crawler berita umum tidak tersedia (tanpa ZAPI_API_KEY); insiden ini belum memiliki crawl khusus.',
-      },
+      crawl: incidentFreshness(disaster.id, remote?.crawlRuns ?? []),
     },
     timeline,
   };

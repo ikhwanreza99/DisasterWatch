@@ -53,14 +53,14 @@ export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched, revi
       <p className="mt-2 text-[11px] text-slate-500">
         {showReview
           ? 'Kecocokan lemah — dipisahkan dari feed utama, bukan bukti kebenaran.'
-          : `Hanya artikel yang cocok dengan insiden ini (${matched.length}). Skor relevansi bukan bukti kebenaran.`}
+          : `${incidentName} · ${matched.length} berita sesuai lokasi dan jenis bencana.`}
       </p>
       {freshness.lastSuccessAt && (
-        <p className="mt-1 text-[10px] text-slate-500">Crawl sukses terakhir {fmt(freshness.lastSuccessAt)} WIB</p>
+        <p className="mt-1 text-[10px] text-slate-500">Diperbarui {fmt(freshness.lastSuccessAt)} WIB</p>
       )}
       {freshness.error && (
         <p role="status" className="mt-1 text-[10px] text-amber-700">
-          Crawl terakhir gagal ({freshness.error}); menampilkan data terakhir yang berhasil.
+          {freshness.error} {matched.length > 0 ? 'Menampilkan berita yang sudah tersedia.' : ''}
         </p>
       )}
       {list.length === 0 && (
