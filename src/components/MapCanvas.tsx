@@ -740,12 +740,14 @@ const OSMMapRenderer: React.FC<{
 
     mapRef.current = map;
     setMapEpoch((e) => e + 1);
-    setTimeout(() => {
+    const resizeTimer = setTimeout(() => {
+      if (mapRef.current !== map) return;
       map.invalidateSize();
       updatePos();
     }, 150);
 
     return () => {
+      clearTimeout(resizeTimer);
       map.remove();
       mapRef.current = null;
     };
@@ -2298,7 +2300,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
       {/* Bottom Bar: Controls & Quick Action Buttons */}
       {/* Same row on every screen size: zoom column bottom-left, action buttons bottom-right (aligned to the bottom edge). */}
-      <div className="relative z-30 flex flex-row items-end justify-between gap-2 px-3 sm:px-6 lg:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-6 pointer-events-none">
+      <div className="map-bottom-bar relative z-30 flex flex-row items-end justify-between gap-2 px-3 sm:px-6 lg:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-6 pointer-events-none">
         {/* MAGMA legend — right of the zoom column, bottom-aligned; toggled with the (i) button */}
         {showMagma && showMagmaLegend && (
           <div

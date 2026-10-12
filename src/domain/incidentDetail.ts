@@ -12,6 +12,8 @@ export interface IncidentArticle {
   sourceName: string;
   sourceType: 'OFFICIAL' | 'NEWS_MEDIA' | 'OTHER';
   publishedAt: string | null;
+  /** For source documentation cards; never used as publication date. */
+  eventDate?: string;
   retrievedAt: string;
   summary: string | null;
   contentStatus: 'FULL' | 'PARTIAL' | 'METADATA_ONLY' | 'FAILED';

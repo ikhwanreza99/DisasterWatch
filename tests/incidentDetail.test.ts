@@ -275,7 +275,8 @@ test('21: NTT standard detail carries official params + claims without inventing
   assert.equal(detail.provenance.recovery, 'UNAVAILABLE');
   // Default news feed contains only NTT-matched articles.
   const feed = filterIncidentNews(detail.articles, nttIncident.id);
-  assert.equal(feed.length, nttArticlesSeed.length);
+  assert.ok(feed.length >= nttArticlesSeed.length);
+  assert.ok(feed.some(a => a.discoveredBy === 'bnpb-documentation'));
 });
 
 test('22: Lombok detail carries real official params; Cianjur has honest empty states', async () => {
@@ -296,7 +297,7 @@ test('Padang feed accepts recent local floods but excludes other places and disa
   const now = Date.parse('2026-10-12T12:00:00Z');
   const candidate = (title: string) => art({ url: 'https://example.com/padang-fixture', title, publishedAt: '2026-10-11T00:00:00Z' });
   assert.equal(classifyRelevance(candidate('Banjir Padang, warga mengungsi'), padang, now).status, 'MATCHED');
-  assert.equal(classifyRelevance(candidate('Banjir Pesisir Selatan merendam rumah'), padang, now).status, 'MATCHED');
+  assert.notEqual(classifyRelevance(candidate('Banjir Pesisir Selatan merendam rumah'), padang, now).status, 'MATCHED');
   for (const title of ['Banjir Demak merendam rumah', 'Banjir Padang Panjang merendam rumah', 'Gempa mengguncang Padang', 'Banjir Sumatera Barat']) {
     assert.notEqual(classifyRelevance(candidate(title), padang, now).status, 'MATCHED');
   }

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeNews } from '../src/services/disasterNews.ts';
 const now = Date.parse('2026-10-08T12:00:00Z');
-const item = (i: number) => ({ title: `Banjir Indonesia ${i} - Media`, link: `https://news.google.com/rss/articles/${i}`, pubDate: new Date(now - i * 60_000).toUTCString() });
+const item = (i: number) => ({ title: `Banjir Indonesia ${i} - Media`, link: `https://example.com/articles/${i}`, pubDate: new Date(now - i * 60_000).toUTCString() });
 test('selects 15 newest unique headlines with source and publication dates', () => {
   const items = normalizeNews({ data: { ok: true, items: [...Array.from({ length: 30 }, (_, i) => item(29-i)), item(0)] } }, now);
   assert.equal(items.length, 15);
@@ -11,7 +11,7 @@ test('selects 15 newest unique headlines with source and publication dates', () 
   assert.equal(items[0].source, 'Media');
 });
 test('rejects unsafe links, malformed dates, old/future and unrelated news', () => {
-  const invalid = [null, {}, { ...item(0), link: 'javascript:alert(1)' }, { ...item(0), link: 'https://secret@evil.com' }, { ...item(0), pubDate: 'unknown' }, item(60*24*8), item(-60), { ...item(0), title: 'Harga saham terbaru' }];
+  const invalid = [null, {}, { ...item(0), link: 'https://news.google.com/rss/articles/opaque' }, { ...item(0), link: 'javascript:alert(1)' }, { ...item(0), link: 'https://secret@evil.com' }, { ...item(0), pubDate: 'unknown' }, item(60*24*8), item(-60), { ...item(0), title: 'Harga saham terbaru' }];
   assert.deepEqual(normalizeNews({ data: { ok: true, items: invalid } }, now), []);
 });
 test('provider failure is not silently interpreted as an empty successful feed', () => {

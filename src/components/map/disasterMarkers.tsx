@@ -17,7 +17,9 @@ interface MarkerStyle {
 const SVG_OPEN =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
 
-export const DISASTER_MARKER_STYLE: Record<'flood' | 'fire' | 'earthquake', MarkerStyle> = {
+export const DISASTER_MARKER_STYLE: Record<Category, MarkerStyle> = {
+  landslide: { bg: '#a16207', stroke: '#facc15', svg: `${SVG_OPEN}<path d="M3 20L12 4l9 16H3zM12 9v5m0 3v1"/></svg>` },
+  other: { bg: '#64748b', stroke: '#cbd5e1', svg: `${SVG_OPEN}<path d="M12 3L2 21h20L12 3zM12 9v5m0 3v1"/></svg>` },
   flood: {
     bg: '#0ea5e9',
     stroke: '#7dd3fc',

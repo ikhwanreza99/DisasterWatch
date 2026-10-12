@@ -1,3 +1,5 @@
+import { newsSourceUrl } from '../src/services/newsSourceUrl.ts';
+import { ACTIVE_NEWS_IDS } from '../src/services/incidentRegistry.ts';
 // Gated incident crawl runner (Admin SDK, trusted GitHub Actions ONLY).
 // NEVER import from browser code. Never commit/log credentials, keys, or bodies.
 //
@@ -39,7 +41,7 @@ import {
 } from '../src/domain/humanitarian.ts';
 
 const PROJECT_ID = 'disasterwatch-61ed5';
-const TARGETS = INCIDENT_DESCRIPTORS.map(d => d.incidentId);
+const TARGETS = ACTIVE_NEWS_IDS;
 const args = new Set(process.argv.slice(2));
 const DRY_RUN = args.has('--dry-run');
 const FORCE = args.has('--force');
@@ -199,7 +201,9 @@ async function main() {
           if (!title) continue;
           let u: URL;
           try {
-            u = new URL(raw.link);
+            const direct = newsSourceUrl(raw.link);
+            if (!direct) continue;
+            u = new URL(direct);
           } catch {
             continue;
           }

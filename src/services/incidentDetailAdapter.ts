@@ -1,3 +1,4 @@
+import { currentArticles, currentRecords } from '../data/currentIncidents';
 import { incidentFreshness } from './incidentFreshness';
 // Adapter: any incident → IncidentDetailData for the shared template.
 // Provenance is explicit per metric; unavailable stays unavailable.
@@ -191,7 +192,7 @@ export function buildIncidentDetail(
   // every candidate below is classified before display.
   const seen = new Set<string>();
   const raw: IncidentArticle[] = [];
-  for (const a of [...(remote?.articles ?? []).map(articleDocToCandidate), ...nttCandidates(), ...pool]) {
+  for (const a of [...(remote?.articles ?? []).map(articleDocToCandidate), ...currentArticles.filter(a => a.incidentId === disaster.id), ...nttCandidates(), ...pool]) {
     const key = canonicalUrl(a.url) ?? a.url;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -250,7 +251,10 @@ export function buildIncidentDetail(
         aid: 'REPORTED' as const,
         posko: 'UNAVAILABLE' as const,
       }
-    : {
+    : currentRecords.some(r => r.id === disaster.id) ? {
+        cost: 'UNAVAILABLE' as const, impact: 'UNAVAILABLE' as const, recovery: 'UNAVAILABLE' as const,
+        casualties: 'UNAVAILABLE' as const, aid: 'UNAVAILABLE' as const, posko: 'UNAVAILABLE' as const,
+      } : {
         cost: 'DEMO' as const,
         impact: 'DEMO' as const,
         recovery: 'DEMO' as const,
@@ -272,7 +276,7 @@ export function buildIncidentDetail(
     ];
   } else {
     timeline = [
-      { id: `${disaster.id}-ev`, kind: 'EVENT_OCCURRED', at: null, label: 'Kejadian tercatat', detail: disaster.timestamp, sourceUrl: null },
+      { id: `${disaster.id}-ev`, kind: 'EVENT_OCCURRED', at: null, label: 'Kejadian tercatat', detail: disaster.timestamp, sourceUrl: currentRecords.find(r => r.id === disaster.id)?.url ?? null },
       ...disaster.reports.slice(0, 5).map((r, i) => ({
         id: `${disaster.id}-rep-${i}`,
         kind: 'SOURCE_PUBLISHED' as const,

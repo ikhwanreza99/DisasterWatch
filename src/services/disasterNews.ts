@@ -1,3 +1,4 @@
+import { newsSourceUrl } from './newsSourceUrl';
 import { extractNewsMetadata } from './newsMetadata';
 export const NEWS_REFRESH_MS = 5 * 24 * 3600_000;
 export interface DisasterNewsItem {
@@ -23,7 +24,7 @@ export function normalizeNews(response: unknown, now = Date.now()): DisasterNews
     const title = item.title.trim();
     const date = Date.parse(item.pubDate);
     let url: URL;
-    try { url = new URL(item.link); } catch { return []; }
+    try { const direct = newsSourceUrl(item.link); if (!direct) return []; url = new URL(direct); } catch { return []; }
     if (url.protocol !== 'https:' || url.username || url.password || !title || !Number.isFinite(date) || date > now + 300_000 || now - date > 7 * 86400_000) return [];
     const separator = title.lastIndexOf(' - ');
     const headline = separator > 0 ? title.slice(0, separator) : title;
