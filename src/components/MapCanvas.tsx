@@ -2311,7 +2311,18 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           >
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Legenda MAGMA</span>
-              <span className="text-[9px] text-slate-400">PVMBG</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-slate-400">PVMBG</span>
+                <button
+                  type="button"
+                  onClick={() => setShowMagmaLegend(false)}
+                  aria-label="Tutup legenda MAGMA"
+                  title="Tutup legenda"
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </div>
             </div>
             <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Tingkat aktivitas gunung api</div>
             <ul className="space-y-1 mb-2">

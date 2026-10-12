@@ -1,7 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fetchFirmsHotspots, firmsRangeFromSelection } from '../src/services/firms/index.ts';
+import { resolveDateRange } from '../src/domain/dateRange.ts';
 const csv = 'latitude,longitude,frp,confidence,acq_date,acq_time,daynight\n-6,110,20,n,2026-10-08,0100,D';
+
+test('Today includes yesterday for NASA FIRMS near-real-time delay', () => {
+  const range = firmsRangeFromSelection('Today');
+  const today = resolveDateRange('Today');
+  assert.equal(range.days, 2);
+  assert.equal(range.id, 'today-nrt');
+  assert.equal(range.start.getTime(), today.start.getTime() - 86_400_000);
+  assert.equal(range.sources.length, 4);
+});
 
 test('a source taking more than 45 seconds still contributes all its hotspots', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });

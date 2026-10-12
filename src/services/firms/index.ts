@@ -49,6 +49,16 @@ export interface FirmsRange extends ResolvedRange {
 export function firmsRangeFromSelection(selected: string): FirmsRange {
   const r = resolveDateRange(selected);
   const all: FirmsSource[] = ['VIIRS_SNPP_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT', 'MODIS_NRT'];
+  if (r.key === 'today') {
+    return {
+      ...r,
+      id: 'today-nrt',
+      start: new Date(r.start.getTime() - DAY_MS),
+      days: 2,
+      label: 'hari ini + data terbaru',
+      sources: all,
+    };
+  }
   // Many days x all satellites is tens of MB of CSV; use fewer sensors for longer ranges.
   const sources: FirmsSource[] =
     r.days <= 2 ? all : r.days <= 7 ? ['VIIRS_SNPP_NRT', 'VIIRS_NOAA21_NRT'] : ['VIIRS_SNPP_NRT'];
