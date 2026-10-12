@@ -2406,31 +2406,33 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             >
               {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
             </button>
-            {/* Master on/off for all API data layers (BMKG, cuaca, FIRMS, MAGMA, VAAC) */}
-            <button
-              type="button"
-              onClick={toggleApiLayers}
-              aria-pressed={showApiLayers}
-              aria-label={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
-              title={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
-              data-purpose="api-layers-toggle"
-              className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${showApiLayers ? 'text-emerald-300 ring-1 ring-emerald-400/60' : 'text-slate-400'}`}
-            >
-              {showApiLayers ? <Eye className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4" aria-hidden="true" />}
-            </button>
-            {showMagma && (
+            <div className="flex gap-2">
+              {/* Master on/off for all API data layers (BMKG, cuaca, FIRMS, MAGMA, VAAC) */}
               <button
                 type="button"
-                onClick={() => setShowMagmaLegend((v) => !v)}
-                aria-expanded={showMagmaLegend}
-                aria-controls="magma-legend"
-                className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer ${showMagmaLegend ? 'text-amber-300 ring-1 ring-amber-400/60' : 'text-slate-300'}`}
-                title={showMagmaLegend ? 'Sembunyikan legenda MAGMA' : 'Tampilkan legenda MAGMA'}
-                data-purpose="magma-legend-toggle"
+                onClick={toggleApiLayers}
+                aria-pressed={showApiLayers}
+                aria-label={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
+                title={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
+                data-purpose="api-layers-toggle"
+                className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${showApiLayers ? 'text-emerald-300 ring-1 ring-emerald-400/60' : 'text-slate-400'}`}
               >
-                <Info className="h-4 w-4" />
+                {showApiLayers ? <Eye className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4" aria-hidden="true" />}
               </button>
-            )}
+              {showMagma && (
+                <button
+                  type="button"
+                  onClick={() => setShowMagmaLegend((v) => !v)}
+                  aria-expanded={showMagmaLegend}
+                  aria-controls="magma-legend"
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer ${showMagmaLegend ? 'text-amber-300 ring-1 ring-amber-400/60' : 'text-slate-300'}`}
+                  title={showMagmaLegend ? 'Sembunyikan legenda MAGMA' : 'Tampilkan legenda MAGMA'}
+                  data-purpose="magma-legend-toggle"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
 
 
