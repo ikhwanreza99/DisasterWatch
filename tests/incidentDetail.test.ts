@@ -153,7 +153,8 @@ test('13: empty and crawl-failure states render without breaking', async () => {
     incidentName: 'Cianjur', matched: [], review: [],
     freshness: { lastAttemptAt: '2026-10-11T00:00:00Z', lastSuccessAt: null, error: 'ZAPI_API_KEY missing' },
   }));
-  assert.ok(news.includes('Crawl terakhir gagal'));
+  assert.ok(news.includes('ZAPI_API_KEY missing'));
+  assert.ok(!news.includes('Menampilkan berita yang sudah tersedia.'));
   const aid = renderToStaticMarkup(React.createElement(AidAndPoskoPanel, { aid: [], posko: [] }));
   assert.ok(aid.includes('Belum ada data bantuan atau posko'));
 });
@@ -288,4 +289,23 @@ test('22: Lombok detail carries real official params; Cianjur has honest empty s
   assert.deepEqual(cj.detail.officialParams, []);
   assert.deepEqual(cj.detail.claims, []);
   assert.equal(filterIncidentNews(cj.detail.articles, 'cianjur').length, 0);
+});
+
+test('Padang feed accepts recent local floods but excludes other places and disaster types', () => {
+  const padang = descriptorFor('padang')!;
+  const now = Date.parse('2026-10-12T12:00:00Z');
+  const candidate = (title: string) => art({ url: 'https://example.com/padang-fixture', title, publishedAt: '2026-10-11T00:00:00Z' });
+  assert.equal(classifyRelevance(candidate('Banjir Padang, warga mengungsi'), padang, now).status, 'MATCHED');
+  assert.equal(classifyRelevance(candidate('Banjir Pesisir Selatan merendam rumah'), padang, now).status, 'MATCHED');
+  for (const title of ['Banjir Demak merendam rumah', 'Banjir Padang Panjang merendam rumah', 'Gempa mengguncang Padang', 'Banjir Sumatera Barat']) {
+    assert.notEqual(classifyRelevance(candidate(title), padang, now).status, 'MATCHED');
+  }
+  assert.notEqual(classifyRelevance({ ...candidate('Banjir Padang'), publishedAt: '2020-01-01T00:00:00Z' }, padang, now).status, 'MATCHED');
+});
+
+test('freshness reports only actual runs for the selected incident', async () => {
+  const { incidentFreshness } = await import('../src/services/incidentFreshness');
+  const run = { id: 'r', startedAt: '2026-10-12T00:00:00Z', finishedAt: '2026-10-12T00:01:00Z', outcome: 'SUCCESS' as const, lastSuccessAt: null, perIncident: [{ incidentId: 'cianjur', fetched: 2, matched: 1, rejected: 1, review: 0 }], articlesNew: 2, articlesUpdated: 0, aiExtractions: 0, errorCode: null, schemaVersion: 1 };
+  assert.deepEqual(incidentFreshness('padang', [run]), { lastAttemptAt: null, lastSuccessAt: null, error: null });
+  assert.equal(incidentFreshness('cianjur', [run]).lastSuccessAt, run.finishedAt);
 });

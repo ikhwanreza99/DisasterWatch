@@ -16,7 +16,7 @@ const receiptOut = process.argv[3] || 'public/data/incident-news.json';
 const now = new Date().toISOString();
 const zapiKey = process.env.ZAPI_API_KEY || '';
 
-const TARGETS = ['cianjur', 'lombok-2018-08-05', 'ntt-sumba-barat-daya-2026-10-04'];
+const TARGETS = INCIDENT_DESCRIPTORS.map(d => d.incidentId);
 
 interface ZapiItem {
   title?: unknown;

@@ -92,7 +92,7 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
     province: 'Sumatera Barat',
     disasterType: 'flood',
     aliases: ['Padang', 'Pesisir Selatan', 'Kuranji', 'Batang Kuranji'],
-    broadAliases: ['Padang'],
+    broadAliases: [],
     keywords: ['Galodo', 'Batang Kuranji'],
     eventDate: null,
     windowDays: null,
@@ -154,7 +154,7 @@ export function buildIncidentQueries(d: IncidentDescriptor): string[] {
   return [
     `${loc} ${typeWord} dampak kerusakan`,
     `${loc} ${typeWord} bantuan logistik posko pengungsian`,
-    `${loc} ${typeWord} BPBD BNPB update`,
+    `${d.aliases[1] ? `"${d.aliases[1]}"` : loc} ${typeWord} BPBD BNPB update`,
   ];
 }
 

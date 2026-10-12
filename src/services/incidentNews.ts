@@ -55,6 +55,9 @@ export function classifyRelevance(article: IncidentArticle, d: IncidentDescripto
     };
   }
   const text = `${article.title} ${article.summary ?? ''}`;
+  if (d.incidentId === 'padang' && /padang\s*(panjang|sidempuan|sidimpuan|pariaman|lawas)/i.test(text) && !/kota padang|pesisir selatan|kuranji/i.test(text)) {
+    return { status: 'REJECTED', score: 0, matchedAliases: [], matchedKeywords: [], reason: 'Nama Padang merujuk lokasi lain.' };
+  }
   const broad = new Set(d.broadAliases.map((a) => a.toLowerCase()));
   const matchedAliases = d.aliases.filter((a) => new RegExp(`\\b${escapeRegExp(a)}\\b`, 'i').test(text));
   const strongAliases = matchedAliases.filter((a) => !broad.has(a.toLowerCase()));
@@ -64,8 +67,10 @@ export function classifyRelevance(article: IncidentArticle, d: IncidentDescripto
   const hasType = typeWordPresent(d, text);
   const windowHit = inEventWindow(d, article.publishedAt);
   // Supporting evidence beyond a bare place-name mention.
+  const published = Date.parse(article.publishedAt ?? '');
+  const recentOngoing = !d.eventDate && published <= now && now - published <= 14 * 86400_000;
   const supported =
-    matchedKeywords.length >= 1 || distinctAliases >= 2 || (hasType && windowHit === true);
+    matchedKeywords.length >= 1 || distinctAliases >= 2 || (hasType && (windowHit === true || recentOngoing));
   const score = matchedAliases.length * 3 + matchedKeywords.length * 1 + (hasType ? 0.5 : 0) + (windowHit === true ? 1 : windowHit === false ? -2 : 0);
   void now;
 
