@@ -2365,7 +2365,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           {/* Map controls: zoom group + reset / my location / MAGMA legend (glass, vertical) */}
           <div className="flex flex-col gap-2" data-purpose="map-zoom-controls">
             <span className="w-11 text-center text-xs font-bold tabular-nums text-slate-800 [text-shadow:0_1px_3px_rgba(255,255,255,0.95)]" aria-label={`Zoom peta ${currentZoom}x`}>{currentZoom}x</span>
-            <div className="flex flex-col overflow-hidden rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)]">
+            <div data-purpose="map-zoom-button-group" className="flex flex-col overflow-hidden rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)]">
               <button
                 type="button"
                 onClick={() => handleZoomAction('in')}
