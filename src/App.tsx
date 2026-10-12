@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { currentArticles, currentIncidents, NATIONAL_REPORT_COUNT, currentRecords } from './data/currentIncidents';
+import { currentArticles, currentIncidents } from './data/currentIncidents';
 import { newsSourceUrl } from './services/newsSourceUrl';
 import { classifyRelevance } from './services/incidentNews';
 import { descriptorFor } from './services/incidentRegistry';
@@ -478,9 +478,6 @@ export default function App() {
           onSignOut={handleLogout}
         />
 
-        <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] text-slate-600" role="status">
-          Indonesia · 1–12 Okt 2026 · {NATIONAL_REPORT_COUNT} laporan BNPB · {currentRecords.length} titik wilayah termasuk laporan tambahan. Koordinat mewakili wilayah.
-        </div>
         {/* Main Work Area — map-first workspace (min 60vh desktop) */}
         <main className="relative flex-1 grid grid-cols-12 overflow-hidden min-h-0 md:min-h-[60vh]">
           {/* Left Category Filter Dock */}

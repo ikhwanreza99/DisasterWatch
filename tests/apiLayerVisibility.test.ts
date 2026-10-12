@@ -5,12 +5,14 @@ const visible = (category: Parameters<typeof apiLayerVisibility>[0], enabled = t
 test('grid enables all API sources by default', () => {
   assert.deepEqual(visible('all'), ['showAsh', 'showBmkg', 'showBmkgWeather', 'showFirms', 'showMagma', 'showWeather']);
 });
-test('fire, flood and earthquake each display only their requested sources', () => {
+test('FIRMS appears for all and fire filters, not other categories', () => {
   assert.deepEqual(visible('fire'), ['showFirms']);
   assert.deepEqual(visible('flood'), ['showWeather']);
   assert.deepEqual(visible('earthquake'), ['showAsh', 'showBmkg', 'showMagma']);
+  assert.deepEqual(visible('landslide'), []);
+  assert.deepEqual(visible('other'), []);
 });
 test('eye switch disables every layer for every category', () => {
-  for (const category of ['all', 'fire', 'flood', 'earthquake', 'none'] as const) assert.deepEqual(visible(category, false), []);
+  for (const category of ['all', 'fire', 'flood', 'earthquake', 'landslide', 'other', 'none'] as const) assert.deepEqual(visible(category, false), []);
   assert.deepEqual(visible('none'), []);
 });
