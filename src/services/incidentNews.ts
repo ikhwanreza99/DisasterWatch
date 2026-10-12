@@ -12,7 +12,7 @@
 //   every candidate is classified and only MATCHED enters the default feed.
 import { canonicalUrl } from '../domain/nttCase';
 import type { IncidentArticle, RelevanceStatus } from '../domain/incidentDetail';
-import { typeWordPresent, type IncidentDescriptor } from './incidentRegistry';
+import { CURRENT_DESCRIPTORS, typeWordPresent, type IncidentDescriptor } from './incidentRegistry';
 
 export interface RelevanceResult {
   status: RelevanceStatus;
@@ -66,6 +66,9 @@ export function classifyRelevance(article: IncidentArticle, d: IncidentDescripto
   const matchedKeywords = d.keywords.filter((k) => new RegExp(escapeRegExp(k), 'i').test(text));
   const hasType = typeWordPresent(d, text);
   const windowHit = inEventWindow(d, article.publishedAt);
+  if (CURRENT_DESCRIPTORS.some(c => c.incidentId === d.incidentId) && (!hasType || !article.publishedAt || Date.parse(article.publishedAt) < Date.parse('2026-10-01T00:00:00+07:00') || Date.parse(article.publishedAt) >= Date.parse('2026-10-13T00:00:00+07:00') || !Number.isFinite(Date.parse(article.publishedAt)) || Date.parse(article.publishedAt) > now)) {
+    return { status: 'REVIEW_REQUIRED', score: 0, matchedAliases, matchedKeywords, reason: 'Jenis bencana atau tanggal laporan belum cocok dengan kejadian terbaru.' };
+  }
   // Supporting evidence beyond a bare place-name mention.
   const published = Date.parse(article.publishedAt ?? '');
   const recentOngoing = !d.eventDate && published <= now && now - published <= 14 * 86400_000;

@@ -1,3 +1,4 @@
+import { newsSourceUrl } from '../services/newsSourceUrl';
 // NTT earthquake case view — integrates into existing dashboard styling.
 // Sections: A header, B map note (map itself stays in MapProvider), C overview,
 // D news feed, E timeline, F claims. Plus grounded mini Q&A (reuses Gemini client).
@@ -16,15 +17,17 @@ const VERIF_BADGE: Record<NttVerificationStatus, string> = {
 };
 
 function fmtTime(iso: string | null): string {
-  if (!iso) return 'Waktu tidak tersedia';
+  if (!iso) return 'Tanggal belum tersedia';
   const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return 'Waktu tidak tersedia';
+  if (!Number.isFinite(t)) return 'Tanggal belum tersedia';
   return new Date(t).toLocaleString('id-ID', {
-    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
+    day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta',
   });
 }
 
 function ArticleCard({ a }: { a: CaseArticle }) {
+  const sourceUrl = newsSourceUrl(a.url);
+  if (!sourceUrl) return null;
   return (
     <article className="rounded-xl border border-slate-100 bg-slate-50 p-3" data-case-article={a.id}>
       <div className="flex flex-wrap items-center gap-1.5">
@@ -37,7 +40,7 @@ function ArticleCard({ a }: { a: CaseArticle }) {
         </span>
       </div>
       <a
-        href={a.url}
+        href={sourceUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-1 block text-xs font-semibold leading-relaxed text-slate-800 hover:text-blue-600 focus-visible:outline-2 focus-visible:outline-blue-600"

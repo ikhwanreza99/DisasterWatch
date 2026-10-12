@@ -1,0 +1,2260 @@
+[
+  {
+    "id": "bnpb-7315-fire-2026-10",
+    "name": "Pinrang",
+    "province": "Sulawesi Selatan",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-11",
+    "startDate": "2026-10-03",
+    "lat": -3.793071,
+    "lng": 119.6408,
+    "aliases": [
+      "Pinrang"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "2 laporan kebakaran hutan dan lahan di Pinrang pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-11",
+        "location": "Kecamatan: (2 Kecamatan / 2 Desa)\nKec. Suppa\nDs. Watang Pulu\nKec. Watang Sawitto\nKel. Maccorawalie",
+        "documentationUrl": "https://drive.google.com/file/d/1kr81WZDoJX-Jq1opCBdVXXTgYw5-FHY4/view?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-03",
+        "location": "Kecamatan: Kec. Mattiro Bulu\nKec. Patampanua",
+        "documentationUrl": "https://drive.google.com/drive/folders/1MLyN9cDkK4D3qg1rP_WgAecbs0-h_8sL?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7208-fire-2026-10",
+    "name": "Parigi Moutong",
+    "province": "Sulawesi Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-11",
+    "startDate": "2026-10-11",
+    "lat": 0.5817607,
+    "lng": 120.80394740000001,
+    "aliases": [
+      "Parigi Moutong"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Parigi Moutong pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-11",
+        "location": "Kecamatan:",
+        "documentationUrl": "https://drive.google.com/drive/folders/18anSiKnCfHtADl5Xmb3NpBMYt_PdNMgu",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7209-fire-2026-10",
+    "name": "Tojo Una Una",
+    "province": "Sulawesi Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-11",
+    "startDate": "2026-10-05",
+    "lat": -1.098757,
+    "lng": 121.5370003,
+    "aliases": [
+      "Tojo Una Una"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "3 laporan kebakaran hutan dan lahan di Tojo Una Una pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-11",
+        "location": "Kecamatan: ( 1 Kecamatan / 1 Desa )\nKec. Rotalindo\nKel. Uentanaga",
+        "documentationUrl": "https://drive.google.com/drive/folders/1hSe0UMOYsTYOMaovL6wmi2x10KXuZCc3",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: Kec. Rotalindo",
+        "documentationUrl": "https://drive.google.com/drive/folders/10almCSBMCQlfQOU-yFBgSlT6cfcTD2Xa\nhttps://drive.google.com/drive/folders/14ZZ369-xop0mOeFwpwxqidA4l_oJDtRZ?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-05",
+        "location": "Kecamatan: Kec. Ampana",
+        "documentationUrl": "https://drive.google.com/drive/folders/1UyR_PXiwT5iRA4xCCjZSNU2luwFAMPgq?usp=drive_link\nhttps://drive.google.com/drive/folders/1WNM_TrlO4FcsiEJe9iELrWZgkbEP4joo?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "pesisir-selatan-2026-10",
+    "name": "Pesisir Selatan",
+    "province": "Sumatera Barat",
+    "category": "flood",
+    "disasterLabel": "Banjir",
+    "date": "2026-10-10",
+    "startDate": "2026-10-10",
+    "lat": -1.7223147,
+    "lng": 100.8903099,
+    "aliases": [
+      "Pesisir Selatan"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan banjir di Pesisir Selatan pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-10",
+        "location": "Kecamatan: ( 3 Kecamatan / 16 Nagari)\nKec. Ranah Ampek Hulu Tapan\nNagari Sako\nNagari Limau Purut Tapan\nNagari Talang Balarik\nNagari Binjai\nNagari Kampung Tengah\nNagari TB Tinggi\nNagari Talang Koto Pulai\nNagari Sungai Pinang\nNagari Kubu Tapan\nNagari Simpang Gunung Tapan\nKec. Basa Ampek Balai Tapan\nNagari Tapan\nNagari Dusun Baru Tapan\nNagari Koto Anau Tapan\nNagari Batang Arah Tapan\nNagari Tanjung Pondok Tapan\nKec. Lunang\nNagari Lunang Utara",
+        "documentationUrl": "https://drive.google.com/drive/folders/1-iaXNLYsGF7qBjpINWdwanPmKfDh0Fmo?usp=drive_link\nhttps://drive.google.com/drive/u/0/folders/12lUVCTTfhJy-wDAcYl9kWcSojB518WsU",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 6,
+          "floodedHomes": 232,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-1903-fire-2026-10",
+    "name": "Bangka Selatan",
+    "province": "Kepulauan Bangka Belitung",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-10",
+    "startDate": "2026-10-10",
+    "lat": -2.2884782,
+    "lng": 106.0640179,
+    "aliases": [
+      "Bangka Selatan"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Bangka Selatan pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-10",
+        "location": "Kecamatan: Kec. Simpang Rimba\nDs. Jelutung 2",
+        "documentationUrl": "https://drive.google.com/drive/folders/1mWZSZmFlC9Fk1lV5phtdWWkQ8py4oShc?usp=drive_link\nhttps://drive.google.com/drive/folders/1MPb3vbpRSZm6Bm4ITaroV6UoddqBAZQp?usp=drive_link\nhttps://drive.google.com/drive/folders/1eOOhTL1WQJCO5aaXZUwgAC-yQnkLU5h9?usp=drive_link\nhttps://drive.google.com/file/d/1wFJnh06F56CMmcTTmCe1bETU8D_a-gWO/view?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 305,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3301-fire-2026-10",
+    "name": "Cilacap",
+    "province": "Jawa Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-10",
+    "startDate": "2026-10-02",
+    "lat": -7.733333,
+    "lng": 109.0,
+    "aliases": [
+      "Cilacap"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "3 laporan kebakaran hutan dan lahan di Cilacap pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-10",
+        "location": "Kecamatan: ( 1 Kecamatan / 1 Desa )\nKec. Kesugihan\nDs. Buluh Payung",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan: ( 1 Kecamatan / 1 Desa)\nKec. Cimanggu \nDs. Pesahangan\nKec. Kawunganten\nDs. Sidaurip",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-02",
+        "location": "Kecamatan: Kec. Gandrungmangu",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "padang",
+    "name": "Kota Padang",
+    "province": "Sumatera Barat",
+    "category": "flood",
+    "disasterLabel": "Banjir",
+    "date": "2026-10-10",
+    "startDate": "2026-10-10",
+    "lat": 1.5758644,
+    "lng": 99.634135,
+    "aliases": [
+      "Kota Padang"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan banjir di Kota Padang pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-10",
+        "location": "Kecamatan: ( 3 Kecamatan /6 Kelurahan )\nKec. Kuranji \nKel. Kuranji \nKec. Koto Tangah\nKel. Koto Panjang Ikua Koto\nKel. Batipuh Punjang\nKel. Lubuk Minturun \nKec. Nanggalo\nKel. Tabiang Banda Gadang\nKel. Gurun Laweh",
+        "documentationUrl": "https://drive.google.com/drive/folders/1sesNlIzwvHDH6jtdBW8kE45ECpppL6p-?usp=drive_link\nhttps://drive.google.com/drive/folders/1tOE-90iBGVSG4j-X82_TPy_8Qu8ZgZHM?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 125,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "aceh-tamiang-2026-10",
+    "name": "Aceh Tamiang",
+    "province": "Aceh",
+    "category": "flood",
+    "disasterLabel": "Banjir",
+    "date": "2026-10-10",
+    "startDate": "2026-10-10",
+    "lat": 4.2328871,
+    "lng": 98.0028892,
+    "aliases": [
+      "Aceh Tamiang"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan banjir di Aceh Tamiang pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-10",
+        "location": "Kecamatan: (4  Kecamatan / 8  Desa )\nKec. Tenggulun\nDs. Simpang Kiri\nDs. Tenggulun\nDs. Rimba Sawang\nDs. Sumber Makmur\n Kec. Kejuruan Muda\nDs. Alur Selebu\n Kec. Karang Baru\nDs. Sukajadi\nDs. Tanjung Karang\nKec. Bendahara\nDs. Marlempang",
+        "documentationUrl": "https://drive.google.com/file/d/19GMGKHh9yOr-mVjnlI1-mnPTGkxK2UKO/view?usp=drive_link\nhttps://drive.google.com/file/d/1KBjpW9Hb5yFBLJo5KvOlMwqT82eEwr7R/view?usp=drive_link\nhttps://drive.google.com/drive/folders/1TKXDfYxSmbIGkKOvZPUiJz79EaYT__qI",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": 222,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3310-fire-2026-10",
+    "name": "Klaten",
+    "province": "Jawa Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-10",
+    "startDate": "2026-10-02",
+    "lat": -7.7116869999999995,
+    "lng": 110.595497,
+    "aliases": [
+      "Klaten"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "4 laporan kebakaran hutan dan lahan di Klaten pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-10",
+        "location": "Kecamatan: Kec. Bayat",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan: Kec. Pedan",
+        "documentationUrl": "https://drive.google.com/drive/folders/1JrpDAiV1ucjaSsbQNnwttMN17OQK4Ntx?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-03",
+        "location": "Kecamatan: Kec. Bayat\nDs. Talang\nDs. Banyuripan\nDs. Gunung Gajah\nKec. Ngawen\nDs. Tempursari",
+        "documentationUrl": "https://drive.google.com/drive/folders/1Ysi7YmG-DyCFs5Y9tP0nQfa2KLLXOFif",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-02",
+        "location": "Kecamatan: Kec. Bayat\nDs. Krakitan\nKec. Trucuk\nDs. Palar\nKec. Karanganom\nDs. Jurang Jero",
+        "documentationUrl": "https://drive.google.com/drive/folders/1nkYdbeGX6C42YxRq7bW4JZjvQSV5l1rb",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "merauke-2026-10",
+    "name": "Merauke",
+    "province": "Papua Selatan",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-09",
+    "startDate": "2026-10-09",
+    "lat": -8.4960406,
+    "lng": 140.39455269999996,
+    "aliases": [
+      "Merauke"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Merauke pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-09",
+        "location": "Kecamatan: (10 Distrik / 6 Kampung / 4 Desa)\nDistrik Kurik\nKampung Harapan Makmur\nDistrik Nokenjere\nKampung Kondo\nDistrik Sota\nDs. Sota\nDistrik Tanah Miring\nDs. Sarmayam Indah\nDistrik Eli Kobel\nDs. Bumun\nDistrik Muting\nDs. Set Agung\nDistrik Subur\nKampung Wakai\nDistrik Ilwayab\nKampung Wanam\nDistrik Ngguti\nKampung Salam Epe\nDistrik Kaptel\nKampung Ihalik",
+        "documentationUrl": "https://drive.google.com/drive/folders/1238lc2lQ4UQfXXZj2uYisly5ggwMfr5X?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-1102-flood-2026-10",
+    "name": "Aceh Tenggara",
+    "province": "Aceh",
+    "category": "flood",
+    "disasterLabel": "Banjir",
+    "date": "2026-10-09",
+    "startDate": "2026-10-09",
+    "lat": 3.3088665999999995,
+    "lng": 97.6982272,
+    "aliases": [
+      "Aceh Tenggara"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan banjir di Aceh Tenggara pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-09",
+        "location": "Kecamatan: ( 4 Kecamatan / 7 Desa )\nKec. Ketambe\nDs. Kati Maju\nKec. Lawe Bulan\nDs. Pulonas Baru\nKec. Babussalam\nDs. Pulo Latong\nKec. Bambel\nDs. Lawe Kihing\nDs. Bambel Gabungan\nDs. Terutung Seperai\nDs. Terutung Megara Asli",
+        "documentationUrl": "https://drive.google.com/file/d/1Hka3qJx6zfC1vpRxjJja7E0-8YFB9lwy/view?usp=drive_link\nhttps://drive.google.com/drive/folders/1vHF0loNXhyUJfA3CyvGs2nU8RBrsTslO?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-1113-flood-2026-10",
+    "name": "Gayo Lues",
+    "province": "Aceh",
+    "category": "flood",
+    "disasterLabel": "Banjir",
+    "date": "2026-10-09",
+    "startDate": "2026-10-07",
+    "lat": 3.955165,
+    "lng": 97.3516558,
+    "aliases": [
+      "Gayo Lues"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "2 laporan banjir di Gayo Lues pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-09",
+        "location": "Kecamatan: ( 4 Kecamatan / 7 Desa )\nKec. Blangkejeren\nDs. Kala Pinang\nDs. Leme\nDs. Palok\nKec. Dabun Gelang\nDs. Kendawi\nDs. Badak\nKec. Putri Betung\nDs. Tetumpun\nKec. Kuta Panjang\nDs. Ulun Tanoh",
+        "documentationUrl": "https://drive.google.com/drive/folders/1zx2JOHmtvtL-Bs1NJBSEPJNowwVc4DXG?usp=drive_link\nhttps://drive.google.com/file/d/1pMHdy_AQomd2KLPM4awvMJcbyrAxU_tr/view?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 1,
+          "floodedHomes": null,
+          "damagedFacilities": 1
+        }
+      },
+      {
+        "date": "2026-10-07",
+        "location": "Kecamatan: Kec. Blangjerango",
+        "documentationUrl": "https://drive.google.com/drive/folders/10ZlI6Glvsj3x7dAAKH4kKL7ppNRg0Law?usp=drive_link\nhttps://drive.google.com/drive/folders/1tdbPV4-MEQNbGaKI-PzZZky2zZ0f49xt?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7308-other-2026-10",
+    "name": "Bone",
+    "province": "Sulawesi Selatan",
+    "category": "other",
+    "disasterLabel": "Kekeringan",
+    "date": "2026-10-09",
+    "startDate": "2026-10-09",
+    "lat": -2.083333,
+    "lng": 120.21666699999999,
+    "aliases": [
+      "Bone"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kekeringan di Bone pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-09",
+        "location": "Kecamatan: (1  Kecamatan /1 Kelurahan )\nKec.  Tanete Riattang Barat\nKel. Polewali",
+        "documentationUrl": "https://drive.google.com/drive/folders/1PW-knk9832dwi9usDt6-jaVrDCcLoXs7?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3522-fire-2026-10",
+    "name": "Bojonegoro",
+    "province": "Jawa Timur",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-08",
+    "startDate": "2026-10-03",
+    "lat": 0.8826809999999999,
+    "lng": 124.46695659999999,
+    "aliases": [
+      "Bojonegoro"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "2 laporan kebakaran hutan dan lahan di Bojonegoro pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan: Kec. Bojonegoro",
+        "documentationUrl": "https://drive.google.com/drive/folders/1rs7ZBFOwgN1IGmLneakdBAtwK1pgYe1q?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-03",
+        "location": "Kecamatan: Kec. Kawedanan",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-1905-fire-2026-10",
+    "name": "Bangka Barat",
+    "province": "Kepulauan Bangka Belitung",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-08",
+    "startDate": "2026-10-07",
+    "lat": -2.2884782,
+    "lng": 106.0640179,
+    "aliases": [
+      "Bangka Barat"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "2 laporan kebakaran hutan dan lahan di Bangka Barat pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan: Kec. Muntok",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-07",
+        "location": "Kecamatan: Kec. Muntok",
+        "documentationUrl": "https://drive.google.com/drive/folders/1F1SC91x8L8ovSPEKd2ZyJEvjhqyDblDx?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3502-fire-2026-10",
+    "name": "Ponorogo",
+    "province": "Jawa Timur",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-08",
+    "startDate": "2026-10-08",
+    "lat": -7.867827,
+    "lng": 111.466003,
+    "aliases": [
+      "Ponorogo"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Ponorogo pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan: Kec. Jenangan",
+        "documentationUrl": "https://drive.google.com/drive/folders/1lAaaYn6N6LIUPMdMKZLxUiYEH1C48E0P?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7210-fire-2026-10",
+    "name": "Sigi",
+    "province": "Sulawesi Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-08",
+    "startDate": "2026-10-08",
+    "lat": -1.3834127,
+    "lng": 120.0665236,
+    "aliases": [
+      "Sigi"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Sigi pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan: Kec. Dolo Selatan",
+        "documentationUrl": "https://drive.google.com/drive/folders/19GPpVGw9DOmvZStxs3fvqMEIONTeSpgo?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3314-fire-2026-10",
+    "name": "Sragen",
+    "province": "Jawa Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-08",
+    "startDate": "2026-10-01",
+    "lat": -7.430229,
+    "lng": 111.021301,
+    "aliases": [
+      "Sragen"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "3 laporan kebakaran hutan dan lahan di Sragen pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan:",
+        "documentationUrl": "https://drive.google.com/drive/folders/1adkNlIJpDo1Uydzu-p8R0nH31ps8N6K3?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: Kec. Gesi",
+        "documentationUrl": "https://drive.google.com/file/d/1S3NWmdgAf39oSospJFryaIg1RIz6s1tv/view?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-01",
+        "location": "Kecamatan: Kec. Gesi",
+        "documentationUrl": "https://drive.google.com/drive/folders/1Plxmu8Mef60f8j8rzQ9yBY51H-ZYDgzq",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3312-fire-2026-10",
+    "name": "Wonogiri",
+    "province": "Jawa Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-08",
+    "startDate": "2026-10-03",
+    "lat": -7.817782000000001,
+    "lng": 110.920601,
+    "aliases": [
+      "Wonogiri"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "3 laporan kebakaran hutan dan lahan di Wonogiri pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan: Kec. Wonogiri",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: Kec. Wonogiri",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-03",
+        "location": "Kecamatan: Kec. Jatiroto",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": 1,
+          "damagedHomes": 1,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7307-fire-2026-10",
+    "name": "Sinjai",
+    "province": "Sulawesi Selatan",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-08",
+    "startDate": "2026-10-08",
+    "lat": -5.2171961,
+    "lng": 120.11273500000001,
+    "aliases": [
+      "Sinjai"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Sinjai pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan: Kec. Bulupoddo",
+        "documentationUrl": "https://drive.google.com/drive/folders/1IBuvvtZnulL8n9BoRaYDU4J_L30N9a0G?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7314-fire-2026-10",
+    "name": "Sidenreng Rappang",
+    "province": "Sulawesi Selatan",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-08",
+    "startDate": "2026-10-02",
+    "lat": -3.7738981,
+    "lng": 120.02029640000002,
+    "aliases": [
+      "Sidenreng Rappang"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "3 laporan kebakaran hutan dan lahan di Sidenreng Rappang pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan: Kec. Watang Pulu",
+        "documentationUrl": "https://drive.google.com/drive/folders/1WrDelnhXF27ZSFE_oa9gmAPpFLebB-Qz?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-05",
+        "location": "Kecamatan: Kec. Mattiro Bulu\nKec. Watang Sidenreng",
+        "documentationUrl": "https://drive.google.com/drive/folders/1TD-UN53JU2Pngm6DYJYfdGMYcuZOzjCz",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-02",
+        "location": "Kecamatan: Kec. Watang Pulu\nKec. Watang sidenreng\nKec. Baranti\nKec. Kulo",
+        "documentationUrl": "https://drive.google.com/drive/folders/1yDLEog2NdMo0zzDulYC8hZ1FrErj2TLB?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3520-fire-2026-10",
+    "name": "Magetan",
+    "province": "Jawa Timur",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-08",
+    "startDate": "2026-10-01",
+    "lat": -7.6493413,
+    "lng": 111.33815929999999,
+    "aliases": [
+      "Magetan"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "2 laporan kebakaran hutan dan lahan di Magetan pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan: Kec. Parang",
+        "documentationUrl": "https://drive.google.com/drive/folders/1M4J8-RG_Xq9sP6FadZ5VQi90gCtOlp-t?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-01",
+        "location": "Kecamatan: Kec. Kawedanan",
+        "documentationUrl": "https://drive.google.com/drive/folders/1hNJyhSGcR5JdWJvisO0JvCBJ5gDJ83EO",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-8271-fire-2026-10",
+    "name": "Kota Ternate",
+    "province": "Maluku Utara",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-08",
+    "startDate": "2026-10-02",
+    "lat": 0.7833333,
+    "lng": 127.36666670000001,
+    "aliases": [
+      "Kota Ternate"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "2 laporan kebakaran hutan dan lahan di Kota Ternate pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-08",
+        "location": "Kecamatan: Kec. Ternate Barat",
+        "documentationUrl": "https://drive.google.com/drive/folders/1D9PP8Wv5OZcL4s-jnivL5mxL-kj3ITrU?usp=drive_link\nhttps://drive.google.com/file/d/1ruFfDP-HNlRABXrZpYEo4vSUYAfqE3cM/view?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-02",
+        "location": "Kecamatan: Prov. Maluku Utara\n(5 Kab / 2 Kota / 14 Kecamatan / 4 Kelurahan/ 18 Desa)\n\nKota Ternate  \nKec. Kota Ternate Tengah \nKel. Moya\nKec. Kota Ternate Barat\nKel. Sulamadaha \n\nKota Tidore Kepulauan\nKec. Oba Utara\nDs. Gosale\nDs. Kayasa\nDs. Durian\nKec. Tidore \nKel. Goto \nKel. Soasio\n\nKab. Pulau Taliabu\nKec. Taliabu Barat Laut\nDs. Talo\nDs. Salati\nDs. Nggele\nDs. Onemay\nDs. Ufung\nDs. Padang\nKec. Taliabu Barat\nDs. Bobong \n\nKab. Halmahera Barat\nKec. Ibu Selatan\nDs. Gamsungi (Gunung Gamkonora) \nKec. Sahu Timur\nDs. Goal \nKec. Jailolo\nDs. Acango\nKec. Jailolo Timur\nDs.  Akelamo Cinga-cinga\n\nKab. Halmahera Selatan \nKec. Bacan\nDs. Marabose\n\nKab. Halmahera Tengah \nKec. Weda Selatan\nDs. Tilope\nKec. Weda Tengah \nDs. Lelilef\n\nKab. Pulau Morotai \nKec. Morotai Selatan \nDs. Dehegila",
+        "documentationUrl": "https://drive.google.com/drive/folders/1Vctdu0i0oh9y-xhKbD8K-B9RCr2f2Lfy\nhttps://drive.google.com/drive/folders/1hkbhoTU8yk6UcX1CezhJkubnwYOhuqM7?usp=drive_link\nhttps://drive.google.com/drive/folders/1UoiaR24hy2BQPnsFZ6Kh_ZEpQ3KfhKTR?usp=drive_link\nhttps://drive.google.com/drive/folders/1umTeEdsNkIgU2DqUKXdmAsHSWLIJpMlK?usp=drive_link\nhttps://drive.google.com/drive/folders/1Q6T3iAdNsUUC6Bad7FE3bzPQ3MJROo58\nhttps://docs.google.com/document/d/1MJo6ZsIBwMBWkJZB5Of_zqtSV09YGAOU/edit?usp=drive_link&ouid=107369945531559973777&rtpof=true&sd=true",
+        "impact": {
+          "deaths": null,
+          "missing": 2,
+          "injured": 1,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3517-fire-2026-10",
+    "name": "Jombang",
+    "province": "Jawa Timur",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-07",
+    "startDate": "2026-10-02",
+    "lat": -7.546839500000001,
+    "lng": 112.2264794,
+    "aliases": [
+      "Jombang"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "2 laporan kebakaran hutan dan lahan di Jombang pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-07",
+        "location": "Kecamatan: Kec. Kesamben",
+        "documentationUrl": "https://drive.google.com/drive/folders/1693fQNBm_jdQqbaCiwy3y7k5QlBdb9Hp?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-02",
+        "location": "Kecamatan: Kec. Ngoro",
+        "documentationUrl": "https://drive.google.com/drive/folders/1LeXD29KlnpyJlLQx05mQRJjXM_73KbfQ?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-1971-fire-2026-10",
+    "name": "Kota Pangkal Pinang",
+    "province": "Kepulauan Bangka Belitung",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-07",
+    "startDate": "2026-10-07",
+    "lat": -2.129323,
+    "lng": 106.109596,
+    "aliases": [
+      "Kota Pangkal Pinang"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Kota Pangkal Pinang pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-07",
+        "location": "Kecamatan: Kec. Bukit Intan",
+        "documentationUrl": "https://drive.google.com/drive/folders/1HLCA0j8OU_AsNsOktmup85Suijncvwvr?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3213-fire-2026-10",
+    "name": "Subang",
+    "province": "Jawa Barat",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-07",
+    "startDate": "2026-10-07",
+    "lat": -6.569361,
+    "lng": 107.752403,
+    "aliases": [
+      "Subang"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Subang pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-07",
+        "location": "Kecamatan: (1 Kecamatan / 1 Desa)\nKec. Subang\nKel. Dangdeur",
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSfpsENjYtvMoWx5iUH1XB8KNyA0P0Od?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-9401-fire-2026-10",
+    "name": "Nabire",
+    "province": "Papua Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-07",
+    "startDate": "2026-10-07",
+    "lat": -3.5095462,
+    "lng": 135.75209850000002,
+    "aliases": [
+      "Nabire"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Nabire pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-07",
+        "location": "Kecamatan: ( 1 Kecamatan /  1 Kp  )\nKec. Wanggar nabire Barat\nKp. Wanggar",
+        "documentationUrl": "https://drive.google.com/drive/folders/12gygVtR0M80XsBebreSZX8rUC1H_qbCF?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3503-fire-2026-10",
+    "name": "Trenggalek",
+    "province": "Jawa Timur",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-07",
+    "startDate": "2026-10-07",
+    "lat": -8.05,
+    "lng": 111.71666670000002,
+    "aliases": [
+      "Trenggalek"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Trenggalek pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-07",
+        "location": "Kecamatan: Kec. Pogalam",
+        "documentationUrl": "https://drive.google.com/drive/folders/1z40SKHa7fD7laGtAA2Ppm0cMkZCtZybT?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-1809-fire-2026-10",
+    "name": "Pesawaran",
+    "province": "Lampung",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-07",
+    "startDate": "2026-10-07",
+    "lat": -5.493245,
+    "lng": 105.0791228,
+    "aliases": [
+      "Pesawaran"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Pesawaran pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-07",
+        "location": "Kecamatan: Kec. Way Khilau",
+        "documentationUrl": "https://drive.google.com/drive/folders/1FU5dhh1Wu2uGxHs9hQt_8Nc3tJYU8mTp?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3315-fire-2026-10",
+    "name": "Grobogan",
+    "province": "Jawa Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-06",
+    "startDate": "2026-10-01",
+    "lat": -7.0217194,
+    "lng": 110.96258540000001,
+    "aliases": [
+      "Grobogan"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "2 laporan kebakaran hutan dan lahan di Grobogan pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: Kec. Brati",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-01",
+        "location": "Kecamatan: Kec. Grobogan",
+        "documentationUrl": "https://drive.google.com/file/d/1FDQ9ruq9u6ZPWm4NEzrmnuFIlvi33nRw/view?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7605-fire-2026-10",
+    "name": "Majene",
+    "province": "Sulawesi Barat",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-06",
+    "startDate": "2026-10-06",
+    "lat": -3.0297251,
+    "lng": 118.9062794,
+    "aliases": [
+      "Majene"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Majene pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: Kec. Sendana",
+        "documentationUrl": "https://drive.google.com/drive/folders/1Vw1-H34rZBW5RT_rahsW0bwzEduDXQKh?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-9302-fire-2026-10",
+    "name": "Boven Digoel",
+    "province": "Papua Selatan",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-06",
+    "startDate": "2026-10-06",
+    "lat": -5.7400018,
+    "lng": 140.3481835,
+    "aliases": [
+      "Boven Digoel"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Boven Digoel pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: ( 1 Distrik/1 Kampung)\nDistrik Jair\nKp. Naga",
+        "documentationUrl": "https://drive.google.com/drive/folders/1x6P4vvjf-g5PsQ24y94X-FUwd8PRXcCV?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-1812-fire-2026-10",
+    "name": "Tulang Bawang Barat",
+    "province": "Lampung",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-06",
+    "startDate": "2026-10-06",
+    "lat": -4.5257,
+    "lng": 105.0791,
+    "aliases": [
+      "Tulang Bawang Barat"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Tulang Bawang Barat pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: Kec. Tulang Bawang Tengah",
+        "documentationUrl": "https://drive.google.com/drive/folders/15c-4thXa8CDC5oKxLROI7sh6UZfH9XPW?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7604-fire-2026-10",
+    "name": "Polewali Mandar",
+    "province": "Sulawesi Barat",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-06",
+    "startDate": "2026-10-06",
+    "lat": -3.3419323,
+    "lng": 119.13906419999999,
+    "aliases": [
+      "Polewali Mandar"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Polewali Mandar pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: Kec. Mapilli",
+        "documentationUrl": "https://drive.google.com/drive/folders/1c9VlJbhRL8L8AevZonV8GBhk23dZuuBp?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3302-fire-2026-10",
+    "name": "Banyumas",
+    "province": "Jawa Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-06",
+    "startDate": "2026-10-06",
+    "lat": -7.4832133,
+    "lng": 109.14043799999999,
+    "aliases": [
+      "Banyumas"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Banyumas pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: Kec. Wangon",
+        "documentationUrl": "https://drive.google.com/drive/folders/1Z-3WQQ31WHPgnn-HX1Vb8Vr_o8iH7w_X?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3327-landslide-2026-10",
+    "name": "Pemalang",
+    "province": "Jawa Tengah",
+    "category": "landslide",
+    "disasterLabel": "Tanah Longsor",
+    "date": "2026-10-06",
+    "startDate": "2026-10-06",
+    "lat": -6.884233999999999,
+    "lng": 109.377998,
+    "aliases": [
+      "Pemalang"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan tanah longsor di Pemalang pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: Kec. Watukumpul",
+        "documentationUrl": "https://drive.google.com/drive/folders/1vA8JSy1f_mh03MvxrUxgzuPPwKxuGoQ7?usp=drive_link",
+        "impact": {
+          "deaths": 2,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-5106-fire-2026-10",
+    "name": "Bangli",
+    "province": "Bali",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-06",
+    "startDate": "2026-10-06",
+    "lat": -8.454303,
+    "lng": 115.354897,
+    "aliases": [
+      "Bangli"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Bangli pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: Kec. Kintamani",
+        "documentationUrl": "https://drive.google.com/drive/folders/1SD4yDzWSZq5z-V2DPyQ81Ao51RoOQrQO?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7102-fire-2026-10",
+    "name": "Minahasa",
+    "province": "Sulawesi Utara",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-06",
+    "startDate": "2026-10-03",
+    "lat": 1.0,
+    "lng": 124.58333329999999,
+    "aliases": [
+      "Minahasa"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "3 laporan kebakaran hutan dan lahan di Minahasa pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-06",
+        "location": "Kecamatan: (2 Kecamatan / 1 Kelurahan/ 1  Desa)\nKec. Tombulu\nKel. Malendeng\nDs. Sawangan\nKec. Tondano Selatan",
+        "documentationUrl": "https://drive.google.com/drive/folders/1_yl-MDnvWoM7euSGG44zbs8RP5Uj7PYg?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-05",
+        "location": "Kecamatan: Kec. Pineleng",
+        "documentationUrl": "https://drive.google.com/drive/folders/18GWB2yLTtiGJiUPgTnwAc8lglSKcLrwv?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-03",
+        "location": "Kecamatan: Kec. Tondano Barat\nKel. Watulambot\nKec. Tondano Selatan\nKel. Tataaran",
+        "documentationUrl": "https://drive.google.com/drive/folders/1JiKuki284JOoijBav84Pkic-QP82npe1",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-8105-fire-2026-10",
+    "name": "Seram Bagian Timur",
+    "province": "Maluku",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-05",
+    "startDate": "2026-10-05",
+    "lat": -3.4150761,
+    "lng": 130.39048799999998,
+    "aliases": [
+      "Seram Bagian Timur"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Seram Bagian Timur pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-05",
+        "location": "Kecamatan: Kec. Teluk Waru\nNegeri Solan\nNegeri Bellis\nKec. Bula\nNegeri Adm. Sesar",
+        "documentationUrl": "https://drive.google.com/drive/folders/1K8_0mz_6jaia1xoN9Jl4ZTnoO0oQrTZ1?usp=drive_link\nhttps://drive.google.com/drive/folders/1yWoOEji6O4O2WdZbzXmUsjzPM0SA1xYE?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3518-fire-2026-10",
+    "name": "Nganjuk",
+    "province": "Jawa Timur",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-05",
+    "startDate": "2026-10-05",
+    "lat": -7.602932000000001,
+    "lng": 111.901808,
+    "aliases": [
+      "Nganjuk"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Nganjuk pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-05",
+        "location": "Kecamatan: (1 Kecamatan / 1 Desa)\nKec. Sawahan \nDs. Ngliman",
+        "documentationUrl": "https://drive.google.com/drive/folders/1vRJGO2PSxcOoCKrGYe5PVPwMZ1XLkzJ_?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7602-fire-2026-10",
+    "name": "Mamuju",
+    "province": "Sulawesi Barat",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-04",
+    "startDate": "2026-10-04",
+    "lat": -2.7293363999999998,
+    "lng": 118.92957369999999,
+    "aliases": [
+      "Mamuju"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Mamuju pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-04",
+        "location": "Kecamatan: Kec. Tommo",
+        "documentationUrl": "https://drive.google.com/drive/folders/1lI-BsCCagXm6W_i0R2yWuQmqpX3fytCL?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "ntt-sumba-barat-daya-2026-10-04",
+    "name": "Sumba Barat Daya",
+    "province": "Nusa Tenggara Timur",
+    "category": "earthquake",
+    "disasterLabel": "Gempabumi",
+    "date": "2026-10-04",
+    "startDate": "2026-10-04",
+    "lat": -9.539139,
+    "lng": 119.13906419999999,
+    "aliases": [
+      "Sumba Barat Daya"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan gempabumi di Sumba Barat Daya pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-04",
+        "location": "Kecamatan: 14 km BaratDaya KODI-SUMBABARATDAYA-NTT\n44 km BaratDaya TAMBOLAKA-NTT\n51 km BaratLaut WANOKAKA-NTT\n337 km Tenggara MATARAM-NTB\n1400 km Tenggara JAKARTA-INDONESIA\n\nKec. Kota Tambolaka\nKec. Wewewa Barat\nKec. Kodi\nKec. Wewewa Selatan\nKec. Loura\nKec. Kodi Utara\nKec. Kodi Balaghar\nKec. Wewewa Tengah\nKec. Wewewa Timur\nKec. Wewewa Utara\nKec. Loli\nKec. Kambera",
+        "documentationUrl": "https://drive.google.com/drive/folders/1XIn5w30ZlaRymT22-3pb8NRAFBEEx34-?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": 1,
+          "damagedHomes": 299,
+          "floodedHomes": null,
+          "damagedFacilities": 55
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7316-fire-2026-10",
+    "name": "Enrekang",
+    "province": "Sulawesi Selatan",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-04",
+    "startDate": "2026-10-01",
+    "lat": -3.563128,
+    "lng": 119.7612,
+    "aliases": [
+      "Enrekang"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "2 laporan kebakaran hutan dan lahan di Enrekang pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-04",
+        "location": "Kecamatan: Kec. Enrekang\nKec. Maiwa",
+        "documentationUrl": "https://drive.google.com/drive/folders/15CXxMBt4FH3qeDzFzAdS1rjGUrXOF5d_?usp=drive_link\nhttps://drive.google.com/drive/folders/1PrFrT7bI1xE0CD3DPZROqKR8V2CpVEyV?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-01",
+        "location": "Kecamatan:  Kec. Cendana",
+        "documentationUrl": "https://drive.google.com/drive/folders/15qJA-3t_Oe-S5idAg0TfwFs1GrxtTlE2?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-1904-fire-2026-10",
+    "name": "Bangka Tengah",
+    "province": "Kepulauan Bangka Belitung",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-04",
+    "startDate": "2026-10-01",
+    "lat": -2.2884782,
+    "lng": 106.0640179,
+    "aliases": [
+      "Bangka Tengah"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "2 laporan kebakaran hutan dan lahan di Bangka Tengah pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-04",
+        "location": "Kecamatan: Kec. Pangkalan Baru",
+        "documentationUrl": "https://drive.google.com/drive/folders/1LUF-mPrE_IPv-Wzs6TYL2lgluFhNardM?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-01",
+        "location": "Kecamatan: Kec. Pangkalan Baru",
+        "documentationUrl": "https://drive.google.com/drive/folders/1xbyrCEkN-Aff_vNWMiLCItkrDDj5mLMU",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3305-fire-2026-10",
+    "name": "Kebumen",
+    "province": "Jawa Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-04",
+    "startDate": "2026-10-04",
+    "lat": -7.678682000000001,
+    "lng": 109.656502,
+    "aliases": [
+      "Kebumen"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Kebumen pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-04",
+        "location": "Kecamatan: Kec. Sempor",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-9603-fire-2026-10",
+    "name": "Raja Ampat",
+    "province": "Papua Barat Daya",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-04",
+    "startDate": "2026-10-02",
+    "lat": -1.0915151,
+    "lng": 130.8778586,
+    "aliases": [
+      "Raja Ampat"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "2 laporan kebakaran hutan dan lahan di Raja Ampat pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-04",
+        "location": "Kecamatan: (3 Distrik / 3 Kelurahan/ 2 Kampung)\nDistrik Kota Waisai\nKel. Bonkawir\nKel. Waisai Kota\nKel. Warmasen\nDistrik Waigo Selatan\nKp. Sapoekren\nDistrik Teluk Mayalibit\nKp. Warsambin\n(3 Distrik / 3 Kelurahan/ 2 Kampung)\nDistrik Kota Waisai\nKel. Bonkawir\nKel. Waisai Kota\nKel. Warmasen\nDistrik Waigo Selatan\nKp. Sapoekren\nDistrik Teluk Mayalibit\nKp. Warsambin",
+        "documentationUrl": "https://drive.google.com/drive/u/0/folders/1E5GeGA6YAyvMPhd6Ns3HCMuIu-NCVEYi\nhttps://drive.google.com/drive/folders/15-4iG1M3OhnAaZhmOUStIM8h7sttRE5P?\nhttps://drive.google.com/drive/folders/1I_XQvqHJuc4FRQsNIXq3NWicB8-Aqaw1usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      },
+      {
+        "date": "2026-10-02",
+        "location": "Kecamatan: (2 Distrik/  2 Kelurahan / 2 Kampung)\nDistrik Kota Waisai\nKel. Warmasen\nKel. Bonkawir\nDistrik Waigeo Selatan\nKp. Saleo\nKp. Sapordanco",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7306-fire-2026-10",
+    "name": "Gowa",
+    "province": "Sulawesi Selatan",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-03",
+    "startDate": "2026-10-03",
+    "lat": -5.3102887999999995,
+    "lng": 119.742604,
+    "aliases": [
+      "Gowa"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Gowa pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-03",
+        "location": "Kecamatan: Kec. Tinggimoncong",
+        "documentationUrl": "https://drive.google.com/drive/folders/1YppnCCTmNfAemxg_5F0KmjxnSVHdLLUD?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-8201-fire-2026-10",
+    "name": "Halmahera Barat",
+    "province": "Maluku Utara",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-03",
+    "startDate": "2026-10-03",
+    "lat": 1.3121235,
+    "lng": 128.4849923,
+    "aliases": [
+      "Halmahera Barat"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Halmahera Barat pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-03",
+        "location": "Kecamatan: Kec. Ibu Selatan\n(Puncak Gn. Gamkonora)",
+        "documentationUrl": "https://drive.google.com/drive/folders/1Y8SszX7p3XFrOqgJPSPLDyjKiu1DpXgm?usp=drive_link\nhttps://drive.google.com/drive/folders/1sWPoaI8cdw-XvlIxP48lwoOeZ5hquFjy?usp=drive_link",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7406-fire-2026-10",
+    "name": "Bombana",
+    "province": "Sulawesi Tenggara",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-03",
+    "startDate": "2026-10-03",
+    "lat": -4.6543462,
+    "lng": 121.90179540000001,
+    "aliases": [
+      "Bombana"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Bombana pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-03",
+        "location": "Kecamatan: Kec. Poleang Utara",
+        "documentationUrl": "https://drive.google.com/drive/folders/1jUjVKd_kTfSzP4sU_XOqLEes0jgjRiy_",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7373-fire-2026-10",
+    "name": "Kota Palopo",
+    "province": "Sulawesi Selatan",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-03",
+    "startDate": "2026-10-03",
+    "lat": -3.0,
+    "lng": 120.2,
+    "aliases": [
+      "Kota Palopo"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Kota Palopo pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-03",
+        "location": "Kecamatan: Kec. Telluwanua",
+        "documentationUrl": "https://drive.google.com/drive/folders/19Sc5KR0LhgzloXF8mpi5luaFVzBk5_vy",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3308-fire-2026-10",
+    "name": "Magelang",
+    "province": "Jawa Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-02",
+    "startDate": "2026-10-02",
+    "lat": -7.481253,
+    "lng": 110.213799,
+    "aliases": [
+      "Magelang"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Magelang pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-02",
+        "location": "Kecamatan: Kec. Ngablak",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3505-fire-2026-10",
+    "name": "Blitar",
+    "province": "Jawa Timur",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-02",
+    "startDate": "2026-10-02",
+    "lat": -8.101441900000001,
+    "lng": 112.16276200000001,
+    "aliases": [
+      "Blitar"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Blitar pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-02",
+        "location": "Kecamatan: Kec. Kesamben",
+        "documentationUrl": "https://drive.google.com/drive/folders/19DBC_jdnNct3rEdIUvB7wBh8XDoqjpY2",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3516-fire-2026-10",
+    "name": "Mojokerto",
+    "province": "Jawa Timur",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-02",
+    "startDate": "2026-10-02",
+    "lat": -7.488075,
+    "lng": 112.427027,
+    "aliases": [
+      "Mojokerto"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Mojokerto pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-02",
+        "location": "Kecamatan: Kec. Gondang",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-1214-flood-2026-10",
+    "name": "Nias Selatan",
+    "province": "Sumatera Utara",
+    "category": "flood",
+    "disasterLabel": "Banjir",
+    "date": "2026-10-02",
+    "startDate": "2026-10-02",
+    "lat": 0.7086091,
+    "lng": 97.8286368,
+    "aliases": [
+      "Nias Selatan"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan banjir di Nias Selatan pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-02",
+        "location": "Kecamatan: Kec. O’o’u\nKec. Maniamolo",
+        "documentationUrl": "https://drive.google.com/drive/folders/1pX83dJlsy6ImVKd0NSlx7fx3sDxXjU2m",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 60,
+          "floodedHomes": null,
+          "damagedFacilities": 5
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3303-fire-2026-10",
+    "name": "Purbalingga",
+    "province": "Jawa Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-02",
+    "startDate": "2026-10-02",
+    "lat": -7.390747,
+    "lng": 109.3638,
+    "aliases": [
+      "Purbalingga"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Purbalingga pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-02",
+        "location": "Kecamatan: Kec. Padamara",
+        "documentationUrl": "https://drive.google.com/drive/folders/1JC2QG3VhYC5k4864lVBUTP-MTP1WmHPx",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-8272-fire-2026-10",
+    "name": "Kota Tidore Kepulauan",
+    "province": "Maluku Utara",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-01",
+    "startDate": "2026-10-01",
+    "lat": 0.6833333,
+    "lng": 127.4,
+    "aliases": [
+      "Kota Tidore Kepulauan"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Kota Tidore Kepulauan pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-01",
+        "location": "Kecamatan: Kec. Oba Utara",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7303-fire-2026-10",
+    "name": "Bantaeng",
+    "province": "Sulawesi Selatan",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-01",
+    "startDate": "2026-10-01",
+    "lat": -5.5169315999999995,
+    "lng": 120.02029640000002,
+    "aliases": [
+      "Bantaeng"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Bantaeng pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-01",
+        "location": "Kecamatan: Kec. Uluere",
+        "documentationUrl": "https://drive.google.com/drive/folders/1hr7lbLau8F4Pm7NZN_K7MOXo6yFgFVtb",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3326-fire-2026-10",
+    "name": "Pekalongan",
+    "province": "Jawa Tengah",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-01",
+    "startDate": "2026-10-01",
+    "lat": -6.882886999999999,
+    "lng": 109.66999799999999,
+    "aliases": [
+      "Pekalongan"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Pekalongan pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-01",
+        "location": "Kecamatan: Kec. Kesesi",
+        "documentationUrl": null,
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-7317-fire-2026-10",
+    "name": "Luwu",
+    "province": "Sulawesi Selatan",
+    "category": "fire",
+    "disasterLabel": "Kebakaran Hutan Dan Lahan",
+    "date": "2026-10-01",
+    "startDate": "2026-10-01",
+    "lat": -3.3052214,
+    "lng": 120.2512728,
+    "aliases": [
+      "Luwu"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kebakaran hutan dan lahan di Luwu pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-01",
+        "location": "Kecamatan: Kec. Bua",
+        "documentationUrl": "https://drive.google.com/drive/folders/1ew7eeD6naxON3ApBZuHCpUGq6JXrZUev",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "bnpb-3324-other-2026-10",
+    "name": "Kendal",
+    "province": "Jawa Tengah",
+    "category": "other",
+    "disasterLabel": "Kekeringan",
+    "date": "2026-10-01",
+    "startDate": "2026-10-01",
+    "lat": -6.9196860000000004,
+    "lng": 110.205597,
+    "aliases": [
+      "Kendal"
+    ],
+    "source": "BNPB",
+    "url": "https://gis.bnpb.go.id/databencana/tabel/pencarian.php",
+    "summary": "1 laporan kekeringan di Kendal pada 2026-10-01–2026-10-12.",
+    "reports": [
+      {
+        "date": "2026-10-01",
+        "location": "Kecamatan: (4 Kecamatan / 4 Desa)\nKec. Singorojo \nDs. Kalirejo\nKec. Ringinarum \nDs. Kedungasri\n(dalam pendataan)\nKec. Patean\nDs. Sidokumpul\nKec. Sukorejo\nDs. Peron",
+        "documentationUrl": "https://drive.google.com/drive/folders/16IDLXz2BBk9BdtVY4DJevjBj7a0RIMaR?usp=drive_link\nhttps://drive.google.com/drive/folders/1M2KOTE7bIO89X9hyVkbv3-w4P63UopTy?usp=drive_link\nhttps://drive.google.com/drive/folders/10Eaashbum5o5Lz2xoXnEj-OIo9utglzh",
+        "impact": {
+          "deaths": null,
+          "missing": null,
+          "injured": null,
+          "damagedHomes": 0,
+          "floodedHomes": null,
+          "damagedFacilities": 0
+        }
+      }
+    ]
+  }
+]

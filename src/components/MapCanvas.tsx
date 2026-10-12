@@ -740,12 +740,14 @@ const OSMMapRenderer: React.FC<{
 
     mapRef.current = map;
     setMapEpoch((e) => e + 1);
-    setTimeout(() => {
+    const resizeTimer = setTimeout(() => {
+      if (mapRef.current !== map) return;
       map.invalidateSize();
       updatePos();
     }, 150);
 
     return () => {
+      clearTimeout(resizeTimer);
       map.remove();
       mapRef.current = null;
     };
@@ -2298,7 +2300,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
       {/* Bottom Bar: Controls & Quick Action Buttons */}
       {/* Same row on every screen size: zoom column bottom-left, action buttons bottom-right (aligned to the bottom edge). */}
-      <div className="relative z-30 flex flex-row items-end justify-between gap-2 px-3 sm:px-6 lg:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-6 pointer-events-none">
+      <div className="map-bottom-bar relative z-30 flex flex-row items-end justify-between gap-2 px-3 sm:px-6 lg:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-6 pointer-events-none">
         {/* MAGMA legend — right of the zoom column, bottom-aligned; toggled with the (i) button */}
         {showMagma && showMagmaLegend && (
           <div
@@ -2363,7 +2365,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           {/* Map controls: zoom group + reset / my location / MAGMA legend (glass, vertical) */}
           <div className="flex flex-col gap-2" data-purpose="map-zoom-controls">
             <span className="w-11 text-center text-xs font-bold tabular-nums text-slate-800 [text-shadow:0_1px_3px_rgba(255,255,255,0.95)]" aria-label={`Zoom peta ${currentZoom}x`}>{currentZoom}x</span>
-            <div className="flex flex-col overflow-hidden rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)]">
+            <div data-purpose="map-zoom-button-group" className="flex w-fit flex-col self-start overflow-hidden rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)]">
               <button
                 type="button"
                 onClick={() => handleZoomAction('in')}
@@ -2404,31 +2406,33 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             >
               {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
             </button>
-            {/* Master on/off for all API data layers (BMKG, cuaca, FIRMS, MAGMA, VAAC) */}
-            <button
-              type="button"
-              onClick={toggleApiLayers}
-              aria-pressed={showApiLayers}
-              aria-label={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
-              title={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
-              data-purpose="api-layers-toggle"
-              className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${showApiLayers ? 'text-emerald-300 ring-1 ring-emerald-400/60' : 'text-slate-400'}`}
-            >
-              {showApiLayers ? <Eye className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4" aria-hidden="true" />}
-            </button>
-            {showMagma && (
+            <div className="flex gap-2">
+              {/* Master on/off for all API data layers (BMKG, cuaca, FIRMS, MAGMA, VAAC) */}
               <button
                 type="button"
-                onClick={() => setShowMagmaLegend((v) => !v)}
-                aria-expanded={showMagmaLegend}
-                aria-controls="magma-legend"
-                className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer ${showMagmaLegend ? 'text-amber-300 ring-1 ring-amber-400/60' : 'text-slate-300'}`}
-                title={showMagmaLegend ? 'Sembunyikan legenda MAGMA' : 'Tampilkan legenda MAGMA'}
-                data-purpose="magma-legend-toggle"
+                onClick={toggleApiLayers}
+                aria-pressed={showApiLayers}
+                aria-label={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
+                title={showApiLayers ? 'Sembunyikan layer data API' : 'Tampilkan layer data API'}
+                data-purpose="api-layers-toggle"
+                className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${showApiLayers ? 'text-emerald-300 ring-1 ring-emerald-400/60' : 'text-slate-400'}`}
               >
-                <Info className="h-4 w-4" />
+                {showApiLayers ? <Eye className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4" aria-hidden="true" />}
               </button>
-            )}
+              {showMagma && (
+                <button
+                  type="button"
+                  onClick={() => setShowMagmaLegend((v) => !v)}
+                  aria-expanded={showMagmaLegend}
+                  aria-controls="magma-legend"
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-all hover:bg-white/10 hover:text-white active:scale-95 cursor-pointer ${showMagmaLegend ? 'text-amber-300 ring-1 ring-amber-400/60' : 'text-slate-300'}`}
+                  title={showMagmaLegend ? 'Sembunyikan legenda MAGMA' : 'Tampilkan legenda MAGMA'}
+                  data-purpose="magma-legend-toggle"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
 
 

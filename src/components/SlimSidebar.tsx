@@ -1,3 +1,5 @@
+import { BnpbImpactCard } from './detail/BnpbImpactCard';
+import { currentRecords } from '../data/currentIncidents';
 import { useMemo } from 'react';
 import { useMobileLayout } from './useMobileLayout';
 import { buildIncidentDetail } from '../services/incidentDetailAdapter';
@@ -13,6 +15,7 @@ import {
   Flame,
   Waves,
   Activity,
+  TriangleAlert,
   PanelRightClose,
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
@@ -77,6 +80,9 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
         return <Flame className="w-5 h-5 text-white" />;
       case 'flood':
         return <Waves className="w-5 h-5 text-white" />;
+      case 'other':
+      case 'landslide':
+        return <TriangleAlert className="w-5 h-5 text-white" />;
       case 'earthquake':
         return <Activity className="w-5 h-5 text-white" />;
     }
@@ -88,6 +94,9 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
         return 'from-amber-500 to-orange-500 shadow-orange-500/20';
       case 'flood':
         return 'from-blue-500 to-cyan-500 shadow-blue-500/20';
+      case 'other':
+      case 'landslide':
+        return 'from-slate-500 to-slate-700';
       case 'earthquake':
         return 'from-rose-500 to-red-500 shadow-rose-500/20';
     }
@@ -218,60 +227,24 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
             </div>
           </div>
 
-          {/* Financial & Gap mini stats */}
-          <div className="grid grid-cols-2 gap-3 mt-3">
-            {/* Estimasi Dampak */}
-            <div
-              className="
-                rounded-2xl
-                bg-slate-50
-                border border-slate-100
-                px-4 py-4
-              "
-            >
-              <p className="text-[11px] font-medium text-slate-400">
-                Estimasi Dampak
-              </p>
+          <BnpbImpactCard incidentId={disaster.id} />
 
-              <p className="mt-1 text-[18px] font-bold text-slate-900">
-                {disaster.cost}
-              </p>
-
-              <p className="mt-2 text-[11px] font-medium text-slate-400">
-                {disaster.impact}
-              </p>
-            </div>
-
-            {/* Gap Recovery */}
-            <div
-              className="
-                rounded-2xl
-                bg-slate-50
-                border border-slate-100
-                px-4 py-4
-              "
-            >
-              <p className="text-[11px] font-medium text-slate-400">
-                Gap Recovery
-              </p>
-
-              <p className="mt-1 text-[18px] font-bold text-slate-900">
-                {disaster.gapRecovery}
-              </p>
-
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                <div
-                  className="h-full rounded-full bg-amber-500"
-                  style={{
-                    width: `${disaster.recoveryPct}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
+          {currentRecords.some(r => r.id === disaster.id) && (
+            <p className="mt-3 text-xs leading-relaxed text-slate-500">
+              Ditinjau 12 Okt 2026. Titik mewakili wilayah laporan; status masih berlangsung belum dikonfirmasi. Berita diperbarui berkala.
+            </p>
+          )}
+          {currentRecords.find(r => r.id === disaster.id)?.reports && (
+            <details className="my-3 rounded-xl border border-slate-200 p-3 text-xs">
+              <summary className="cursor-pointer font-semibold">Laporan wilayah 1–12 Oktober 2026</summary>
+              <ul className="mt-2 max-h-40 overflow-y-auto space-y-2">
+                {currentRecords.find(r => r.id === disaster.id)!.reports!.map((r, i) => <li key={i}><strong>{r.date}</strong> · {r.location || 'Rincian lokasi belum tersedia'}</li>)}
+              </ul>
+              <a className="mt-2 inline-block text-blue-600 underline" href={currentRecords.find(r => r.id === disaster.id)!.url} target="_blank" rel="noopener noreferrer">Sumber data kejadian BNPB (tabel)</a>
+            </details>
+          )}
           {/* Disaster Field Photo */}
-          <div className="mt-3 mb-3 relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group">
+          {disaster.photoUrl && <div className="mt-3 mb-3 relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group">
             <img
               src={disaster.photoUrl}
               alt={disaster.photoAlt}
@@ -286,7 +259,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
                 {disaster.photoSource}
               </span>
             </div>
-          </div>
+          </div>}
 
           {/* Disaster details and available evacuation posts */}
           <div className="grid grid-cols-2 gap-2">

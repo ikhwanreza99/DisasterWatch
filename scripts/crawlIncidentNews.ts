@@ -1,3 +1,5 @@
+import { newsSourceUrl } from '../src/services/newsSourceUrl.ts';
+import { ACTIVE_NEWS_IDS } from '../src/services/incidentRegistry.ts';
 // Per-incident news crawl: location-specific queries via the existing ZAPI pipeline.
 // After crawling: normalize URLs → dedupe → classify relevance per incident →
 // persist article metadata + relevance decisions to public/data/incident-articles.json.
@@ -16,7 +18,7 @@ const receiptOut = process.argv[3] || 'public/data/incident-news.json';
 const now = new Date().toISOString();
 const zapiKey = process.env.ZAPI_API_KEY || '';
 
-const TARGETS = INCIDENT_DESCRIPTORS.map(d => d.incidentId);
+const TARGETS = ACTIVE_NEWS_IDS;
 
 interface ZapiItem {
   title?: unknown;
@@ -42,7 +44,9 @@ function toCandidate(item: ZapiItem, query: string): IncidentArticle | null {
   if (!title) return null;
   let url: URL;
   try {
-    url = new URL(item.link);
+    const direct = newsSourceUrl(item.link);
+    if (!direct) return null;
+    url = new URL(direct);
   } catch {
     return null;
   }

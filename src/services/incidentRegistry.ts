@@ -1,3 +1,4 @@
+import { currentRecords } from '../data/currentIncidents';
 // Incident registry: stable ids + relevance descriptors.
 // Aliases/keywords come from each incident's OWN records — never generic `gempa` alone.
 export interface IncidentDescriptor {
@@ -23,7 +24,7 @@ export interface IncidentDescriptor {
   windowDays: number | null;
 }
 
-export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
+const LEGACY_DESCRIPTORS: IncidentDescriptor[] = [
   {
     incidentId: 'cianjur',
     name: 'Cianjur & Sukabumi',
@@ -132,6 +133,16 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
   },
 ];
 
+export const CURRENT_DESCRIPTORS: IncidentDescriptor[] = currentRecords.filter(r => !r.id.startsWith('ntt-')).map(r => ({
+  incidentId: r.id, name: r.name, province: r.province, disasterType: r.category,
+  aliases: r.id === 'padang' ? ['Padang', ...r.aliases] : [...r.aliases], broadAliases: [], keywords: [], eventDate: r.startDate ?? r.date, windowDays: 12,
+}));
+export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
+  ...CURRENT_DESCRIPTORS,
+  ...LEGACY_DESCRIPTORS.filter(d => !CURRENT_DESCRIPTORS.some(c => c.incidentId === d.incidentId)),
+];
+export const ACTIVE_NEWS_IDS = [...CURRENT_DESCRIPTORS.map(d => d.incidentId), 'ntt-sumba-barat-daya-2026-10-04'];
+
 export function descriptorFor(incidentId: string): IncidentDescriptor | null {
   return INCIDENT_DESCRIPTORS.find((d) => d.incidentId === incidentId) ?? null;
 }
@@ -139,9 +150,9 @@ export function descriptorFor(incidentId: string): IncidentDescriptor | null {
 const TYPE_WORDS: Record<IncidentDescriptor['disasterType'], RegExp> = {
   earthquake: /gempa|gempabumi|sesar|magnitudo|\bM\s?\d/i,
   flood: /banjir|genangan|tanggul|luapan/i,
-  fire: /kebakaran|karhutla|api|asap|hotspot/i,
+  fire: /karhutla|kebakaran (?:hutan|lahan)|kabut asap|asap karhutla|hotspot|titik (?:api|panas)/i,
   landslide: /longsor|gerakan tanah/i,
-  other: /bencana/i,
+  other: /bencana|kekeringan|cuaca ekstrem|angin kencang|abrasi|erupsi/i,
 };
 
 /** Incident-specific search queries (location + type + aid/posko/official angles). */
@@ -150,11 +161,12 @@ export function buildIncidentQueries(d: IncidentDescriptor): string[] {
   // Quote multi-word places so the provider prioritizes the exact incident location.
   const loc = raw.includes(' ') ? `"${raw}"` : raw;
   const typeWord =
-    d.disasterType === 'earthquake' ? 'gempa' : d.disasterType === 'flood' ? 'banjir' : d.disasterType === 'fire' ? 'karhutla' : 'bencana';
+    d.disasterType === 'earthquake' ? 'gempa' : d.disasterType === 'flood' ? 'banjir' : d.disasterType === 'fire' ? 'karhutla' : d.disasterType === 'landslide' ? 'longsor' : 'bencana kekeringan';
+  const dates = CURRENT_DESCRIPTORS.some(c => c.incidentId === d.incidentId) ? ' after:2026-09-30 before:2026-10-13' : '';
   return [
-    `${loc} ${typeWord} dampak kerusakan`,
-    `${loc} ${typeWord} bantuan logistik posko pengungsian`,
-    `${d.aliases[1] ? `"${d.aliases[1]}"` : loc} ${typeWord} BPBD BNPB update`,
+    `${loc} ${typeWord}${dates}`,
+    `${loc} ${typeWord} (site:detik.com OR site:rri.co.id OR site:tvrinews.com)${dates}`,
+    `${loc} ${typeWord} (site:antaranews.com OR site:kompas.com OR site:bnpb.go.id)${dates}`,
   ];
 }
 

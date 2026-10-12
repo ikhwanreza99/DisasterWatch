@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { disastersData } from './data/disasters';
+import { currentArticles, currentIncidents, NATIONAL_REPORT_COUNT, currentRecords } from './data/currentIncidents';
+import { newsSourceUrl } from './services/newsSourceUrl';
+import { classifyRelevance } from './services/incidentNews';
+import { descriptorFor } from './services/incidentRegistry';
 import { CategoryFilter, DisasterCategory, DisasterIncident, DisasterCheckpoint } from './types';
 import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
@@ -15,7 +18,6 @@ import { firmsSensorsLabel, useFirmsHotspots } from './services/firms';
 import { RANGE_LIMITS, resolveDateRange } from './domain/dateRange';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
-import { loadDisasters } from './services/store/disasterStore';
 import { ensureUser, watchUser, canReport, consumeRedirectResult, signOutUser } from './lib/firebase/auth';
 import { mockUser } from './lib/firebase/auth';
 
@@ -42,7 +44,7 @@ import { NttCaseView } from './components/NttCaseView';
 import { NTT_CASE_ID } from './domain/nttCase';
 import { loadNttCase, refreshNttCase, type NttCaseState } from './services/nttCaseStore';
 import { nttIncident } from './data/nttIncident';
-import { lombokIncident } from './data/lombokIncident';
+
 
 export default function App() {
   // Follow the visible viewport when the on-screen keyboard opens on phones.
@@ -60,11 +62,20 @@ export default function App() {
       document.documentElement.style.removeProperty('--app-height');
     };
   }, []);
-  const [disasters, setDisasters] = useState<Record<string, DisasterIncident>>({ ...disastersData, [nttIncident.id]: nttIncident, [lombokIncident.id]: lombokIncident });
+  const [disasters, setDisasters] = useState<Record<string, DisasterIncident>>(() => {
+    const covered = new Set(currentArticles
+      .filter(article => {
+        if (!article.incidentId || !newsSourceUrl(article.url)) return false;
+        const descriptor = descriptorFor(article.incidentId);
+        return descriptor !== null && classifyRelevance(article, descriptor).status === 'MATCHED';
+      })
+      .map(article => article.incidentId!));
+    return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => covered.has(id)));
+  });
   const [ntt, setNtt] = useState<NttCaseState | null>(null);
   const [isNttOpen, setIsNttOpen] = useState<boolean>(false);
   const [nttRefreshing, setNttRefreshing] = useState<boolean>(false);
-  const [activeDisasterKey, setActiveDisasterKey] = useState<string>('demak');
+  const [activeDisasterKey, setActiveDisasterKey] = useState<string>('padang');
   const [intelReports, setIntelReports] = useState<IntelligenceReport[]>(demoReports);
   const [aidRecords, setAidRecords] = useState<AidRecord[]>(demoAid);
   const [storeNotice, setStoreNotice] = useState<string>('Mode demo lokal — Firestore fallback aktif.');
@@ -346,12 +357,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     let cancelled = false;
-    loadDisasters().then(({ data, status }) => {
-      if (cancelled) return;
-      setDisasters({ ...data, [nttIncident.id]: nttIncident, [lombokIncident.id]: lombokIncident });
-      setStoreNotice(status.message);
-      if (!data[activeDisasterKey] && data['demak']) setActiveDisasterKey('demak');
-    });
+    setStoreNotice('Laporan resmi ditinjau 12 Okt 2026 · lokasi peta mewakili wilayah, bukan batas terdampak.');
     // Finish a pending Google redirect sign-in first so ensureUser() doesn't start an anonymous session.
     consumeRedirectResult()
       .then(({ user, source, error }) => {
@@ -472,6 +478,9 @@ export default function App() {
           onSignOut={handleLogout}
         />
 
+        <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] text-slate-600" role="status">
+          Indonesia · 1–12 Okt 2026 · {NATIONAL_REPORT_COUNT} laporan BNPB · {currentRecords.length} titik wilayah termasuk laporan tambahan. Koordinat mewakili wilayah.
+        </div>
         {/* Main Work Area — map-first workspace (min 60vh desktop) */}
         <main className="relative flex-1 grid grid-cols-12 overflow-hidden min-h-0 md:min-h-[60vh]">
           {/* Left Category Filter Dock */}

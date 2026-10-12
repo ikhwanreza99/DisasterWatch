@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flame, Waves, Activity, LayoutGrid, ListFilter, X } from 'lucide-react';
+import { Flame, Waves, Activity, LayoutGrid, ListFilter, X, Mountain, TriangleAlert } from 'lucide-react';
 import { CategoryFilter, DisasterCategory } from '../types';
 
 interface CategoryFilterBarProps {
@@ -22,6 +22,8 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
       { id: 'fire', label: 'Api', Icon: Flame },
       { id: 'flood', label: 'Banjir', Icon: Waves },
       { id: 'earthquake', label: 'Gempa', Icon: Activity },
+      { id: 'landslide', label: 'Longsor', Icon: Mountain },
+      { id: 'other', label: 'Lainnya', Icon: TriangleAlert },
     ] as const;
     return <div className="mobile-filter-menu sm:hidden">
       {open && <div id="mobile-disaster-options" className="mobile-filter-options" role="group" aria-label="Jenis bencana">
@@ -105,6 +107,12 @@ export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
           <span className="sm:hidden">Gempa</span><span className="hidden sm:inline">Gempa Bumi & Keretakan</span>
         </span>
       </button>
+      {([{ id: 'landslide', name: 'Longsor', Icon: Mountain }, { id: 'other', name: 'Bencana lainnya', Icon: TriangleAlert }] as const).map(({id, name, Icon}) => (
+        <button key={id} type="button" title={name} aria-label={name} aria-pressed={activeCategory === id}
+          onClick={() => onSelectCategory(id)} className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center border ${activeCategory === id ? 'bg-slate-700 text-white' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+          <Icon className="w-5 h-5" />
+        </button>
+      ))}
     </div>
   );
 };
