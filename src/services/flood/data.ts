@@ -1,3 +1,4 @@
+import type { FloodArea, AreaState } from './areas';
 export type Severity = 'EXTREME' | 'SEVERE' | 'ABOVE_NORMAL' | 'NO_FLOODING' | 'UNKNOWN';
 export const floodLevels: Record<Severity, { label: string; color: string }> = {
   EXTREME: { label: 'Ekstrem', color: '#b91c1c' },
@@ -20,6 +21,7 @@ export interface FloodGauge {
 export interface FloodSnapshot {
   version: 1; generatedAt: string; state: 'ready' | 'unavailable';
   gauges: FloodGauge[];
+  areas?: FloodArea[]; areaState?: AreaState;
 }
 export function currentSeverity(gauge: FloodGauge, now = Date.now()): Severity {
   // An expired forecast must never imply current safety.

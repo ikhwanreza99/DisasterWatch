@@ -41,6 +41,21 @@ function ForecastChart({ gauge, now }: { gauge: FloodGauge; now: number }) {
   </div>;
 }
 
+interface AreaControlsProps {
+  showFlashAreas: boolean; onShowFlashAreas: (v: boolean) => void;
+  showRiverAreas: boolean; onShowRiverAreas: (v: boolean) => void;
+}
+function AreaControls({ data, showFlashAreas, onShowFlashAreas, showRiverAreas, onShowRiverAreas }: AreaControlsProps & { data: FloodSnapshot | null }) {
+  return <div className="space-y-2 rounded-xl bg-slate-50 p-3">
+    <ToggleRow icon={<Droplets className="h-4 w-4"/>} label="Area banjir bandang" hint="Prakiraan aktif dari Google" checked={showFlashAreas} onChange={onShowFlashAreas}/>
+    <div className="flex flex-wrap gap-3 text-xs"><span className="text-amber-700">■ Mungkin</span><span className="text-red-600">■ Sangat mungkin</span></div>
+    <ToggleRow icon={<Waves className="h-4 w-4"/>} label="Area sungai terpilih" hint="Genangan dan area peringatan" checked={showRiverAreas} onChange={onShowRiverAreas}/>
+    <p className="text-xs text-slate-500">Biru: genangan (tingkat mengikuti model probabilitas/kedalaman). Ungu: area peringatan, bukan batas DAS.</p>
+    {data?.areaState !== 'ready' && <p role="status" className="text-xs text-amber-700">{data?.areaState === 'partial' ? 'Sebagian area belum dapat dimuat.' : 'Data area belum tersedia. Titik dan grafik sungai tetap dapat digunakan.'}</p>}
+    {data?.areaState === 'ready' && !data.areas?.some(a => Date.parse(a.start) <= Date.now() && Date.now() < Date.parse(a.end)) && <p className="text-xs text-slate-500">Tidak ada polygon prakiraan aktif pada snapshot ini; bukan berarti bebas risiko banjir.</p>}
+  </div>;
+}
+
 interface FloodMapControlsProps {
   mapType: 'roadmap' | 'hybrid' | 'terrain';
   onMapType: (type: 'roadmap' | 'hybrid' | 'terrain') => void;
@@ -58,9 +73,6 @@ function FloodMapControls({ mapType, onMapType, googleAvailable }: FloodMapContr
 function FloodOptions({ data, state, showNormal, onShowNormal, refresh, onClose, mapControls }: {
   data: FloodSnapshot | null; state: string; showNormal: boolean; onShowNormal: (value: boolean) => void; refresh: () => void; onClose: () => void; mapControls: React.ReactNode;
 }) {
-  const [showFlash, setShowFlash] = useState(true);
-  const [showEvents, setShowEvents] = useState(true);
-  const [showProbability, setShowProbability] = useState(true);
   const count = (level: string) => state === 'ready' ? data?.gauges.filter(g => currentSeverity(g) === level).length ?? 0 : '—';
   return <aside aria-label="Opsi lapisan banjir" className="flood-panel">
     <div className="flex shrink-0 items-center justify-between border-b border-slate-100 p-3">
@@ -73,13 +85,7 @@ function FloodOptions({ data, state, showNormal, onShowNormal, refresh, onClose,
         <div className="mb-2 flex items-center justify-between font-medium">Data banjir <Info className="h-4 w-4 text-slate-400"/></div>
         {Object.entries(floodLevels).map(([level, item]) => <div key={level} className="flex items-center gap-2 py-1"><span className="h-3 w-3 rounded-full" style={{background:item.color}}/>{item.label}<span className="ml-auto text-xs text-slate-500">{count(level)}</span></div>)}
       </div>
-      <ToggleRow icon={<Droplets className="h-4 w-4"/>} label="Banjir bandang" hint="Dalam 24 jam" checked={showFlash} onChange={setShowFlash}/>
-      <div className="rounded-xl bg-slate-50 p-3 text-slate-600"><div className="flex items-center gap-2"><span className="h-5 w-5 rounded border-2 border-orange-400"/>Sangat mungkin</div><div className="mt-2 flex items-center gap-2"><span className="h-5 w-5 rounded border-2 border-amber-400"/>Mungkin</div></div>
       <ToggleRow icon={<Radio className="h-4 w-4"/>} label="Tampilkan titik normal" hint="Stasiun tanpa peringatan" checked={showNormal} onChange={onShowNormal}/>
-      <ToggleRow icon={<MapPinned className="h-4 w-4"/>} label="Peristiwa banjir besar" checked={showEvents} onChange={setShowEvents}/>
-      <div className="rounded-xl bg-slate-50 p-3"><div className="mb-2 flex items-center gap-2 font-medium"><span className="h-3 w-3 rounded-full bg-rose-300 ring-4 ring-rose-100"/>Peristiwa yang sedang berlangsung</div><p className="text-xs text-slate-500">Belum ada peristiwa besar dari snapshot ini.</p></div>
-      <ToggleRow icon={<Droplets className="h-4 w-4"/>} label="Kemungkinan banjir" checked={showProbability} onChange={setShowProbability}/>
-      <div className="rounded-xl bg-slate-50 p-3 space-y-2 text-slate-600"><div><span className="mr-2 inline-block h-3 w-3 rounded-full bg-blue-900"/>Sangat tinggi</div><div><span className="mr-2 inline-block h-3 w-3 rounded-full bg-blue-500"/>Tertinggi</div><div className="text-slate-400"><span className="mr-2 inline-block h-3 w-3 rounded-full bg-blue-100"/>Sedang</div></div>
       <div className="border-t pt-3 text-xs text-slate-500"><p>Snapshot: {date(data?.generatedAt)}</p><button onClick={refresh} disabled={state === 'loading'} className="mt-2 flex items-center gap-1 text-blue-600 disabled:opacity-50"><RefreshCw className="h-3 w-3"/>Muat ulang data</button></div>
     </div>
   </aside>;
@@ -89,14 +95,14 @@ function ToggleRow({ icon, label, hint, checked, onChange }: { icon: React.React
   return <label className="flex cursor-pointer items-center justify-between gap-3 border-b border-slate-200 px-1 py-3"><span className="flex items-center gap-2"><span className="text-slate-500">{icon}</span><span><strong className="block font-medium">{label}</strong>{hint && <small className="text-xs text-slate-500">{hint}</small>}</span></span><input type="checkbox" className="h-5 w-5 shrink-0 accent-blue-600" checked={checked} onChange={event => onChange(event.target.checked)} /></label>;
 }
 
-export function FloodPanel({ data, state, selected, onSelect, showNormal, onShowNormal, refresh, mapType, onMapType, googleAvailable }: {
+export function FloodPanel({ data, state, selected, onSelect, showNormal, onShowNormal, refresh, mapType, onMapType, googleAvailable, showFlashAreas, onShowFlashAreas, showRiverAreas, onShowRiverAreas }: {
   data: FloodSnapshot | null; state: string; selected: FloodGauge | null;
   onSelect: (id: string | null) => void; showNormal: boolean; onShowNormal: (v: boolean) => void; refresh: () => void;
-} & FloodMapControlsProps) {
+} & FloodMapControlsProps & AreaControlsProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [now, setNow] = useState(Date.now);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(timer); }, []);
-  const mapControls = <FloodMapControls mapType={mapType} onMapType={onMapType} googleAvailable={googleAvailable}/>;
+  const mapControls = <><FloodMapControls mapType={mapType} onMapType={onMapType} googleAvailable={googleAvailable}/><AreaControls data={data} showFlashAreas={showFlashAreas} onShowFlashAreas={onShowFlashAreas} showRiverAreas={showRiverAreas} onShowRiverAreas={onShowRiverAreas}/></>;
   const current = selected ? currentFloodForecast(selected, now) : null;
   const unit = selected?.unit === 'METERS' ? 'm' : selected?.unit === 'CUBIC_METERS_PER_SECOND' ? 'm³/dtk' : null;
   useEffect(() => { if (selected) setCollapsed(false); }, [selected?.id]);
