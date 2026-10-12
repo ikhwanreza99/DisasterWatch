@@ -301,3 +301,10 @@
   .app-header h1 { font-size: 14px; }
   .app-header > div:last-child > div:first-child > button { gap: 4px; padding-inline: 8px; }
 }
+
+/* Case entry and AI share a flow layout beside the zoom controls. */
+.map-bottom-actions { width: min(420px, calc(100% - 64px)); }
+.map-bottom-actions [data-purpose="map-ai-composer"] { width: 100%; }
+[data-purpose="map-viewport"]:has([data-purpose="ntt-case-launcher"]) .flood-panel {
+  bottom: calc(144px + env(safe-area-inset-bottom));
+}

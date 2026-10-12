@@ -483,6 +483,19 @@ export default function App() {
 
           {/* Central Map Canvas Area (provider-abstracted, Leaflet default) */}
           <MapProvider
+            mapActionSlot={!isNttOpen && !isAIOpen && !isDetailOpen && !isRouteOpen && !isReportsOpen && isSidebarMinimized ? (
+            <button
+              type="button"
+              onClick={handleOpenNttIncident}
+              title="Buka detail gempa Sumba Barat Daya 4 Okt 2026 (tampilan standar yang sama)"
+              data-purpose="ntt-case-launcher"
+              className="min-h-11 w-full min-w-0 flex items-center gap-2 rounded-full border border-rose-200 bg-white/95 px-3 py-2 text-xs font-bold text-rose-700 shadow-lg backdrop-blur hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-rose-500"
+            >
+              <span aria-hidden="true">🌋</span>
+              <span className="min-w-0 truncate">Kasus NTT · M6,1 Sumba Barat Daya</span>
+              {ntt && <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px]">{ntt.articles.length} berita</span>}
+            </button>
+            ) : null}
             onHighlightDisaster={setHighlightedDisasterKey}
             mobileFilterSlot={<CategoryFilterBar mobile activeCategory={activeCategory} onSelectCategory={handleSelectCategory} isDarkMode={isDarkMode} />}
             onStartAIChat={isAIOpen ? undefined : (message, file) => {
@@ -614,20 +627,6 @@ export default function App() {
               onIntelReport={handleIntelReport}
               nttCase={ntt}
             />
-          )}
-
-          {/* NTT case entry point — opens the standard shared detail template */}
-          {!isNttOpen && (
-            <button
-              type="button"
-              onClick={handleOpenNttIncident}
-              title="Buka detail gempa Sumba Barat Daya 4 Okt 2026 (tampilan standar yang sama)"
-              className="absolute bottom-3 left-3 z-40 flex items-center gap-2 rounded-full border border-rose-200 bg-white/95 px-3 py-2 text-xs font-bold text-rose-700 shadow-lg backdrop-blur hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-rose-500"
-            >
-              <span aria-hidden="true">🌋</span>
-              Kasus NTT · M6,1 Sumba Barat Daya
-              {ntt && <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px]">{ntt.articles.length} berita</span>}
-            </button>
           )}
 
           {/* MODE 6: Dedicated Single-Window "Kasus Gempa NTT" (real-data case, not demo) */}

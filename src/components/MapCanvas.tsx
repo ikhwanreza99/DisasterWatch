@@ -1,3 +1,5 @@
+import { FloodAreas } from './map/FloodAreas';
+import { activeFloodAreas, areaPaths, areaColor, type FloodArea } from '../services/flood/areas';
 import { apiLayerVisibility } from '../domain/apiLayerVisibility';
 import { useFlood } from '../services/flood/useFlood';
 import { currentSeverity, floodLevels, type FloodGauge } from '../services/flood/data';
@@ -300,6 +302,7 @@ function CenteredDisasterMarker({ onClick, ...props }: React.ComponentProps<type
 
 interface MapCanvasProps {
   mobileFilterSlot?: React.ReactNode;
+  mapActionSlot?: React.ReactNode;
   onHighlightDisaster?: (id: string | null) => void;
   disasters: Record<string, DisasterIncident>;
   activeDisasterKey: string;
@@ -517,6 +520,7 @@ const GoogleMapCameraController: React.FC<{
 
 // OpenStreetMap Component
 const OSMMapRenderer: React.FC<{
+  floodAreas: FloodArea[];
   floodGauges: FloodGauge[];
   selectedFlood: FloodGauge | null;
   onSelectFlood: (id: string) => void;
@@ -560,6 +564,7 @@ const OSMMapRenderer: React.FC<{
   searchedPlace?: PlaceResult | null;
   myLocation?: MyLocation | null;
 }> = ({
+  floodAreas,
   floodGauges,
   selectedFlood,
   onSelectFlood,
@@ -635,6 +640,16 @@ const OSMMapRenderer: React.FC<{
     });
     return () => { group.remove(); };
   }, [floodGauges, selectedFlood, onSelectFlood, mapEpoch]);
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const group = L.layerGroup().addTo(mapRef.current);
+    floodAreas.forEach(area => areaPaths(area.kml).forEach(rings => {
+      L.polygon(rings.map(ring => ring.map(p => [p.lat, p.lng] as [number, number])), {
+        color: areaColor(area), weight: 1.5, fillOpacity: area.kind === 'notification' ? 0.06 : 0.2, interactive: false,
+      }).addTo(group);
+    }));
+    return () => { group.remove(); };
+  }, [floodAreas, mapEpoch]);
   useEffect(() => { if (selectedFlood) mapRef.current?.flyTo([selectedFlood.lat, selectedFlood.lng], 8); }, [selectedFlood, mapEpoch]);
 
   const getTileConfig = useCallback((type: OSMTileType, dark: boolean) => {
@@ -1074,6 +1089,7 @@ const OSMMapRenderer: React.FC<{
 
 export const MapCanvas: React.FC<MapCanvasProps> = ({
   mobileFilterSlot,
+  mapActionSlot,
   onHighlightDisaster,
   disasters,
   activeDisasterKey,
@@ -1126,6 +1142,11 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const [selectedFloodId, setSelectedFloodId] = useState<string | null>(null);
   const [showNormalFlood, setShowNormalFlood] = useState(true);
   const floodGauges = useMemo(() => showFlood ? (flood.data?.gauges ?? []).filter(g => showNormalFlood || currentSeverity(g) !== 'NO_FLOODING') : [], [showFlood, flood.data, showNormalFlood]);
+  const [showFlashAreas, setShowFlashAreas] = useState(true);
+  const [showRiverAreas, setShowRiverAreas] = useState(true);
+  const [areaNow, setAreaNow] = useState(Date.now);
+  useEffect(() => { const timer = setInterval(() => setAreaNow(Date.now()), 60_000); return () => clearInterval(timer); }, []);
+  const visibleFloodAreas = useMemo(() => showFlood ? activeFloodAreas(flood.data?.areas ?? [], areaNow, showFlashAreas, showRiverAreas, selectedFloodId ?? undefined) : [], [showFlood, flood.data, areaNow, showFlashAreas, showRiverAreas, selectedFloodId]);
   const selectedFlood = floodGauges.find(g => g.id === selectedFloodId) ?? null;
   useEffect(() => { setSelectedFloodId(null); }, [activeCategory]);
   const { showBmkg, showFirms, showWeather, showBmkgWeather, showMagma, showAsh } = apiLayerVisibility(activeCategory, showApiLayers);
@@ -1496,6 +1517,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               />
 
               <FloodCamera gauge={selectedFlood}/>
+              <FloodAreas areas={visibleFloodAreas}/>
               {floodGauges.map(g => <AdvancedMarker key={`flood-${g.id}`} position={{ lat: g.lat, lng: g.lng }} onClick={() => setSelectedFloodId(g.id)} zIndex={selectedFloodId === g.id ? 1100 : 800}>
                 <button aria-label={`Prakiraan sungai ${g.name}: ${floodLevels[currentSeverity(g)].label}`} className="w-7 h-7 rounded-full border-[3px] border-white shadow-lg" style={{background: floodLevels[currentSeverity(g)].color}}/>
               </AdvancedMarker>)}
@@ -2166,6 +2188,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
           </APIProvider>
         ) : (
           <OSMMapRenderer
+            floodAreas={visibleFloodAreas}
             floodGauges={floodGauges}
             selectedFlood={selectedFlood}
             onSelectFlood={setSelectedFloodId}
@@ -2214,6 +2237,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       {showFlood && (activeCategory === 'flood' || selectedFlood) && <FloodPanel
         data={flood.data} state={flood.state} selected={selectedFlood} onSelect={setSelectedFloodId}
         mapType={googleMapType} onMapType={setGoogleMapType} googleAvailable={mapEngine === 'google' && !!apiKey && !hasAuthError}
+        showFlashAreas={showFlashAreas} onShowFlashAreas={setShowFlashAreas} showRiverAreas={showRiverAreas} onShowRiverAreas={setShowRiverAreas}
         showNormal={showNormalFlood} onShowNormal={setShowNormalFlood} refresh={flood.refresh}
       />}
       <div className="relative z-30 pointer-events-none">
@@ -2411,11 +2435,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         </div>
 
 
-        {!isExpanded && !isRouteOpen && !isReportsOpen && isSidebarMinimized && onStartAIChat && (
-          <div className="pointer-events-auto">
-            <MapChatComposer onSend={onStartAIChat} />
-          </div>
-        )}
+        <div className="map-bottom-actions pointer-events-auto min-w-0 flex flex-col items-stretch gap-2">
+          {!isExpanded && !isRouteOpen && !isReportsOpen && isSidebarMinimized && onStartAIChat && <MapChatComposer onSend={onStartAIChat} />}
+          {mapActionSlot}
+        </div>
 
       </div>
 

@@ -1,3 +1,4 @@
+import { fetchFloodAreas } from './floodAreas';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { normalizeFloodData } from '../src/services/flood/data';
 
@@ -51,6 +52,7 @@ try {
     if (results.some(r => r.status === 'rejected')) console.warn('::warning::Some flood chart details unavailable');
   }
   const snapshot = normalizeFloodData(gauges, statuses, models, forecasts);
+  Object.assign(snapshot, await fetchFloodAreas(request, statuses));
   await writeFile('public/data/flood.json', JSON.stringify(snapshot));
   console.log(`Flood snapshot: ${snapshot.gauges.length} Indonesian gauges`);
 } catch (error) {
