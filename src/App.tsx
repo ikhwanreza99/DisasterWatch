@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { currentArticles, currentIncidents, NATIONAL_REPORT_COUNT, currentRecords } from './data/currentIncidents';
 import { newsSourceUrl } from './services/newsSourceUrl';
+import { classifyRelevance } from './services/incidentNews';
+import { descriptorFor } from './services/incidentRegistry';
 import { CategoryFilter, DisasterCategory, DisasterIncident, DisasterCheckpoint } from './types';
 import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
@@ -62,7 +64,11 @@ export default function App() {
   }, []);
   const [disasters, setDisasters] = useState<Record<string, DisasterIncident>>(() => {
     const covered = new Set(currentArticles
-      .filter(article => article.incidentId && newsSourceUrl(article.url))
+      .filter(article => {
+        if (!article.incidentId || !newsSourceUrl(article.url)) return false;
+        const descriptor = descriptorFor(article.incidentId);
+        return descriptor !== null && classifyRelevance(article, descriptor).status === 'MATCHED';
+      })
       .map(article => article.incidentId!));
     return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => covered.has(id)));
   });
