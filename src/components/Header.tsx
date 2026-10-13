@@ -4,7 +4,7 @@ import type { DisasterIncident } from '../types';
 import type { UserIdentity } from '../domain/intelligence';
 import { isGoogleUser } from '../lib/firebase/auth';
 import { useMobileLayout } from './useMobileLayout';
-import { Calendar, ChevronDown, Sparkles, Radio, UserRound } from 'lucide-react';
+import { Calendar, ChevronDown, Sparkles, Radio, UserRound, Activity } from 'lucide-react';
 import {
   DATE_PRESETS,
   RANGE_LIMITS,
@@ -287,6 +287,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {/* Officer Avatar */}
+        <a href="/status" aria-label="Status layanan Google" title="Status layanan Google" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><Activity className="h-4 w-4" /></a>
         <div ref={accountRef} className="relative flex items-center pl-2 border-l border-slate-200 dark:border-slate-800">
           <button
             type="button"

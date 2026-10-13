@@ -1,4 +1,4 @@
-import {StrictMode} from 'react';
+import {StrictMode, Suspense, lazy} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import 'leaflet/dist/leaflet.css';
@@ -22,8 +22,11 @@ console.error = (...args: unknown[]) => {
   }
 };
 
+const GoogleStatusPage = lazy(() => import('./components/GoogleStatusPage'));
+const isStatusPage = ['/status', '/status/'].includes(window.location.pathname);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Suspense fallback={<div className="p-8 text-slate-500">Memuat status layanan...</div>}>{isStatusPage ? <GoogleStatusPage /> : <App />}</Suspense>
   </StrictMode>,
 );
