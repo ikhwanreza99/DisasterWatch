@@ -3,11 +3,12 @@
 import React, { useMemo } from 'react';
 import { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
-import { DisasterDetailView } from './detail/DisasterDetailView';
+import { SidebarDetailTemplate } from './SidebarDetailTemplate';
+import { IncidentNewsPanel } from './detail/IncidentNewsPanel';
+import { filterIncidentNews, reviewQueue } from '../services/incidentNews';
 import { buildIncidentDetail } from '../services/incidentDetailAdapter';
 import { useHumanitarian } from '../services/store/humanitarianRepo';
 import type { IncidentArticle } from '../domain/incidentDetail';
-import { NTT_CASE_ID } from '../domain/nttCase';
 import type { NttCaseState } from '../services/nttCaseStore';
 
 interface ExpandedDetailContentProps {
@@ -39,33 +40,30 @@ export const ExpandedDetailContent: React.FC<ExpandedDetailContentProps> = ({
   pool = [],
   onOpenNttIntelligence,
 }) => {
-  void onOpenAIHelpdesk;
   // Firestore-first humanitarian snapshot (explicit fallback when null).
   const remote = useHumanitarian(disaster.id);
-  const { detail, timeline } = useMemo(
+  const { detail } = useMemo(
     () => buildIncidentDetail(disaster, nttCase, pool, remote),
     [disaster, nttCase, pool, remote],
   );
   return (
-    <DisasterDetailView
+    <SidebarDetailTemplate
       mobile={mobile}
       disaster={disaster}
-      detail={detail}
-      timeline={timeline}
       onOpenRoute={onOpenRoute}
       onClose={onClose}
+      onOpenAIHelpdesk={onOpenAIHelpdesk}
       onOpenDonationModal={onOpenDonationModal}
       onOpenDisasterBrief={onOpenDisasterBrief}
       intelReports={intelReports}
       aidRecords={aidRecords}
-      extraAction={
-        disaster.id === NTT_CASE_ID && onOpenNttIntelligence
-          ? {
-              label: `Analisis Klaim & Sumber NTT (${nttCase?.articles.length ?? 0} berita, ${nttCase?.claims.length ?? 0} klaim)`,
-              onClick: onOpenNttIntelligence,
-            }
-          : undefined
-      }
+      news={<IncidentNewsPanel
+        incidentName={disaster.name}
+        onOpenAIHelpdesk={onOpenAIHelpdesk}
+        matched={filterIncidentNews(detail.articles, detail.incidentId)}
+        review={reviewQueue(detail.articles, detail.incidentId)}
+        freshness={{ lastAttemptAt: detail.crawl.lastAttemptAt, lastSuccessAt: detail.crawl.lastSuccessAt, error: detail.crawl.error }}
+      />}
     />
   );
 };

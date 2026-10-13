@@ -16,13 +16,6 @@ export const AidGapCard: React.FC<Props> = ({ disasterId, reports, aid }) => {
     return summarizeGaps(disasterId, mine, aid.filter((a) => a.disasterId === disasterId));
   }, [disasterId, reports, aid]);
 
-  if (gaps.length === 0) {
-    return (
-      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-500">
-        Belum ada estimasi kebutuhan terstruktur untuk lokasi ini. Kirim laporan warga agar AI mengekstrak kebutuhan, lalu gap dihitung deterministik.
-      </div>
-    );
-  }
 
   return (
     <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden">
@@ -31,6 +24,13 @@ export const AidGapCard: React.FC<Props> = ({ disasterId, reports, aid }) => {
         <span className="text-[10px] text-slate-400">butuh − terima = kurang</span>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
+        {gaps.length === 0 && ['clean_water', 'food', 'medicine', 'shelter', 'boat'].map(category => (
+          <div key={category} className="px-3.5 py-2.5 text-[11px]">
+            <div className="flex flex-wrap justify-between gap-2 font-bold text-slate-800"><span>{needLabel(category)}</span><span className="text-slate-400">Belum tersedia</span></div>
+            <div className="mt-0.5 flex flex-wrap gap-x-3 text-slate-500"><span>Butuh: belum tersedia</span><span>Terima: belum tersedia</span></div>
+            <div className="mt-1.5 h-1.5 rounded-full bg-slate-100" />
+          </div>
+        ))}
         {gaps.map((g) => (
           <div key={g.category} className="px-3.5 py-2.5 text-[11px]">
             <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-100">
