@@ -1,4 +1,5 @@
-import { currentRecords } from '../data/currentIncidents';
+import { recentWindow } from './recentWindow';
+import { allCurrentRecords, currentRecords } from '../data/currentIncidents';
 // Incident registry: stable ids + relevance descriptors.
 // Aliases/keywords come from each incident's OWN records — never generic `gempa` alone.
 export interface IncidentDescriptor {
@@ -133,7 +134,7 @@ const LEGACY_DESCRIPTORS: IncidentDescriptor[] = [
   },
 ];
 
-export const CURRENT_DESCRIPTORS: IncidentDescriptor[] = currentRecords.filter(r => !r.id.startsWith('ntt-')).map(r => ({
+export const CURRENT_DESCRIPTORS: IncidentDescriptor[] = allCurrentRecords.filter(r => !r.id.startsWith('ntt-')).map(r => ({
   incidentId: r.id, name: r.name, province: r.province, disasterType: r.category,
   aliases: r.id === 'padang' ? ['Padang', ...r.aliases] : [...r.aliases], broadAliases: [], keywords: [], eventDate: r.startDate ?? r.date, windowDays: 12,
 }));
@@ -141,7 +142,7 @@ export const INCIDENT_DESCRIPTORS: IncidentDescriptor[] = [
   ...CURRENT_DESCRIPTORS,
   ...LEGACY_DESCRIPTORS.filter(d => !CURRENT_DESCRIPTORS.some(c => c.incidentId === d.incidentId)),
 ];
-export const ACTIVE_NEWS_IDS = [...CURRENT_DESCRIPTORS.map(d => d.incidentId), 'ntt-sumba-barat-daya-2026-10-04'];
+export const ACTIVE_NEWS_IDS = currentRecords.map(r => r.id);
 
 export function descriptorFor(incidentId: string): IncidentDescriptor | null {
   return INCIDENT_DESCRIPTORS.find((d) => d.incidentId === incidentId) ?? null;
@@ -156,13 +157,14 @@ const TYPE_WORDS: Record<IncidentDescriptor['disasterType'], RegExp> = {
 };
 
 /** Incident-specific search queries (location + type + aid/posko/official angles). */
-export function buildIncidentQueries(d: IncidentDescriptor): string[] {
+export function buildIncidentQueries(d: IncidentDescriptor, now = Date.now()): string[] {
   const raw = d.aliases[0] ?? d.name;
   // Quote multi-word places so the provider prioritizes the exact incident location.
   const loc = raw.includes(' ') ? `"${raw}"` : raw;
   const typeWord =
     d.disasterType === 'earthquake' ? 'gempa' : d.disasterType === 'flood' ? 'banjir' : d.disasterType === 'fire' ? 'karhutla' : d.disasterType === 'landslide' ? 'longsor' : 'bencana kekeringan';
-  const dates = CURRENT_DESCRIPTORS.some(c => c.incidentId === d.incidentId) ? ' after:2026-09-30 before:2026-10-13' : '';
+  const window = recentWindow(now);
+  const dates = ` after:${window.afterDate} before:${window.beforeDate}`;
   return [
     `${loc} ${typeWord}${dates}`,
     `${loc} ${typeWord} (site:detik.com OR site:rri.co.id OR site:tvrinews.com)${dates}`,

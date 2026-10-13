@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import { inRecentWindow } from '../src/services/recentWindow.ts';
 import { NEWS_REFRESH_MS, collectDisasterNews, type DisasterNewsFeed } from '../src/services/disasterNews.ts';
 
 const output = process.argv[2] || 'public/data/disaster-news.json';
@@ -29,6 +30,7 @@ try {
   // Never log response bodies, request headers, or error objects containing credentials.
   console.warn('::warning::Google News unavailable or ZAPI_API_KEY missing; keeping the previous snapshot if available.');
 }
+feed.items = feed.items.filter(item => inRecentWindow(item.publishedAt));
 await mkdir(dirname(output), { recursive: true });
 await writeFile(`${output}.tmp`, JSON.stringify(feed));
 await rename(`${output}.tmp`, output);

@@ -1,8 +1,10 @@
 # Import a downloaded BNPB table and region coordinate CSV; never invent missing coordinates.
 # Usage: python3 scripts/importBnpbSnapshot.py table.html coordinates.csv 2026-10-12
 import csv,re,json,html,sys
-from datetime import date,timedelta
-end=date.fromisoformat(sys.argv[3]); start=end-timedelta(days=11)
+from datetime import date,datetime,timedelta
+from zoneinfo import ZoneInfo
+end=date.fromisoformat(sys.argv[3]) if len(sys.argv)>3 else datetime.now(ZoneInfo('Asia/Jakarta')).date()
+start=end-timedelta(days=6)
 from pathlib import Path
 norm=lambda s: re.sub(r'[^a-z]','',re.sub(r'^kabupaten\s+','',s.lower()))
 coords={norm(r['name']):r for r in csv.DictReader(open(sys.argv[2]))}
