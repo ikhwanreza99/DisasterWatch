@@ -20,6 +20,7 @@ export interface IncidentArticle {
   /** Explicit link (e.g. NTT caseId) when the source record already declares it. */
   incidentId: string | null;
   discoveredBy: string;
+  googleSearchSuggestions?: string | null;
   incidentRelevance?: {
     incidentId: string;
     status: RelevanceStatus;

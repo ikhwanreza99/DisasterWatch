@@ -14,7 +14,7 @@ export function BnpbImpactCard({ incidentId }: { incidentId: string }) {
     <section className="my-3 min-w-0 rounded-2xl border border-slate-100 bg-slate-50 p-3" aria-label="Dampak tercatat BNPB">
       <h4 className="text-sm font-bold text-slate-900">Dampak tercatat · GIS BNPB</h4>
       {!reports.length && <p className="mt-2 text-xs text-slate-500">Data dampak BNPB belum tersedia untuk titik ini.</p>}
-      {reports.map((report, index) => (
+      {reports.slice(0, 1).map((report, index) => (
         <details key={index} open={index === 0} className="mt-2 border-t border-slate-200 pt-2">
           <summary className="cursor-pointer text-xs font-semibold text-slate-700">
             Laporan {new Date(report.date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Jakarta'})}
@@ -29,7 +29,6 @@ export function BnpbImpactCard({ incidentId }: { incidentId: string }) {
           <a className="mt-2 inline-block text-xs text-blue-600 underline" href={report.documentationUrl || record!.url} target="_blank" rel="noopener noreferrer">Sumber laporan BNPB</a>
         </details>
       ))}
-      {!!reports.length && <p className="mt-2 text-[10px] text-slate-500">Kolom kosong berarti belum tersedia. Angka ditampilkan per laporan, tidak dijumlahkan antar laporan.</p>}
     </section>
   );
 }
