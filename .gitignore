@@ -43,3 +43,6 @@ public/data/vaac.json
 /public/data/disaster-news.json
 /public/data/disaster-news.json.tmp
 /public/data/flood.json
+
+# Generated service diagnostics; published by Hosting workflow.
+public/data/google-status.json

@@ -23,3 +23,9 @@ The existing five-day gate applies to both providers. Gemini has one request per
 Offline checks: `npm run lint` and `node --import tsx --test scripts/providers/geminiSearch.test.ts`.
 
 Implementation reference: https://ai.google.dev/gemini-api/docs/google-search
+
+## Service status page
+
+`/status` separates browser checks from backend diagnostics. The Hosting workflow publishes `public/data/google-status.json` without credentials. Run **Deploy to Firebase Hosting → Run workflow → Uji Google Search** for one bounded Gemini search probe; it does not write crawled articles or change the five-day gate. The probe result is cached between deploys and shown with its original timestamp. Results older than 24 hours are marked stale. Normal scheduled deploys never invoke a new Google Search probe.
+
+Browser tests run only when a visitor clicks a service test button. Firestore uses server reads, Weather tests bypass simulation, and the two Gemini transports are tested separately with no fallback. Auth only tests creation of the Google login URL; completing sign-in is a user action. Storage is configuration-only until an authenticated attachment workflow is used. No API key values or raw error bodies appear on the status page.

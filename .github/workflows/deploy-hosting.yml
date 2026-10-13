@@ -25,6 +25,11 @@ on:
   schedule:
     - cron: '7,37 * * * *'
   workflow_dispatch:
+    inputs:
+      check_google_search:
+        description: 'Uji Google Search sekali (memakai kuota; tidak menjalankan seluruh crawler)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -85,6 +90,28 @@ jobs:
         run: npx tsx scripts/syncDisasterNews.ts
         env:
           FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+
+      - name: Restore previous Google service diagnostics
+        uses: actions/cache/restore@v4
+        with:
+          path: public/data/google-status.json
+          key: google-status-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: google-status-v1-
+
+      - name: Snapshot Google service diagnostics (no secrets in output)
+        run: npx tsx scripts/status/googleStatusSnapshot.ts
+        env:
+          CHECK_GOOGLE_SEARCH: ${{ inputs.check_google_search || 'false' }}
+          DISASTERWATCH_GOOGLE_SEARCH_ENABLED: ${{ vars.DISASTERWATCH_GOOGLE_SEARCH_ENABLED }}
+          DISASTERWATCH_GOOGLE_SEARCH_MODEL: ${{ vars.DISASTERWATCH_GOOGLE_SEARCH_MODEL }}
+          DISASTERWATCH_GEMINI_SEARCH_KEY: ${{ secrets.DISASTERWATCH_GEMINI_SEARCH_KEY }}
+          FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+
+      - name: Preserve Google service diagnostics
+        uses: actions/cache/save@v4
+        with:
+          path: public/data/google-status.json
+          key: google-status-v1-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Build (Vite production)
         run: npm run build
