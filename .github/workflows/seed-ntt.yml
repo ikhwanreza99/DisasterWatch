@@ -24,6 +24,7 @@ on:
         options:
           - dry-run
           - live
+          - verify-only
       force:
         description: 'Force write even if dry-run validation fails (DANGEROUS)'
         type: boolean
@@ -71,7 +72,7 @@ jobs:
           FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
 
       - name: Verify readback (counts per collection)
-        if: inputs.mode == 'live'
+        if: inputs.mode == 'live' || inputs.mode == 'verify-only'
         run: npm run seed:firestore -- --verify-only
         env:
           FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
