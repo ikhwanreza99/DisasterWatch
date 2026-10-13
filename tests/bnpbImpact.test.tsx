@@ -19,10 +19,10 @@ test('BNPB impact preserves reported counts, blanks and explicit zero', () => {
   assert.doesNotMatch(markup, /Estimasi Dampak/);
 });
 
-test('compact news shows publisher articles separately from BNPB documentation', () => {
+test('compact news keeps publishers together without source category separators', () => {
   const markup = renderToStaticMarkup(<IncidentNewsPanel incidentName="Padang" compact matched={currentArticles.filter(a => a.incidentId === 'padang')} review={[]} freshness={{lastAttemptAt:null,lastSuccessAt:null,error:null}}/>);
-  assert.match(markup, /Dokumentasi BNPB/);
-  assert.match(markup, /Berita media/);
+  assert.doesNotMatch(markup, /Dokumentasi BNPB/);
+  assert.doesNotMatch(markup, /Berita media/);
   assert.match(markup, /liputan6.com\/regional\/read\/8310406/);
   assert.match(markup, /antaranews.com\/foto\/5780196/);
 });

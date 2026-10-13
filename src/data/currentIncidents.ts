@@ -1,3 +1,4 @@
+import { inRecentWindow } from '../services/recentWindow';
 import { currentMedia } from './currentMedia';
 import nationalSnapshot from './nationalIncidents.json';
 import type { DisasterIncident, DisasterCategory } from '../types';
@@ -20,10 +21,20 @@ export interface CurrentRecord {
   startDate?: string; disasterLabel?: string; lat: number; lng: number; aliases: readonly string[];
   source: string; url: string; summary: string; reports?: {date: string; location: string; documentationUrl?: string | null; impact?: Record<string, number | null>}[];
 }
-export const currentRecords: CurrentRecord[] = [
+export const allCurrentRecords: CurrentRecord[] = [
   ...(nationalSnapshot as CurrentRecord[]),
   ...reviewedRecords.filter(r => !nationalSnapshot.some(n => n.id === r.id)),
 ];
+export function recentRecords(records: CurrentRecord[], now = Date.now()): CurrentRecord[] {
+  return records.flatMap(record => {
+    if (!record.reports?.length) return inRecentWindow(record.date, now) ? [record] : [];
+    const reports = record.reports.filter(report => inRecentWindow(report.date, now));
+    if (!reports.length) return [];
+    const dates = reports.map(report => report.date).sort();
+    return [{ ...record, reports, startDate: dates[0], date: dates[dates.length - 1], summary: `${reports.length} laporan ${record.disasterLabel ?? record.category} di ${record.name} dalam 7 hari terakhir.` }];
+  });
+}
+export const currentRecords = recentRecords(allCurrentRecords);
 export const NATIONAL_REPORT_COUNT = nationalSnapshot.reduce((n, r) => n + r.reports.length, 0);
 export const labelFor = (r: CurrentRecord) => r.disasterLabel ?? (r.category === 'fire' ? 'Kebakaran Hutan dan Lahan' : 'Banjir');
 
@@ -52,4 +63,4 @@ export const currentArticles: IncidentArticle[] = [...currentMedia, ...currentRe
     retrievedAt: '2026-10-12T00:00:00+07:00', summary: report.location || r.summary,
     contentStatus: 'METADATA_ONLY', incidentId: r.id, discoveredBy: 'bnpb-documentation',
   }))
-)];
+)].filter(article => inRecentWindow(article.publishedAt ?? article.eventDate));

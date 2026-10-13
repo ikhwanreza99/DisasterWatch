@@ -9,7 +9,7 @@
 
 Provider memakai `engine=google_news`, `gl=id`, `hl=id`. Tiga query per titik aktif: kejadian, kebutuhan, penanggulangan/pemulihan. Tidak melakukan pagination. Batas hasil 30 artikel per query. Kuota perkiraan per run: jumlah titik aktif × 3 request SerpApi, di luar provider lain dan uji langsung. Cache default SerpApi tetap digunakan.
 
-Pencarian dan klasifikasi mempertahankan batas kejadian yang sudah dipakai aplikasi. Titik dataset 1–12 Oktober 2026 masih memiliki batas tanggal tersebut; artikel di luar batas tidak otomatis tampil pada titik itu.
+Pencarian dan klasifikasi memakai 7 tanggal kalender terakhir dalam WIB, termasuk hari ini. Rentang bergeser otomatis setiap hari. Laporan BNPB dan artikel tersimpan di luar rentang disembunyikan dari dataset aktif tanpa menghapus arsip.
 
 `iso_date` disimpan sebagai tanggal publikasi. Tanggal relatif atau kosong tidak ditebak dan membutuhkan review. Artikel dari kelompok stories juga dibaca. Hasil tetap diperiksa lokasi, jenis bencana, dan waktu kejadian. URL identik digabung; metadata bertanggal lebih diprioritaskan. Bila URL sudah ditemukan Zapi, artikel dapat tercatat sebagai Zapi sehingga jumlah SerpApi bukan total hasil pencarian mentah.
 
