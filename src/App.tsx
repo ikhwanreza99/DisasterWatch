@@ -70,7 +70,8 @@ export default function App() {
         return descriptor !== null && classifyRelevance(article, descriptor).status === 'MATCHED';
       })
       .map(article => article.incidentId!));
-    return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => covered.has(id)));
+    // Keep the dedicated NTT case accessible independently of the recent dataset.
+    return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => id === NTT_CASE_ID || covered.has(id)));
   });
   const [ntt, setNtt] = useState<NttCaseState | null>(null);
   const [isNttOpen, setIsNttOpen] = useState<boolean>(false);

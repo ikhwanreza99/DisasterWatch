@@ -1,4 +1,5 @@
 import { inRecentWindow } from './recentWindow';
+import { NTT_CASE_ID } from '../domain/nttCase';
 // Incident-specific news relevance (data-service level, not UI hiding).
 // STRICT, fail-closed rules:
 // - A generic disaster keyword (gempa/banjir/...) alone is NEVER sufficient.
@@ -36,11 +37,16 @@ function inEventWindow(d: IncidentDescriptor, publishedAt: string | null): boole
 }
 
 export function classifyRelevance(article: IncidentArticle, d: IncidentDescriptor, now = Date.now()): RelevanceResult {
+  // Incident identity takes precedence over missing dates: other cases never enter review.
+  if (article.incidentId && article.incidentId !== d.incidentId) {
+    return { status: 'REJECTED', score: 0, matchedAliases: [], matchedKeywords: [], reason: `Explicitly linked to another incident (${article.incidentId}).` };
+  }
+  const isArchivedNttSource = article.incidentId === NTT_CASE_ID && d.incidentId === NTT_CASE_ID;
   const reportingDate = article.publishedAt ?? (article.sourceType === 'OFFICIAL' ? article.eventDate : null);
-  if (reportingDate && !inRecentWindow(reportingDate, now)) {
+  if (!isArchivedNttSource && reportingDate && !inRecentWindow(reportingDate, now)) {
     return { status: 'REJECTED', score: 0, matchedAliases: [], matchedKeywords: [], reason: 'Di luar 7 hari terakhir (WIB) atau tanggal tidak valid.' };
   }
-  if (!reportingDate) {
+  if (!isArchivedNttSource && !reportingDate) {
     return { status: 'REVIEW_REQUIRED', score: 0, matchedAliases: [], matchedKeywords: [], reason: 'Tanggal belum tersedia untuk membuktikan rentang 7 hari terakhir.' };
   }
   // Explicit link from a trusted record decides immediately (per-incident).
@@ -51,15 +57,6 @@ export function classifyRelevance(article: IncidentArticle, d: IncidentDescripto
       matchedAliases: [],
       matchedKeywords: [],
       reason: 'Explicit incident link from trusted source record.',
-    };
-  }
-  if (article.incidentId && article.incidentId !== d.incidentId) {
-    return {
-      status: 'REJECTED',
-      score: 0,
-      matchedAliases: [],
-      matchedKeywords: [],
-      reason: `Explicitly linked to another incident (${article.incidentId}).`,
     };
   }
   const text = `${article.title} ${article.summary ?? ''}`;
@@ -151,7 +148,7 @@ export function filterIncidentNews(articles: IncidentArticle[], incidentId: stri
   for (const a of articles) {
     if (a.incidentRelevance?.incidentId !== incidentId) continue;
     if (a.incidentRelevance.status !== 'MATCHED') continue;
-    if (!inRecentWindow(a.publishedAt ?? (a.sourceType === 'OFFICIAL' ? a.eventDate : null))) continue;
+    if (!(incidentId === NTT_CASE_ID && a.incidentId === NTT_CASE_ID) && !inRecentWindow(a.publishedAt ?? (a.sourceType === 'OFFICIAL' ? a.eventDate : null))) continue;
     const key = canonicalUrl(a.url) ?? a.url;
     if (seen.has(key)) continue;
     seen.add(key);

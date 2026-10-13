@@ -17,4 +17,6 @@ Hasil API adalah metadata artikel, bukan isi lengkap. Judul/link/penerbit dapat 
 
 AI Overview dan AI Mode belum ditambahkan pada perubahan ini.
 
+Kasus khusus NTT 4 Oktober tetap bisa dibuka sebagai arsip, termasuk sumber resmi yang sudah ditautkan ke kasus tersebut. Pengecualian ini hanya berlaku pada kasus NTT sendiri; sumbernya tidak boleh masuk feed/review wilayah lain. Dataset dan crawler harian tetap mengikuti rentang 7 hari.
+
 Dokumentasi provider: https://serpapi.com/google-news-api
