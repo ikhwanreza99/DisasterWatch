@@ -167,6 +167,9 @@ export function buildIncidentQueries(d: IncidentDescriptor): string[] {
     `${loc} ${typeWord}${dates}`,
     `${loc} ${typeWord} (site:detik.com OR site:rri.co.id OR site:tvrinews.com)${dates}`,
     `${loc} ${typeWord} (site:antaranews.com OR site:kompas.com OR site:bnpb.go.id)${dates}`,
+    `${loc} ${typeWord} (kebutuhan OR kekurangan OR bantuan OR pengungsi)${dates}`,
+    `${loc} ${typeWord} ("air bersih" OR makanan OR obat OR tenda OR evakuasi)${dates}`,
+    `${loc} ${typeWord} (listrik OR jalan OR jembatan OR telekomunikasi OR pemulihan)${dates}`,
   ];
 }
 

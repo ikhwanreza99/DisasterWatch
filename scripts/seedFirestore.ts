@@ -6,7 +6,7 @@
 // - Auth: GOOGLE_APPLICATION_CREDENTIALS -> service-account file OUTSIDE the repo.
 // - Usage: npm run seed:firestore [-- --dry-run] [-- --verify-only]
 import { existsSync, statSync } from 'node:fs';
-import { getApps, initializeApp } from 'firebase-admin/app';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore, type WriteBatch } from 'firebase-admin/firestore';
 import { disastersData } from '../src/data/disasters.js';
 import { DEMO_SCENARIO_ID, demoAid, demoReports } from '../src/data/seedDemo.js';
@@ -315,45 +315,79 @@ const incidentRecoveryDocs: IncidentRecoveryDoc[] = DISASTER_KEYS.flatMap((k) =>
   }),
 );
 
-const incidentPoskoDocs: IncidentPoskoDoc[] = DISASTER_KEYS.flatMap((k) =>
-  (disastersData[k].route?.checkpoints ?? []).map((c, i) => {
-    const name = c.name ?? c.title ?? `Posko ${i + 1}`;
-    const lat = typeof c.lat === 'number' ? c.lat : null;
-    const lng = typeof c.lng === 'number' ? c.lng : null;
-    const hasCoords = lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
-    return {
-      id: stableId(k as string, name, c.location ?? '', 'seed'),
-      poskoId: `${k}-posko-${c.id}`,
-      incidentId: k as string,
-      articleId: null,
-      name,
-      poskoType: /utama|komando/i.test(name) ? 'COMMAND_POST' : /pengungsi|evakuasi/i.test(name) ? 'EVACUATION_SHELTER' : 'FIELD_POST',
-      address: null,
-      village: null,
-      district: null,
-      regency: null,
-      province: disastersData[k].province,
-      latitude: hasCoords ? lat : null,
-      longitude: hasCoords ? lng : null,
-      coordinateSource: hasCoords ? 'SEED_DEMO' : 'NONE',
-      coordinateAccuracy: null,
-      operationalStatus: c.capacityStatus ?? null,
-      capacity: c.capacity?.total ?? null,
-      currentOccupancy: c.capacity?.used ?? null,
-      availableFacilities: (c.aid ?? []).map((a) => `${a.name} ${a.quantity}`),
-      neededSupplies: [],
-      contact: null,
-      sourceUrl: c.googleMapsUrl ?? null,
-      sourceOrganization: 'DEMO seed',
-      verificationStatus: 'AI_REVIEWED',
-      reportedAt: null,
-      lastVerifiedAt: null,
-      lastUpdatedAt: SEED_AT,
-      isMock: true,
-      schemaVersion: 1,
-    };
-  }),
-);
+const incidentPoskoDocs: IncidentPoskoDoc[] = [
+  ...DISASTER_KEYS.flatMap((k) =>
+    (disastersData[k].route?.checkpoints ?? []).map((c, i) => {
+      const name = c.name ?? c.title ?? `Posko ${i + 1}`;
+      const lat = typeof c.lat === 'number' ? c.lat : null;
+      const lng = typeof c.lng === 'number' ? c.lng : null;
+      const hasCoords = lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
+      return {
+        id: stableId(k as string, name, c.location ?? '', 'seed'),
+        poskoId: `${k}-posko-${c.id}`,
+        incidentId: k as string,
+        articleId: null,
+        name,
+        poskoType: (/utama|komando/i.test(name) ? 'COMMAND_POST' : /pengungsi|evakuasi/i.test(name) ? 'EVACUATION_SHELTER' : 'FIELD_POST') as IncidentPoskoDoc['poskoType'],
+        address: null,
+        village: null,
+        district: null,
+        regency: null,
+        province: disastersData[k].province,
+        latitude: hasCoords ? lat : null,
+        longitude: hasCoords ? lng : null,
+        coordinateSource: (hasCoords ? 'SEED_DEMO' : 'NONE') as IncidentPoskoDoc['coordinateSource'],
+        coordinateAccuracy: null,
+        operationalStatus: c.capacityStatus ?? null,
+        capacity: c.capacity?.total ?? null,
+        currentOccupancy: c.capacity?.used ?? null,
+        availableFacilities: (c.aid ?? []).map((a) => `${a.name} ${a.quantity}`),
+        neededSupplies: [],
+        contact: null,
+        sourceUrl: c.googleMapsUrl ?? null,
+        sourceOrganization: 'DEMO seed',
+        verificationStatus: 'AI_REVIEWED' as IncidentPoskoDoc['verificationStatus'],
+        reportedAt: null,
+        lastVerifiedAt: null,
+        lastUpdatedAt: SEED_AT,
+        isMock: true,
+        schemaVersion: 1,
+      };
+    }),
+  ),
+  // NTT real posko from BNPB report (source-backed, no invented coordinates)
+  {
+    id: stableId('ntt-sumba-barat-daya-2026-10-04', 'Lapangan Makodim 1629', 'Sumba Barat Daya', 'bnpb-posko'),
+    poskoId: 'ntt-sumba-barat-daya-2026-10-04-posko-makodim',
+    incidentId: 'ntt-sumba-barat-daya-2026-10-04',
+    articleId: null,
+    name: 'Lapangan Makodim 1629/Sumba Barat Daya',
+    poskoType: 'COMMAND_POST' as IncidentPoskoDoc['poskoType'],
+    address: null,
+    village: null,
+    district: null,
+    regency: 'Sumba Barat Daya',
+    province: 'Nusa Tenggara Timur',
+    latitude: null,
+    longitude: null,
+    coordinateSource: 'NONE' as IncidentPoskoDoc['coordinateSource'],
+    coordinateAccuracy: null,
+    operationalStatus: 'OPERATIONAL',
+    capacity: null,
+    currentOccupancy: null,
+    availableFacilities: ['173 personel siaga (BNPB, 4 Okt 2026 13:54 WIB)'],
+    neededSupplies: [],
+    contact: null,
+    sourceUrl: 'https://bnpb.go.id/berita/gempa-m61-guncang-sumba-barat-daya-20-rumah-terdampak',
+    sourceOrganization: 'BNPB',
+    verificationStatus: 'AI_REVIEWED' as IncidentPoskoDoc['verificationStatus'],
+    reportedAt: '2026-10-04T13:54:00+07:00',
+    lastVerifiedAt: '2026-10-04T13:54:00+07:00',
+    lastUpdatedAt: SEED_AT,
+    isMock: false,
+    schemaVersion: 1,
+  },
+];
 
 const plan: Array<{ col: string; docs: Array<Record<string, unknown> & { id: string }> }> = [
   { col: 'disasters', docs: disasterDocs as unknown as Array<Record<string, unknown> & { id: string }> },
@@ -376,18 +410,29 @@ async function main() {
   const dryRun = args.has('--dry-run');
   const verifyOnly = args.has('--verify-only');
   const gac = process.env.GOOGLE_APPLICATION_CREDENTIALS ?? '';
+  const raw = process.env.FIREBASE_NEWS_SERVICE_ACCOUNT;
 
   console.log(`target project : ${PROJECT_ID}`);
   console.log(`seed batch     : ${SEED_BATCH}`);
   console.log(`seed clock     : ${SEED_AT} (frozen)`);
   for (const g of plan) console.log(`plan ${g.col.padEnd(10)} : ${g.docs.length} docs (deterministic IDs)`);
-  console.log(`credentials    : GOOGLE_APPLICATION_CREDENTIALS=${gac || '(unset)'}`);
+  console.log(`credentials    : FIREBASE_NEWS_SERVICE_ACCOUNT=${raw ? '(set)' : 'unset'} GOOGLE_APPLICATION_CREDENTIALS=${gac || '(unset)'}`);
   if (!dryRun && !verifyOnly) {
-    if (!gac) throw new Error('GOOGLE_APPLICATION_CREDENTIALS is not set. Place the service-account file OUTSIDE the repo and export its absolute path.');
-    if (!existsSync(gac)) throw new Error(`Credential file not found at GOOGLE_APPLICATION_CREDENTIALS path (checked existence only, contents never printed).`);
-    const st = statSync(gac);
-    if (!st.isFile()) throw new Error('GOOGLE_APPLICATION_CREDENTIALS does not point to a regular file.');
-    console.log('credentials    : file exists (contents never printed)');
+    if (raw) {
+      const account = JSON.parse(raw);
+      if (account.project_id !== PROJECT_ID) throw new Error('Unexpected project');
+      initializeApp({ credential: cert(account), projectId: PROJECT_ID });
+      console.log('credentials    : FIREBASE_NEWS_SERVICE_ACCOUNT valid (project_id matched)');
+    } else {
+      if (!gac) throw new Error('No service account (FIREBASE_NEWS_SERVICE_ACCOUNT or GOOGLE_APPLICATION_CREDENTIALS).');
+      if (!existsSync(gac)) throw new Error('Credential file not found (existence only, contents never printed).');
+      const st = statSync(gac);
+      if (!st.isFile()) throw new Error('GOOGLE_APPLICATION_CREDENTIALS does not point to a regular file.');
+      const account = JSON.parse((await import('node:fs')).readFileSync(gac, 'utf8'));
+      if (account.project_id !== PROJECT_ID) throw new Error('Unexpected project');
+      initializeApp({ credential: cert(account), projectId: PROJECT_ID });
+      console.log('credentials    : GOOGLE_APPLICATION_CREDENTIALS valid (project_id matched)');
+    }
   }
 
   if (getApps().length === 0) initializeApp({ projectId: PROJECT_ID });

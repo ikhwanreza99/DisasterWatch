@@ -1,5 +1,4 @@
 import { BnpbImpactCard } from './detail/BnpbImpactCard';
-import { currentRecords } from '../data/currentIncidents';
 import { useMemo } from 'react';
 import { useMobileLayout } from './useMobileLayout';
 import { buildIncidentDetail } from '../services/incidentDetailAdapter';
@@ -229,20 +228,21 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 
           <BnpbImpactCard incidentId={disaster.id} />
 
-          {currentRecords.some(r => r.id === disaster.id) && (
-            <p className="mt-3 text-xs leading-relaxed text-slate-500">
-              Ditinjau 12 Okt 2026. Titik mewakili wilayah laporan; status masih berlangsung belum dikonfirmasi. Berita diperbarui berkala.
-            </p>
-          )}
-          {currentRecords.find(r => r.id === disaster.id)?.reports && (
-            <details className="my-3 rounded-xl border border-slate-200 p-3 text-xs">
-              <summary className="cursor-pointer font-semibold">Laporan wilayah 1–12 Oktober 2026</summary>
-              <ul className="mt-2 max-h-40 overflow-y-auto space-y-2">
-                {currentRecords.find(r => r.id === disaster.id)!.reports!.map((r, i) => <li key={i}><strong>{r.date}</strong> · {r.location || 'Rincian lokasi belum tersedia'}</li>)}
-              </ul>
-              <a className="mt-2 inline-block text-blue-600 underline" href={currentRecords.find(r => r.id === disaster.id)!.url} target="_blank" rel="noopener noreferrer">Sumber data kejadian BNPB (tabel)</a>
-            </details>
-          )}
+          <div className="grid grid-cols-2 gap-3 mt-3 mb-3">
+            <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
+              <p className="text-[11px] font-medium text-slate-400">Estimasi Dampak</p>
+              <p className="mt-1 text-[18px] font-bold text-slate-900">{disaster.cost || 'Belum tersedia'}</p>
+              <p className="mt-2 text-[11px] font-medium text-slate-400">{disaster.impact}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
+              <p className="text-[11px] font-medium text-slate-400">Gap Recovery</p>
+              <p className="mt-1 text-[18px] font-bold text-slate-900">{disaster.gapRecovery || 'Belum tersedia'}</p>
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-amber-500" style={{width: `${disaster.recoveryPct}%`}} /></div>
+            </div>
+          </div>
+          {!disaster.photoUrl && <div className="mt-3 mb-3 h-32 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-2 text-slate-400">
+            <span className="text-xs font-semibold">Foto Lapangan Terkini</span><span className="text-[11px]">Belum tersedia</span>
+          </div>}
           {/* Disaster Field Photo */}
           {disaster.photoUrl && <div className="mt-3 mb-3 relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group">
             <img
@@ -410,6 +410,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 
         <IncidentNewsPanel
           compact
+          onExpandView={onExpandView}
           incidentName={disaster.name}
           matched={miniNews.matched}
           review={miniNews.review}

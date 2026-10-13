@@ -1,0 +1,77 @@
+# NTT Incident Seed (manual, idempotent, production-safe).
+#
+# - Runs only on workflow_dispatch. No schedule.
+# - Uses the same least-privilege service account as incident-crawl:
+#   FIREBASE_NEWS_SERVICE_ACCOUNT || FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5
+#   (roles/datastore.user on disasterwatch-61ed5 ONLY).
+# - Validates project_id in the service account before initializing Admin SDK.
+# - Dry-run first (no writes), then live seed on confirmation.
+# - Deterministic document IDs, merge-safe upserts (no deletes).
+# - Only touches NTT documents (incidentId = ntt-sumba-barat-daya-2026-10-04).
+# - Never seeds demo/mock data to production collections.
+# - Readback verification after write (counts per collection).
+# - No credentials, API keys, or secret values printed.
+name: Seed NTT Incident (manual, production)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Execution mode'
+        type: choice
+        required: true
+        default: 'dry-run'
+        options:
+          - dry-run
+          - live
+      force:
+        description: 'Force write even if dry-run validation fails (DANGEROUS)'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seed-ntt
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate TypeScript & build
+        run: |
+          npx tsc --noEmit
+          npm run build
+
+      - name: Dry-run seed (assembly only, no network)
+        if: inputs.mode == 'dry-run' || inputs.mode == 'live'
+        run: npm run seed:firestore -- --dry-run
+        env:
+          FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+
+      - name: Live seed (idempotent upserts)
+        if: inputs.mode == 'live'
+        run: npm run seed:firestore
+        env:
+          FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+
+      - name: Verify readback (counts per collection)
+        if: inputs.mode == 'live'
+        run: npm run seed:firestore -- --verify-only
+        env:
+          FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}

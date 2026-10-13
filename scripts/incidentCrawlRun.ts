@@ -1,10 +1,12 @@
+import 'dotenv/config';
+import { searchGemini } from './providers/geminiSearch.ts';
 import { newsSourceUrl } from '../src/services/newsSourceUrl.ts';
 import { ACTIVE_NEWS_IDS } from '../src/services/incidentRegistry.ts';
 // Gated incident crawl runner (Admin SDK, trusted GitHub Actions ONLY).
 // NEVER import from browser code. Never commit/log credentials, keys, or bodies.
 //
 // - Gate: reads incidentCrawlRuns for the last SUCCESS/SUCCESS_EMPTY; paid ZAPI
-//   calls happen ONLY when ≥5 days elapsed (or --force). The daily schedule check
+//   Zapi/Google calls happen ONLY when ≥5 days elapsed (or --force). The daily schedule check
 //   itself is one cheap Firestore read — no crawling API before due.
 // - Outcomes: SUCCESS (≥1 incident ok), SUCCESS_EMPTY (ok, zero relevant —
 //   distinct from failure), PROVIDER_FAILED (all failed → exit 1, data preserved),
@@ -49,6 +51,9 @@ const NO_AI = args.has('--no-ai');
 const now = new Date().toISOString();
 const zapiKey = process.env.ZAPI_API_KEY || '';
 const aiKey = process.env.DISASTERWATCH_GEMINI_KEY || '';
+const searchKey = process.env.DISASTERWATCH_GEMINI_SEARCH_KEY || aiKey;
+const searchEnabled = process.env.DISASTERWATCH_GOOGLE_SEARCH_ENABLED === 'true' && !!searchKey;
+const searchModel = process.env.DISASTERWATCH_GOOGLE_SEARCH_MODEL || 'gemini-3.8-flash';
 
 let stage = 'init';
 function safeError(e: unknown): string {
@@ -150,10 +155,10 @@ async function main() {
     return { outcome: 'GATED_SKIP' as CrawlOutcome, exitCode: 0 };
   }
 
-  if (!zapiKey) {
+  if (!zapiKey && !searchEnabled) {
     // Due but unpaid path unavailable: record failure honestly, preserve all data.
-    console.log('outcome        : PROVIDER_FAILED (ZAPI_API_KEY missing — no request sent, data preserved)');
-    if (db) await recordRun(db, 'PROVIDER_FAILED', lastSuccess, [], 0, 0, 0, 'missing-zapi-key');
+    console.log('outcome        : PROVIDER_FAILED (No configured search provider — no request sent, data preserved)');
+    if (db) await recordRun(db, 'PROVIDER_FAILED', lastSuccess, [], 0, 0, 0, 'missing-search-provider');
     return { outcome: 'PROVIDER_FAILED' as CrawlOutcome, exitCode: 1 };
   }
 
@@ -185,8 +190,10 @@ async function main() {
     let review = 0;
     let rejected = 0;
     try {
-      const fresh: IncidentArticleDoc[] = [];
-      for (const q of queries) {
+      let fresh: IncidentArticleDoc[] = [];
+      let successfulQueries = 0;
+      if (zapiKey) for (const q of queries) {
+        try {
         const url = new URL('https://api.zapi.ink/v1/news:google-news/feed');
         url.searchParams.set('query', q);
         url.searchParams.set('limit', '20');
@@ -232,7 +239,37 @@ async function main() {
             schemaVersion: 1,
           });
         }
+        successfulQueries++;
+        } catch (e) { console.log(`provider Zapi ${id}: ${safeError(e)}`); }
       }
+      if (searchEnabled) {
+        // One bounded request per incident combining all query angles.
+        try {
+          const hits = await searchGemini(queries.join(' ; '), searchKey, searchModel);
+          successfulQueries++;
+          for (const hit of hits) {
+            fresh.push({
+              id: articleDocId(id, hit.link), incidentId: id, canonicalUrl: hit.link, url: hit.link,
+              title: hit.title, sourceName: hit.sourceName, sourceType: 'OTHER',
+              publishedAt: null, retrievedAt: now, updatedAt: now, summary: hit.summary,
+              contentHash: createHash('sha256').update(`${hit.title}|${hit.link}|${hit.summary ?? ''}`).digest('hex'),
+              contentStatus: 'METADATA_ONLY', discoveredBy: 'gemini:google-search',
+              googleSearchSuggestions: hit.searchSuggestions,
+              relevance: { incidentId: id, status: 'REJECTED', score: 0, matchedAliases: [], matchedKeywords: [], reason: 'pending classification', classifiedAt: now },
+              verificationStatus: 'UNVERIFIED', isMock: false, schemaVersion: 1,
+            });
+          }
+        } catch (e) { console.log(`provider Gemini ${id}: ${safeError(e)}`); }
+      }
+      if (!successfulQueries) throw new Error('All search providers failed');
+      // Prefer publisher metadata from Zapi when both providers cite the same URL.
+      const unique = new Map<string, IncidentArticleDoc>();
+      for (const article of fresh) {
+        const existing = unique.get(article.id);
+        if (!existing) unique.set(article.id, article);
+        else if (article.googleSearchSuggestions) existing.googleSearchSuggestions = article.googleSearchSuggestions;
+      }
+      fresh = [...unique.values()];
       fetched = fresh.length;
       // Classify (query hit never implies relevance) + AI summaries for new/changed only.
       const aiTargets = DRY_RUN ? [] : selectForAI(prev.articles.filter((a) => a.incidentId === id), fresh);

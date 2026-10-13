@@ -69,6 +69,7 @@ export interface IncidentArticleDoc {
   contentHash: string;
   contentStatus: 'FULL' | 'PARTIAL' | 'METADATA_ONLY' | 'FAILED';
   discoveredBy: string;
+  googleSearchSuggestions?: string | null;
   relevance: {
     incidentId: string;
     status: RelevanceStatus;

@@ -98,6 +98,7 @@ function articleDocToCandidate(a: IncidentArticleDoc): IncidentArticle {
     contentStatus: a.contentStatus,
     incidentId: null, // Crawl target is not proof that an article matches.
     discoveredBy: a.discoveredBy,
+    googleSearchSuggestions: a.googleSearchSuggestions ?? null,
   };
   // Reuse the persisted relevance decision when it targets this incident.
   if (a.relevance?.incidentId === a.incidentId) out.incidentRelevance = a.relevance;
