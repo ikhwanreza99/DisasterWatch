@@ -23,26 +23,67 @@ interface Ctx {
 }
 
 const NEED_PATTERNS: Array<{ re: RegExp; category: NeedItemCategory; name: string }> = [
-  { re: /makanan siap saji/i, category: 'FOOD_WATER', name: 'makanan siap saji' },
-  { re: /sembako|bahan makanan/i, category: 'FOOD_WATER', name: 'sembako' },
-  { re: /beras/i, category: 'FOOD_WATER', name: 'beras' },
-  { re: /air minum/i, category: 'FOOD_WATER', name: 'air minum' },
-  { re: /air bersih/i, category: 'WASH', name: 'air bersih' },
+  // FOOD_NUTRITION
+  { re: /makanan siap saji/i, category: 'FOOD_NUTRITION', name: 'makanan siap saji' },
+  { re: /sembako|bahan makanan/i, category: 'FOOD_NUTRITION', name: 'sembako' },
+  { re: /beras/i, category: 'FOOD_NUTRITION', name: 'beras' },
+  { re: /nasi/i, category: 'FOOD_NUTRITION', name: 'nasi' },
+  { re: /sari[kenteng]|ubi|selai/i, category: 'FOOD_NUTRITION', name: 'ganti nasi' },
+  // DRINKING_WATER
+  { re: /air minum/i, category: 'DRINKING_WATER', name: 'air minum' },
+  { re: /air minum bersih/i, category: 'DRINKING_WATER', name: 'air minum bersih' },
+  { re: /air penyangga/i, category: 'DRINKING_WATER', name: 'air penyangga' },
+  { re: /aqua|mineral|isi ulang/i, category: 'DRINKING_WATER', name: 'air mineral/isi ulang' },
+  // HYGIENE_SANITATION
+  { re: /pembalut/i, category: 'HYGIENE_SANITATION', name: 'pembalut' },
+  { re: /sabun/i, category: 'HYGIENE_SANITATION', name: 'sabun' },
+  { re: /hygiene kit|paket kebersihan/i, category: 'HYGIENE_SANITATION', name: 'hygiene kit' },
+  { re: /toilet portable|toilet darurat|MCK/i, category: 'HYGIENE_SANITATION', name: 'toilet darurat' },
+  { re: /kilat\s*urine|disinfektan/i, category: 'HYGIENE_SANITATION', name: 'kilat/urine' },
+  // BABY_CHILDCARE
   { re: /popok (bayi|dewasa|anak)/i, category: 'BABY_CHILDCARE', name: 'popok' },
-  { re: /susu bayi|sufor/i, category: 'BABY_CHILDCARE', name: 'susu bayi' },
-  { re: /pembalut/i, category: 'HYGIENE_PERSONAL_CARE', name: 'pembalut' },
-  { re: /hygiene kit|paket kebersihan/i, category: 'HYGIENE_PERSONAL_CARE', name: 'hygiene kit' },
-  { re: /sabun/i, category: 'HYGIENE_PERSONAL_CARE', name: 'sabun' },
-  { re: /pakaian|baju|selimut bayi/i, category: 'CLOTHING', name: 'pakaian' },
-  { re: /selimut/i, category: 'SHELTER_BEDDING', name: 'selimut' },
-  { re: /tenda|terpal|tikar|kasur/i, category: 'SHELTER_BEDDING', name: 'tenda/terpal' },
-  { re: /\bP3K\b|kotak P3K|pertolongan pertama/i, category: 'HEALTH_PROTECTION', name: 'P3K' },
-  { re: /obat|medis|masker|oksigen|perban/i, category: 'HEALTH_PROTECTION', name: 'perlengkapan medis' },
-  { re: /tangki air|air tangki|penjernih air/i, category: 'WASH', name: 'air tangki/penjernih' },
-  { re: /sanitasi|toilet portable|mck/i, category: 'WASH', name: 'sanitasi' },
-  { re: /genset|pompa|perahu|tandu|mobil tangki|truk/i, category: 'LOGISTICS_EQUIPMENT', name: 'logistik/peralatan' },
-  { re: /karung pasir|bronjong|tiang pancang/i, category: 'LOGISTICS_EQUIPMENT', name: 'material tanggul' },
-  { re: /evakuasi|perahu karet|mengevakuasi/i, category: 'RESCUE_EVACUATION', name: 'evakuasi' },
+  { re: /susu bayi|ASI|emak membesarkan/i, category: 'BABY_CHILDCARE', name: 'susu bayi/ASI' },
+  { re: /fomula|susu gantung|pendamping susu/i, category: 'BABY_CHILDCARE', name: 'fomula/pendamping susu' },
+  { re: /alat perawatan bayi/i, category: 'BABY_CHILDCARE', name: 'alat perawatan bayi' },
+  // MENSTRUAL_HEALTH
+  { re: /wanda|kanker|peach|higiena|sprei|selubung/i, category: 'MENSTRUAL_HEALTH', name: 'perlengkapan menstruasi' },
+  { re: /tissue|handuk|lap menstruasi/i, category: 'MENSTRUAL_HEALTH', name: 'perlengkapan menstruasi' },
+  // CLOTHING_BEDDING
+  { re: /pakaian|baju/i, category: 'CLOTHING_BEDDING', name: 'pakaian' },
+  { re: /selimut/i, category: 'CLOTHING_BEDDING', name: 'selimut' },
+  { re: /tenda|terpal|tikar|kasur/i, category: 'CLOTHING_BEDDING', name: 'tenda/terpal/tikas' },
+  { re: /piyama|selimut|tirai/i, category: 'CLOTHING_BEDDING', name: 'pakaian tidur' },
+  // SHELTER
+  { re: /rumah|kawang|ka longgar/i, category: 'SHELTER', name: 'shelter/kawang' },
+  { re: /tenda|tarpaulin/i, category: 'SHELTER', name: 'tenda' },
+  { re: /kosakata|lama|perumahan/i, category: 'SHELTER', name: 'shelter permanen' },
+  // HEALTH_MEDICAL
+  { re: /obat|medis|ispa|layanan kesehatan/i, category: 'HEALTH_MEDICAL', name: 'obat/medis' },
+  { re: /masker|respirator|P3K/i, category: 'HEALTH_MEDICAL', name: 'masker/alat kesehatan' },
+  { re: /termometer|lunak|peralatan medis/i, category: 'HEALTH_MEDICAL', name: 'peralatan medis' },
+  // VECTOR_CONTROL
+  { re: /kelambu|repulan|insid|larva/i, category: 'VECTOR_CONTROL', name: 'kelambu/repelan' },
+  { re: /toksis|samap|habitat ikan/i, category: 'VECTOR_CONTROL', name: 'pengendalian vektor' },
+  // WATER_TREATMENT
+  { re: /tabir\s*air|filter|ku air|leser air/i, category: 'WATER_TREATMENT', name: 'penjenangan air' },
+  { re: /bod|kilat|air/i, category: 'WATER_TREATMENT', name: 'penyehatan air' },
+  // POWER_LIGHTING
+  { re: /genset|pompa|listrik|PLN/i, category: 'POWER_LIGHTING', name: 'genset/listrik' },
+  { re: /lampu|cahaya|surya|candle/i, category: 'POWER_LIGHTING', name: 'lampu/surya' },
+  // COMMUNICATION
+  { re: /sinyal|internet|HP|pulsa|kuota/i, category: 'COMMUNICATION', name: 'sinyal/internet' },
+  { re: /daya|baterai|charger/i, category: 'COMMUNICATION', name: 'daya/baterai' },
+  // RESCUE_ACCESS
+  { re: /evakuasi|perahu karet|boats/i, category: 'RESCUE_ACCESS', name: 'evakuasi/perahu' },
+  { re: /kursi|rolet|stretcher|gurney/i, category: 'RESCUE_ACCESS', name: 'akses medis' },
+  // DISABILITY_ELDERLY_CARE
+  { re: /dapur|pension|tua|cacah|buta|andisepas/i, category: 'DISABILITY_ELDERLY_CARE', name: 'perawatan tua/disabilitas' },
+  { re: /kursi roda|fasilitas disabilitas/i, category: 'DISABILITY_ELDERLY_CARE', name: 'fasilitas disabilitas' },
+  // LOGISTICS
+  { re: /karung|pasir|bronjong|tiang pancang/i, category: 'LOGISTICS', name: 'material tanggul' },
+  { re: /pompa|genset|perahu|tandu|mobil tangki|truk/i, category: 'LOGISTICS', name: 'logistik peralatan' },
+  // OTHER
+  { re: /lain/i, category: 'OTHER', name: 'butuhan lain' },
 ];
 
 function qtyNear(text: string, index: number): { quantity: number | null; unit: string | null } {

@@ -123,10 +123,23 @@ export function markConflicts(claims: IncidentClaimDoc[]): IncidentClaimDoc[] {
 
 // --- 4. incidentAidNeeds (spec §1; quantities null when unknown) ---
 export type NeedItemCategory =
-  | 'FOOD_WATER' | 'HYGIENE_PERSONAL_CARE' | 'BABY_CHILDCARE' | 'CLOTHING'
-  | 'SHELTER_BEDDING' | 'HEALTH_PROTECTION' | 'WASH' | 'LOGISTICS_EQUIPMENT'
-  | 'RESCUE_EVACUATION' | 'OTHER';
-export type NeedStatus = 'REPORTED' | 'VERIFIED' | 'PARTIALLY_FULFILLED' | 'FULFILLED' | 'CLOSED';
+  | 'FOOD_NUTRITION'
+  | 'DRINKING_WATER'
+  | 'HYGIENE_SANITATION'
+  | 'BABY_CHILDCARE'
+  | 'MENSTRUAL_HEALTH'
+  | 'CLOTHING_BEDDING'
+  | 'SHELTER'
+  | 'HEALTH_MEDICAL'
+  | 'VECTOR_CONTROL'
+  | 'WATER_TREATMENT'
+  | 'POWER_LIGHTING'
+  | 'COMMUNICATION'
+  | 'RESCUE_ACCESS'
+  | 'DISABILITY_ELDERLY_CARE'
+  | 'LOGISTICS'
+  | 'OTHER';
+export type NeedStatus = 'REPORTED' | 'INFERRED' | 'PENDING_VALIDATION' | 'VERIFIED' | 'PARTIALLY_FULFILLED' | 'FULFILLED' | 'CLOSED' | 'EXPIRED';
 export interface IncidentAidNeedDoc {
   id: string; // stableId(incidentId, itemCategory, itemName, affectedArea, sourceUrl)
   incidentId: string;
@@ -149,6 +162,22 @@ export interface IncidentAidNeedDoc {
   lastUpdatedAt: string;
   isMock: boolean;
   schemaVersion: number;
+  // Multi-source evidence (additive; existing fields preserved).
+  sourceReferences?: Array<{
+    source: 'NEWS_REPORT' | 'CITIZEN_REPORT' | 'FIELD_OFFICER_REPORT' | 'OFFICIAL_SOURCE' | 'GEOSPATIAL_SIGNAL' | 'POPULATION_SIGNAL' | 'SERVICE_DISRUPTION' | 'RULE_INFERENCE';
+    triggerSignals?: Array<{ type: string; description: string }>;
+    evidenceSummary?: string;
+    observedAt?: string;
+    lastEvaluatedAt?: string;
+    validUntil?: string;
+  }>;
+  inferenceChain?: Array<{
+    ruleId?: string;
+    premise?: Array<{ type: string; description: string }>;
+    conclusion?: string;
+    confidence?: number;
+    evaluatedAt?: string;
+  }>;
 }
 
 /** Deterministic remaining computation. AI never does this arithmetic. */
@@ -184,6 +213,40 @@ export interface IncidentAidEventDoc {
 // --- 6. incidentPoskos (coords null unless validated) ---
 export type CoordinateSource = 'OFFICIAL_CHECKPOINT' | 'SOURCE_STATED' | 'SEED_DEMO' | 'NONE';
 export type PoskoDisplayKind = 'CONFIRMED_POINT' | 'APPROXIMATE_AREA' | 'LIST_ONLY';
+export interface GeospatialSignal {
+  id: string; // stableId('signal', type, incidentId, locationKey)
+  incidentId: string;
+  signalType: 'FLOOD_AREA' | 'LANDSLIDE_ZONE' | 'FIRE_PERIMETER' | 'EVACUATION_AREA' | 'DISEASE_RISK' | 'ROAD_CLOSURE' | 'BRIDGE_DAMAGE' | 'HEALTH_FACILITY' | 'WATER_SOURCE' | 'SHELTER_AREA' | 'OTHER';
+  location: { lat: number; lng: number; radiusMeters?: number };
+  resolvedAt: string;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
+  source: 'OFFICIAL_GEO' | 'CITIZEN_REPORT' | 'MODEL_PREDICTION' | 'SATELLITE' | 'OTHER';
+  description: string;
+  notes?: string;
+}
+export type PopulationSignal = {
+  id: string;
+  incidentId: string;
+  estimatedPopulation: number | null;
+  affectedPopulation: number | null;
+  demographicBreakdown?: {
+    childrenUnder5: number | null;
+    pregnantWomen: number | null;
+    elderly: number | null;
+    disabled: number | null;
+  };
+  source: 'CENSUS' | 'REGISTRY' | 'CITIZEN_ESTIMATE' | 'OTHER';
+  observedAt: string;
+};
+export type ServiceDisruption = {
+  id: string;
+  incidentId: string;
+  serviceType: 'POWER' | 'COMMUNICATION' | 'ACCESS_TRANSPORT' | 'WATER' | 'HEALTH_FACILITY' | 'SANITATION';
+  status: 'OUTAGE' | 'LIMITED' | 'INTERRUPTED' | 'RESTORED' | 'UNKNOWN';
+  affectedArea: string | null;
+  reportedAt: string;
+  source: 'OFFICIAL' | 'CITIZEN_REPORT' | 'MODEL' | 'OTHER';
+};
 export interface IncidentPoskoDoc {
   id: string; // poskoId: source id or stableId(incidentId, name, area, sourceUrl)
   poskoId: string;

@@ -396,15 +396,15 @@ async function main() {
 }
 
 function mapAidType(t: string): IncidentAidEventDoc['itemCategory'] {
-  if (/makanan|sembako|beras|air minum|pangan/i.test(t)) return 'FOOD_WATER';
-  if (/masker|obat|medis|P3K/i.test(t)) return 'HEALTH_PROTECTION';
-  if (/tenda|selimut|terpal|kasur|tikar/i.test(t)) return 'SHELTER_BEDDING';
-  if (/pakaian/i.test(t)) return 'CLOTHING';
-  if (/air bersih|sanitasi|tangki/i.test(t)) return 'WASH';
-  if (/perahu|evakuasi/i.test(t)) return 'RESCUE_EVACUATION';
-  if (/pompa|genset|karung|truk|mobil/i.test(t)) return 'LOGISTICS_EQUIPMENT';
+  if (/makanan|sembako|beras|air minum|pangan/i.test(t)) return 'FOOD_NUTRITION';
+  if (/masker|obat|medis|P3K/i.test(t)) return 'HEALTH_MEDICAL';
+  if (/tenda|selimut|terpal|kasur|tikar/i.test(t)) return 'SHELTER';
+  if (/pakaian/i.test(t)) return 'CLOTHING_BEDDING';
+  if (/air bersih|sanitasi|tangki/i.test(t)) return 'DRINKING_WATER';
+  if (/perahu|evakuasi/i.test(t)) return 'RESCUE_ACCESS';
+  if (/pompa|genset|karung|truk|mobil/i.test(t)) return 'LOGISTICS';
   if (/susu|popok/i.test(t)) return 'BABY_CHILDCARE';
-  if (/sabun|hygiene|pembalut/i.test(t)) return 'HYGIENE_PERSONAL_CARE';
+  if (/sabun|hygiene|pembalut/i.test(t)) return 'HYGIENE_SANITATION';
   return 'OTHER';
 }
 

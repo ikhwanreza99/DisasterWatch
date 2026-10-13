@@ -223,8 +223,8 @@ const incidentClaimDocs: IncidentClaimDoc[] = markConflicts(
 );
 
 const LEGACY_NEED_CAT: Record<string, NeedItemCategory> = {
-  clean_water: 'WASH', food: 'FOOD_WATER', medicine: 'HEALTH_PROTECTION', shelter: 'SHELTER_BEDDING',
-  mask: 'HEALTH_PROTECTION', boat: 'RESCUE_EVACUATION', genset: 'LOGISTICS_EQUIPMENT', clothing: 'CLOTHING',
+  clean_water: 'DRINKING_WATER', food: 'FOOD_NUTRITION', medicine: 'HEALTH_MEDICAL', shelter: 'SHELTER',
+  mask: 'HEALTH_MEDICAL', boat: 'RESCUE_ACCESS', genset: 'POWER_LIGHTING', clothing: 'CLOTHING_BEDDING',
 };
 const allAid = [...baseAid, ...extraAid];
 function receivedFor(disasterId: string, legacy: string): number {
