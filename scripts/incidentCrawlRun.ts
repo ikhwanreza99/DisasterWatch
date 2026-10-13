@@ -1,12 +1,13 @@
 import 'dotenv/config';
 import { searchGemini } from './providers/geminiSearch.ts';
+import { searchSerpNews } from './providers/serpapiNews.ts';
 import { newsSourceUrl } from '../src/services/newsSourceUrl.ts';
 import { ACTIVE_NEWS_IDS } from '../src/services/incidentRegistry.ts';
 // Gated incident crawl runner (Admin SDK, trusted GitHub Actions ONLY).
 // NEVER import from browser code. Never commit/log credentials, keys, or bodies.
 //
 // - Gate: reads incidentCrawlRuns for the last SUCCESS/SUCCESS_EMPTY; paid ZAPI
-//   Zapi/Google calls happen ONLY when ≥5 days elapsed (or --force). The daily schedule check
+//   Zapi/Google calls happen ONLY when ≥1 day elapsed (or --force). The daily schedule check
 //   itself is one cheap Firestore read — no crawling API before due.
 // - Outcomes: SUCCESS (≥1 incident ok), SUCCESS_EMPTY (ok, zero relevant —
 //   distinct from failure), PROVIDER_FAILED (all failed → exit 1, data preserved),
@@ -50,6 +51,7 @@ const FORCE = args.has('--force');
 const NO_AI = args.has('--no-ai');
 const now = new Date().toISOString();
 const zapiKey = process.env.ZAPI_API_KEY || '';
+const serpapiKey = process.env.SERPAPI_API_KEY?.trim() || '';
 const aiKey = process.env.DISASTERWATCH_GEMINI_KEY || '';
 const searchKey = process.env.DISASTERWATCH_GEMINI_SEARCH_KEY || aiKey;
 const searchEnabled = process.env.DISASTERWATCH_GOOGLE_SEARCH_ENABLED === 'true' && !!searchKey;
@@ -149,13 +151,13 @@ async function main() {
 
   const due = FORCE || isCrawlDue(lastSuccess, Date.parse(now));
   const daysSince = lastSuccess ? ((Date.parse(now) - Date.parse(lastSuccess)) / 86400_000).toFixed(1) : 'n/a (no history)';
-  console.log(`gate           : lastSuccess=${lastSuccess ?? 'none'} (${daysSince}d ago, interval=5d) → ${due ? 'DUE' : 'GATED_SKIP'}`);
+  console.log(`gate           : lastSuccess=${lastSuccess ?? 'none'} (${daysSince}d ago, interval=1d) → ${due ? 'DUE' : 'GATED_SKIP'}`);
   if (!due) {
     console.log('outcome        : GATED_SKIP (no paid API calls, no writes)');
     return { outcome: 'GATED_SKIP' as CrawlOutcome, exitCode: 0 };
   }
 
-  if (!zapiKey && !searchEnabled) {
+  if (!zapiKey && !searchEnabled && !serpapiKey) {
     // Due but unpaid path unavailable: record failure honestly, preserve all data.
     console.log('outcome        : PROVIDER_FAILED (No configured search provider — no request sent, data preserved)');
     if (db) await recordRun(db, 'PROVIDER_FAILED', lastSuccess, [], 0, 0, 0, 'missing-search-provider');
@@ -242,6 +244,24 @@ async function main() {
         successfulQueries++;
         } catch (e) { console.log(`provider Zapi ${id}: ${safeError(e)}`); }
       }
+      if (serpapiKey) {
+        // Three bounded angles per incident: event, needs, and response/recovery.
+        for (const q of [queries[0], queries[3], queries[5].replace('OR pemulihan)', 'OR pemulihan OR penanggulangan OR evakuasi)')]) {
+          try {
+            const hits = await searchSerpNews(q, serpapiKey);
+            successfulQueries++;
+            for (const hit of hits) fresh.push({
+              id: articleDocId(id, hit.link), incidentId: id, canonicalUrl: hit.link, url: hit.link,
+              title: hit.title, sourceName: hit.sourceName, sourceType: 'NEWS_MEDIA',
+              publishedAt: hit.publishedAt, retrievedAt: now, updatedAt: now, summary: null,
+              contentHash: createHash('sha256').update(`${hit.title}|${hit.link}|${hit.publishedAt ?? ''}`).digest('hex'),
+              contentStatus: 'METADATA_ONLY', discoveredBy: 'serpapi:google-news',
+              relevance: { incidentId: id, status: 'REJECTED', score: 0, matchedAliases: [], matchedKeywords: [], reason: 'pending classification', classifiedAt: now },
+              verificationStatus: 'UNVERIFIED', isMock: false, schemaVersion: 1,
+            });
+          } catch (e) { console.log(`provider SerpApi ${id}: ${safeError(e)}`); }
+        }
+      }
       if (searchEnabled) {
         // One bounded request per incident combining all query angles.
         try {
@@ -262,12 +282,17 @@ async function main() {
         } catch (e) { console.log(`provider Gemini ${id}: ${safeError(e)}`); }
       }
       if (!successfulQueries) throw new Error('All search providers failed');
-      // Prefer publisher metadata from Zapi when both providers cite the same URL.
+      // Prefer dated publisher metadata over undated duplicates across providers.
       const unique = new Map<string, IncidentArticleDoc>();
       for (const article of fresh) {
         const existing = unique.get(article.id);
         if (!existing) unique.set(article.id, article);
-        else if (article.googleSearchSuggestions) existing.googleSearchSuggestions = article.googleSearchSuggestions;
+        else {
+          if (!existing.publishedAt && article.publishedAt) {
+            article.googleSearchSuggestions ??= existing.googleSearchSuggestions;
+            unique.set(article.id, article);
+          } else if (article.googleSearchSuggestions) existing.googleSearchSuggestions = article.googleSearchSuggestions;
+        }
       }
       fresh = [...unique.values()];
       fetched = fresh.length;

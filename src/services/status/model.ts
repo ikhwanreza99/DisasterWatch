@@ -26,9 +26,13 @@ export function safeStatusError(error: unknown): string {
 
 export function statusAdvice(check: ServiceCheck): string | null {
   if (check.state !== 'error') return null;
+  if (check.id.startsWith('serpapi-')) return check.detail.includes('HTTP 429')
+    ? 'Periksa kuota dan batas request akun SerpApi. Tunggu sebelum menjalankan uji kembali.'
+    : 'Periksa GitHub Secret SERPAPI_API_KEY, akun SerpApi, dan status layanannya. Setelah mengganti key, jalankan workflow hosting dengan check_serpapi.';
   if (check.detail.includes('permission-denied')) return 'Periksa Firestore Rules untuk koleksi incidentArticles. Backend Admin dan browser memakai jalur akses yang berbeda.';
   if (check.detail.includes('HTTP 429')) return 'Periksa kuota, rate limit, dan billing proyek API di Google AI Studio / Google Cloud. Tunggu batas reset sebelum menguji ulang.';
   if (check.detail.includes('HTTP 503')) return 'Layanan sedang tidak tersedia atau sibuk. Coba ulang nanti; periksa status global Google AI.';
+  if (check.detail.includes('HTTP 401')) return 'Periksa autentikasi API key, konfigurasi Firebase AI Logic, dan App Check pada proyek ini.';
   if (check.detail.includes('HTTP 403')) return 'Periksa API yang diaktifkan, pembatasan API key/referrer, App Check, dan izin proyek.';
   if (check.detail.includes('HTTP 404')) return 'Periksa nama model atau endpoint yang didukung proyek ini.';
   return null;

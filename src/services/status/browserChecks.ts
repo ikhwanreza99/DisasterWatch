@@ -1,3 +1,4 @@
+import { createCheckRunner } from './automaticChecks';
 import { firebaseEnv, getFirebaseApp, firebaseStatus } from '../../lib/firebase/config';
 import { getDb } from '../../lib/firebase/firestore';
 import { resolveGeminiModel } from '../../lib/firebase/geminiConfig';
@@ -25,10 +26,15 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
   const base = initialChecks().find(c => c.id === id)!;
   if (base.state === 'disabled') return base;
   const checkedAt = new Date().toISOString();
+  let firestoreSession: string | null = null;
   try {
     let detail = '';
     const env = firebaseEnv();
     if (id === 'firestore') {
+      const { getAuthInstance } = await import('../../lib/firebase/auth');
+      const auth = getAuthInstance();
+      if (auth) await auth.authStateReady();
+      firestoreSession = auth?.currentUser ? 'Sesi login dipulihkan' : 'Tidak ada sesi login';
       const { getDocsFromServer, query, collection, limit } = await import('firebase/firestore');
       const db = getDb(); if (!db) throw new Error('No database');
       const snap = await getDocsFromServer(query(collection(db, 'incidentArticles'), limit(1)));
@@ -65,5 +71,33 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       return { ...base, detail: 'Uji peta melalui tombol “Uji Maps” pada halaman status.' };
     }
     return { ...base, state: 'ok', checkedAt, detail };
-  } catch (e) { return { ...base, state: 'error', checkedAt, detail: safeStatusError(e) }; }
+  } catch (e) { return { ...base, state: 'error', checkedAt, detail: safeStatusError(e) + (firestoreSession ? ` · ${firestoreSession}` : '') }; }
+}
+
+// Persist sanitized evidence for 10 minutes in this tab, without API keys.
+async function checkedWithCache(id: string, force = false): Promise<ServiceCheck> {
+  const key = `dw:status:v4:${id}:${resolveGeminiModel()}`;
+  // Firestore always restores current identity after navigation; do not reuse another session.
+  if (!force && id !== 'firestore') try {
+    const saved = JSON.parse(sessionStorage.getItem(key) || 'null') as ServiceCheck | null;
+    const age = saved?.checkedAt ? Date.now() - Date.parse(saved.checkedAt) : Infinity;
+    if (saved?.id === id && ['ok','error','empty'].includes(saved.state) && age >= 0 && age < 10 * 60_000) return saved;
+  } catch { /* storage unavailable */ }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const base = initialChecks().find(c => c.id === id)!;
+  const result = await Promise.race([
+    runBrowserCheck(id),
+    new Promise<ServiceCheck>(resolve => { timer=setTimeout(()=>resolve({...base,state:'error',checkedAt:new Date().toISOString(),detail:'Batas waktu pemeriksaan habis (25 detik).'}),25_000); }),
+  ]);
+  clearTimeout(timer);
+  try { sessionStorage.setItem(key, JSON.stringify(result)); } catch { /* storage unavailable */ }
+  return result;
+}
+
+const automaticRunner = createCheckRunner(id => checkedWithCache(id));
+export function probeBrowserCheck(id: string, force = false) {
+  if (force) {
+    try { sessionStorage.removeItem(`dw:status:v4:${id}:${resolveGeminiModel()}`); } catch { /* storage unavailable */ }
+  }
+  return automaticRunner(id, force);
 }

@@ -1,4 +1,4 @@
-import { currentArticles, currentRecords } from '../data/currentIncidents';
+import { allCurrentRecords, currentArticles, currentRecords } from '../data/currentIncidents';
 import { incidentFreshness } from './incidentFreshness';
 // Adapter: any incident → IncidentDetailData for the shared template.
 // Provenance is explicit per metric; unavailable stays unavailable.
@@ -72,7 +72,7 @@ function incidentClaims(incidentId: string, ntt: NttCaseState | null): ClaimRef[
 }
 
 function nttCandidates(): IncidentArticle[] {
-  return nttArticlesSeed.map((a) => ({
+  const sources: IncidentArticle[] = nttArticlesSeed.map((a) => ({
     url: a.url,
     title: a.title,
     sourceName: a.sourceName,
@@ -84,6 +84,15 @@ function nttCandidates(): IncidentArticle[] {
     incidentId: a.caseId,
     discoveredBy: a.discoveredBy,
   }));
+  const archived = allCurrentRecords.find(r => r.id === 'ntt-sumba-barat-daya-2026-10-04');
+  for (const report of archived?.reports ?? []) {
+    if (!report.documentationUrl) continue;
+    sources.push({ url: report.documentationUrl, title: `Gempa Sumba Barat Daya — ${report.date}`,
+      sourceName: 'BNPB · Dokumentasi kejadian', sourceType: 'OFFICIAL', publishedAt: null,
+      eventDate: report.date, retrievedAt: '2026-10-12T00:00:00+07:00', summary: report.location,
+      contentStatus: 'METADATA_ONLY', incidentId: archived!.id, discoveredBy: 'bnpb-documentation' });
+  }
+  return sources;
 }
 
 function articleDocToCandidate(a: IncidentArticleDoc): IncidentArticle {
@@ -193,7 +202,7 @@ export function buildIncidentDetail(
   // every candidate below is classified before display.
   const seen = new Set<string>();
   const raw: IncidentArticle[] = [];
-  for (const a of [...(remote?.articles ?? []).map(articleDocToCandidate), ...currentArticles.filter(a => a.incidentId === disaster.id), ...nttCandidates(), ...pool]) {
+  for (const a of [...(remote?.articles ?? []).map(articleDocToCandidate), ...currentArticles.filter(a => a.incidentId === disaster.id), ...(isNtt ? nttCandidates() : []), ...pool]) {
     const key = canonicalUrl(a.url) ?? a.url;
     if (seen.has(key)) continue;
     seen.add(key);

@@ -1,3 +1,5 @@
+import { inRecentWindow } from './recentWindow';
+import { NTT_CASE_ID } from '../domain/nttCase';
 // Incident-specific news relevance (data-service level, not UI hiding).
 // STRICT, fail-closed rules:
 // - A generic disaster keyword (gempa/banjir/...) alone is NEVER sufficient.
@@ -35,6 +37,18 @@ function inEventWindow(d: IncidentDescriptor, publishedAt: string | null): boole
 }
 
 export function classifyRelevance(article: IncidentArticle, d: IncidentDescriptor, now = Date.now()): RelevanceResult {
+  // Incident identity takes precedence over missing dates: other cases never enter review.
+  if (article.incidentId && article.incidentId !== d.incidentId) {
+    return { status: 'REJECTED', score: 0, matchedAliases: [], matchedKeywords: [], reason: `Explicitly linked to another incident (${article.incidentId}).` };
+  }
+  const isArchivedNttSource = article.incidentId === NTT_CASE_ID && d.incidentId === NTT_CASE_ID;
+  const reportingDate = article.publishedAt ?? (article.sourceType === 'OFFICIAL' ? article.eventDate : null);
+  if (!isArchivedNttSource && reportingDate && !inRecentWindow(reportingDate, now)) {
+    return { status: 'REJECTED', score: 0, matchedAliases: [], matchedKeywords: [], reason: 'Di luar 7 hari terakhir (WIB) atau tanggal tidak valid.' };
+  }
+  if (!isArchivedNttSource && !reportingDate) {
+    return { status: 'REVIEW_REQUIRED', score: 0, matchedAliases: [], matchedKeywords: [], reason: 'Tanggal belum tersedia untuk membuktikan rentang 7 hari terakhir.' };
+  }
   // Explicit link from a trusted record decides immediately (per-incident).
   if (article.incidentId && article.incidentId === d.incidentId) {
     return {
@@ -43,15 +57,6 @@ export function classifyRelevance(article: IncidentArticle, d: IncidentDescripto
       matchedAliases: [],
       matchedKeywords: [],
       reason: 'Explicit incident link from trusted source record.',
-    };
-  }
-  if (article.incidentId && article.incidentId !== d.incidentId) {
-    return {
-      status: 'REJECTED',
-      score: 0,
-      matchedAliases: [],
-      matchedKeywords: [],
-      reason: `Explicitly linked to another incident (${article.incidentId}).`,
     };
   }
   const text = `${article.title} ${article.summary ?? ''}`;
@@ -66,12 +71,11 @@ export function classifyRelevance(article: IncidentArticle, d: IncidentDescripto
   const matchedKeywords = d.keywords.filter((k) => new RegExp(escapeRegExp(k), 'i').test(text));
   const hasType = typeWordPresent(d, text);
   const windowHit = inEventWindow(d, article.publishedAt);
-  if (CURRENT_DESCRIPTORS.some(c => c.incidentId === d.incidentId) && (!hasType || !article.publishedAt || Date.parse(article.publishedAt) < Date.parse('2026-10-01T00:00:00+07:00') || Date.parse(article.publishedAt) >= Date.parse('2026-10-13T00:00:00+07:00') || !Number.isFinite(Date.parse(article.publishedAt)) || Date.parse(article.publishedAt) > now)) {
+  if (CURRENT_DESCRIPTORS.some(c => c.incidentId === d.incidentId) && (!hasType || !article.publishedAt)) {
     return { status: 'REVIEW_REQUIRED', score: 0, matchedAliases, matchedKeywords, reason: 'Jenis bencana atau tanggal laporan belum cocok dengan kejadian terbaru.' };
   }
   // Supporting evidence beyond a bare place-name mention.
-  const published = Date.parse(article.publishedAt ?? '');
-  const recentOngoing = !d.eventDate && published <= now && now - published <= 14 * 86400_000;
+  const recentOngoing = inRecentWindow(article.publishedAt, now);
   const supported =
     matchedKeywords.length >= 1 || distinctAliases >= 2 || (hasType && (windowHit === true || recentOngoing));
   const score = matchedAliases.length * 3 + matchedKeywords.length * 1 + (hasType ? 0.5 : 0) + (windowHit === true ? 1 : windowHit === false ? -2 : 0);
@@ -144,6 +148,7 @@ export function filterIncidentNews(articles: IncidentArticle[], incidentId: stri
   for (const a of articles) {
     if (a.incidentRelevance?.incidentId !== incidentId) continue;
     if (a.incidentRelevance.status !== 'MATCHED') continue;
+    if (!(incidentId === NTT_CASE_ID && a.incidentId === NTT_CASE_ID) && !inRecentWindow(a.publishedAt ?? (a.sourceType === 'OFFICIAL' ? a.eventDate : null))) continue;
     const key = canonicalUrl(a.url) ?? a.url;
     if (seen.has(key)) continue;
     seen.add(key);

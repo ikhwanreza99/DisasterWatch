@@ -417,6 +417,7 @@ async function main() {
   console.log(`seed clock     : ${SEED_AT} (frozen)`);
   for (const g of plan) console.log(`plan ${g.col.padEnd(10)} : ${g.docs.length} docs (deterministic IDs)`);
   console.log(`credentials    : FIREBASE_NEWS_SERVICE_ACCOUNT=${raw ? '(set)' : 'unset'} GOOGLE_APPLICATION_CREDENTIALS=${gac || '(unset)'}`);
+// Readback needs the same explicit credentials as writes. Dry-run stays offline.
   if (!dryRun) {
     // Both live seed and verify-only need Firestore access.
     if (raw) {

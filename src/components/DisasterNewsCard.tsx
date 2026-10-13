@@ -1,3 +1,4 @@
+import { inRecentWindow } from '../services/recentWindow';
 import { newsSourceUrl } from '../services/newsSourceUrl';
 import React, { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
@@ -25,7 +26,7 @@ export function DisasterNewsCard({ compact = false }: { compact?: boolean }) {
     const timer = setInterval(() => void refresh(), 5 * 60_000);
     return () => { controller.abort(); clearInterval(timer); };
   }, []);
-  const items = (feed?.items ?? []).filter(item => newsSourceUrl(item.url) && Number.isFinite(Date.parse(item.publishedAt)) && Date.now() - Date.parse(item.publishedAt) <= 14 * 86400_000 && /^https:\/\//.test(item.url)).slice(0, 15);
+  const items = (feed?.items ?? []).filter(item => newsSourceUrl(item.url) && inRecentWindow(item.publishedAt) && /^https:\/\//.test(item.url)).slice(0, 15);
   const stale = feed?.updatedAt && Date.now() - Date.parse(feed.updatedAt) > NEWS_REFRESH_MS + 6 * 3600_000;
   return <section className="rounded-[20px] border border-slate-200 bg-white p-4 min-w-0" aria-label="Update Berita Terkini">
     <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">

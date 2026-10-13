@@ -70,7 +70,8 @@ export default function App() {
         return descriptor !== null && classifyRelevance(article, descriptor).status === 'MATCHED';
       })
       .map(article => article.incidentId!));
-    return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => covered.has(id)));
+    // Keep the dedicated NTT case accessible independently of the recent dataset.
+    return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => id === NTT_CASE_ID || covered.has(id)));
   });
   const [ntt, setNtt] = useState<NttCaseState | null>(null);
   const [isNttOpen, setIsNttOpen] = useState<boolean>(false);
@@ -131,7 +132,7 @@ export default function App() {
   // BMKG weather nowcast: RSS → CAP details → React state. Same constraints.
   const bmkgWx = useBmkgWeatherWarnings();
 
-  const activeDisaster = disasters[activeDisasterKey] || disasters['padang'];
+  const activeDisaster = disasters[activeDisasterKey] || Object.values(disasters)[0];
 
   const handleSelectDisaster = (key: string) => {
     // Clicking an incident marker opens the mini sidebar for it (as in feat/homepage-slicing).
@@ -156,7 +157,7 @@ export default function App() {
   const handleSelectCategory = (cat: CategoryFilter) => {
     setActiveCategory(cat);
     // If the active disaster doesn't match the new category, pick the first visible
-    if (cat !== 'all' && cat !== 'none' && activeDisaster.category !== cat) {
+    if (cat !== 'all' && cat !== 'none' && activeDisaster && activeDisaster.category !== cat) {
       const match = Object.values(disasters).find((d) => d.category === cat);
       if (match) {
         setActiveDisasterKey(match.id);
@@ -331,6 +332,7 @@ export default function App() {
   };
 
   const handleOpenDisasterBrief = () => {
+    if (!activeDisaster) return;
     alert(
       `[DATA TEKNIS SATGAS BNPB & BMKG]\n` +
         `Wilayah: ${activeDisaster.name}, ${activeDisaster.province}\n` +
@@ -389,7 +391,7 @@ export default function App() {
     // Legacy path (ReportModal lama / AIHelpdesk lama): keep UI feed working.
     const newReportItem = {
       id: `rep-${Date.now()}`,
-      location: newReportData.location || activeDisaster.name,
+      location: newReportData.location || activeDisaster?.name || 'Lokasi belum tersedia',
       title: 'Laporan Warga Baru',
       desc: newReportData.description || newReportData.desc || 'Laporan baru diterima dari lapangan.',
       time: 'Baru saja',
@@ -489,7 +491,7 @@ export default function App() {
 
           {/* Central Map Canvas Area (provider-abstracted, Leaflet default) */}
           <MapProvider
-            mapActionSlot={!isNttOpen && !isAIOpen && !isDetailOpen && !isRouteOpen && !isReportsOpen && isSidebarMinimized ? (
+            mapActionSlot={disasters[NTT_CASE_ID] && !isNttOpen && !isAIOpen && !isDetailOpen && !isRouteOpen && !isReportsOpen && isSidebarMinimized ? (
             <button
               type="button"
               onClick={handleOpenNttIncident}
@@ -564,7 +566,7 @@ export default function App() {
           />
 
           {/* MODE 1: Compact Homepage Menu Sidebar (Only rendered when no other window is open and user un-minimizes sidebar) */}
-          {!isDetailOpen && !isRouteOpen && !isReportsOpen && !isAIOpen && !isNttOpen && !isSidebarMinimized && (
+          {activeDisaster && !isDetailOpen && !isRouteOpen && !isReportsOpen && !isAIOpen && !isNttOpen && !isSidebarMinimized && (
             <SlimSidebar
               disaster={activeDisaster}
               isExpanded={isSidebarExpanded}
@@ -587,7 +589,7 @@ export default function App() {
           )}
 
           {/* MODE 3: Dedicated Single-Window "Posko Evakuasi" (replaces Rute Distribusi, from feat/homepage-slicing) */}
-          {isRouteOpen && (
+          {activeDisaster && isRouteOpen && (
             <EvacuationPostView
               disaster={activeDisaster}
               onClose={() => setIsRouteOpen(false)}
@@ -601,7 +603,7 @@ export default function App() {
           )}
 
           {/* MODE 4: Dedicated Single-Window "Semua Laporan Warga" (Strictly single window, no dual window) */}
-          {isReportsOpen && (
+          {activeDisaster && isReportsOpen && (
             <CitizenReportsView
               disaster={activeDisaster}
               onClose={() => setIsReportsOpen(false)}
@@ -613,7 +615,7 @@ export default function App() {
           )}
 
           {/* MODE 5: Dedicated Single-Window "DisasterAI Helpdesk" */}
-          {isAIOpen && (
+          {activeDisaster && isAIOpen && (
             <AIHelpdeskPanel
               key={aiWorkflow}
               expanded={isAIExpanded}
@@ -665,21 +667,21 @@ export default function App() {
           }}
         />
       )}
-      <ReportModal
+      {activeDisaster && <ReportModal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         activeDisaster={activeDisaster}
         onReportSuccess={handleNewReportSuccess}
         onIntelReport={handleIntelReport}
-      />
+      />}
 
       {/* Standalone Donation & Aid Distribution Modal */}
-      <DonationModal
+      {activeDisaster && <DonationModal
         isOpen={isDonationModalOpen}
         onClose={() => setIsDonationModalOpen(false)}
         disaster={activeDisaster}
         onAidAdded={handleAidAdded}
-      />
+      />}
     </div>
   );
 }
