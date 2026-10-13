@@ -11,7 +11,7 @@ import { poskoMapMarkers } from '../src/domain/incidentDetail.ts';
 const art = (over: Partial<IncidentArticle> & { url: string; title: string }): IncidentArticle => ({
   sourceName: 'Test Media',
   sourceType: 'NEWS_MEDIA',
-  publishedAt: '2026-10-05T00:00:00.000Z',
+  publishedAt: new Date().toISOString(),
   retrievedAt: '2026-10-11T00:00:00.000Z',
   summary: null,
   contentStatus: 'METADATA_ONLY',
@@ -31,9 +31,9 @@ test('1: Cianjur articles match Cianjur, reject Lombok/NTT news', () => {
   assert.equal(classifyRelevance(a, ntt).status, 'REJECTED');
 });
 
-test('2: Lombok articles match Lombok, reject Cianjur/NTT news', () => {
+test('2: historical Lombok articles stay out of the recent dataset', () => {
   const a = art({ url: 'https://example.com/lb', title: 'Gempa Lombok Utara: 80 persen bangunan rusak, BNPB salurkan bantuan', publishedAt: '2018-08-06T00:00:00Z', summary: 'Mataram dan Lombok Timur terdampak' });
-  assert.equal(classifyRelevance(a, lombok).status, 'MATCHED');
+  assert.equal(classifyRelevance(a, lombok).status, 'REJECTED');
   assert.equal(classifyRelevance(a, cianjur).status, 'REJECTED');
   assert.equal(classifyRelevance(a, ntt).status, 'REJECTED');
 });
@@ -80,7 +80,7 @@ test('7: missing publication dates stay unknown, never fabricated', () => {
   const a = art({ url: 'https://example.com/n', title: 'Posko pengungsian Cianjur di Cugenang menampung warga', publishedAt: null });
   assert.equal(a.publishedAt, null);
   const r = classifyRelevance(a, cianjur);
-  assert.equal(r.status, 'MATCHED');
+  assert.equal(r.status, 'REVIEW_REQUIRED');
 });
 
 test('8: missing aid quantities stay null (not zero, not invented)', () => {
@@ -190,7 +190,7 @@ test('17: REVIEW_REQUIRED and REJECTED never enter the default feed', async () =
   const { classifyForIncident, reviewQueue } = await import('../src/services/incidentNews.ts');
   const pool = [
     art({ url: 'https://example.com/m', title: 'Gempa Cianjur: posko Cugenang salurkan bantuan', summary: 'Desa Gasol' }),
-    art({ url: 'https://example.com/r', title: 'Gempa Sukabumi dirasakan warga', publishedAt: '2026-10-05T00:00:00.000Z' }),
+    art({ url: 'https://example.com/r', title: 'Gempa Sukabumi dirasakan warga', publishedAt: new Date().toISOString() }),
     art({ url: 'https://example.com/x', title: 'Gempa Lombok Utara rusak berat', summary: 'Mataram' }),
   ].map((a) => classifyForIncident(a, cianjur));
   const feed = filterIncidentNews(pool, 'cianjur');

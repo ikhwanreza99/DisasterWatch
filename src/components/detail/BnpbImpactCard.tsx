@@ -1,5 +1,6 @@
 import React from 'react';
-import { currentRecords } from '../../data/currentIncidents';
+import { allCurrentRecords, currentRecords } from '../../data/currentIncidents';
+import { NTT_CASE_ID } from '../../domain/nttCase';
 
 const fields = [
   ['deaths', 'Meninggal'], ['missing', 'Hilang'], ['injured', 'Terluka'],
@@ -8,7 +9,7 @@ const fields = [
 ] as const;
 
 export function BnpbImpactCard({ incidentId }: { incidentId: string }) {
-  const record = currentRecords.find(r => r.id === incidentId);
+  const record = (incidentId === NTT_CASE_ID ? allCurrentRecords : currentRecords).find(r => r.id === incidentId);
   const reports = [...(record?.reports ?? [])].sort((a, b) => b.date.localeCompare(a.date));
   return (
     <section className="my-3 min-w-0 rounded-2xl border border-slate-100 bg-slate-50 p-3" aria-label="Dampak tercatat BNPB">
