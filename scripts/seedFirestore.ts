@@ -6,7 +6,7 @@
 // - Auth: GOOGLE_APPLICATION_CREDENTIALS -> service-account file OUTSIDE the repo.
 // - Usage: npm run seed:firestore [-- --dry-run] [-- --verify-only]
 import { existsSync, statSync } from 'node:fs';
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { cert, initializeApp } from 'firebase-admin/app';
 import { getFirestore, type WriteBatch } from 'firebase-admin/firestore';
 import { disastersData } from '../src/data/disasters.js';
 import { DEMO_SCENARIO_ID, demoAid, demoReports } from '../src/data/seedDemo.js';
@@ -417,7 +417,8 @@ async function main() {
   console.log(`seed clock     : ${SEED_AT} (frozen)`);
   for (const g of plan) console.log(`plan ${g.col.padEnd(10)} : ${g.docs.length} docs (deterministic IDs)`);
   console.log(`credentials    : FIREBASE_NEWS_SERVICE_ACCOUNT=${raw ? '(set)' : 'unset'} GOOGLE_APPLICATION_CREDENTIALS=${gac || '(unset)'}`);
-  if (!dryRun && !verifyOnly) {
+  // Readback needs the same explicit credentials as writes. Dry-run stays offline.
+  if (!dryRun) {
     if (raw) {
       const account = JSON.parse(raw);
       if (account.project_id !== PROJECT_ID) throw new Error('Unexpected project');
@@ -434,8 +435,6 @@ async function main() {
       console.log('credentials    : GOOGLE_APPLICATION_CREDENTIALS valid (project_id matched)');
     }
   }
-
-  if (getApps().length === 0) initializeApp({ projectId: PROJECT_ID });
 
   if (dryRun) {
     console.log('dry-run        : no writes, no network (dataset assembly only)');
