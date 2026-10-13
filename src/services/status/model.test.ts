@@ -12,3 +12,7 @@ test('status errors exclude secrets, URLs and raw provider bodies', () => {
   assert.equal(safeStatusError(new Error('https://host?key=private-key')), 'Permintaan gagal; periksa akses, jaringan, atau kuota');
   assert.equal(safeStatusError({code:'permission-denied'}), 'permission-denied');
 });
+
+test('SDK errors expose only numeric HTTP status, never provider message/body', () => {
+  assert.equal(safeStatusError({code:'fetch-error',customErrorData:{status:503,errorDetails:'private-body'},message:'private-key'}), 'fetch-error · HTTP 503');
+});

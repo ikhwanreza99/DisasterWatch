@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { APIProvider, Map } from '@vis.gl/react-google-maps';
 import { Activity, ArrowLeft, RefreshCw, ArrowUpRight, CheckCircle2, AlertCircle, Clock3 } from 'lucide-react';
 import { initialChecks, runBrowserCheck } from '../services/status/browserChecks';
-import { stale, stateLabels, type ServiceCheck, type StatusSnapshot } from '../services/status/model';
+import { stale, stateLabels, statusAdvice, type ServiceCheck, type StatusSnapshot } from '../services/status/model';
 
 const colors: Record<ServiceCheck['state'], string> = {
   ok: 'bg-emerald-50 text-emerald-700', empty: 'bg-sky-50 text-sky-700', error: 'bg-rose-50 text-rose-700',
@@ -56,7 +56,7 @@ export default function GoogleStatusPage() {
   const failures = all.filter(c => c.state === 'error').length;
   function table(rows: ServiceCheck[], browser = false) { return <div className="divide-y divide-slate-100">{rows.map(c => <article key={c.id} className="grid gap-3 px-5 py-5 sm:grid-cols-[minmax(180px,1fr)_minmax(220px,2fr)_auto] sm:items-start">
     <div><h3 className="font-semibold text-slate-900 text-sm">{c.name}</h3><p className="mt-1 text-xs text-slate-400">{c.scope === 'browser' ? 'Browser ini' : c.scope === 'backend' ? 'GitHub Actions / server' : 'Snapshot produksi'}</p></div>
-    <div><span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${colors[c.state]}`}>{stateLabels[c.state]}</span>{stale(c) && <span className="ml-2 text-[11px] text-amber-700">Hasil lebih dari 24 jam</span>}<p className="mt-2 text-xs leading-relaxed text-slate-600 break-words">{c.detail}</p><p className="mt-2 text-[11px] text-slate-400">{date(c.checkedAt)}</p></div>
+    <div><span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${colors[c.state]}`}>{stateLabels[c.state]}</span>{stale(c) && <span className="ml-2 text-[11px] text-amber-700">Hasil lebih dari 24 jam</span>}<p className="mt-2 text-xs leading-relaxed text-slate-600 break-words">{c.detail}</p>{statusAdvice(c) && <p className="mt-2 text-xs leading-relaxed text-amber-700">{statusAdvice(c)}</p>}<p className="mt-2 text-[11px] text-slate-400">{date(c.checkedAt)}</p></div>
     {browser && <button onClick={() => test(c.id)} disabled={!!running || c.state === 'disabled' || c.id === 'storage'} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40">{running === c.id || c.state === 'checking' ? 'Memeriksa...' : c.id === 'maps' ? 'Uji Maps' : c.id === 'storage' ? 'Perlu lampiran' : 'Uji layanan'}</button>}
   </article>)}</div>; }
   return <div className="min-h-screen bg-[#f8fafb] text-slate-900">
