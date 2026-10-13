@@ -44,7 +44,7 @@ try {
       const latest = runs.docs.map(d => d.data()).find(r => ['SUCCESS', 'SUCCESS_EMPTY'].includes(r.outcome));
       const at = latest?.finishedAt || latest?.startedAt || null;
       const due = isCrawlDue(at, Date.now());
-      add('crawler', 'Crawler berita · gate & hasil tersimpan', 'ok', `Terakhir: ${latest?.outcome || 'belum ada run sukses'}. ${due ? 'Sudah jatuh tempo' : 'Tertahan interval 5 hari'}. Artikel Gemini tersimpan: ${google.data().count}; seluruh artikel: ${zapi.data().count}.`);
+      add('crawler', 'Crawler berita · gate & hasil tersimpan', 'ok', `Terakhir: ${latest?.outcome || 'belum ada run sukses'}. ${due ? 'Sudah jatuh tempo' : 'Tertahan interval 1 hari'}. Artikel Gemini tersimpan: ${google.data().count}; seluruh artikel: ${zapi.data().count}.`);
       if (at) services[services.length - 1].detail += ` Run sukses: ${at}.`;
       const sample = googleSample.docs.map(d => d.data());
       const matched = sample.filter(a => a.relevance?.status === 'MATCHED').length;

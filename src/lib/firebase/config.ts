@@ -1,5 +1,6 @@
 // Central Firebase configuration. Env-driven, safe fallback to mock mode.
 import { FirebaseApp, getApps, initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 
 export interface FirebaseStatus {
   configured: boolean;
@@ -56,14 +57,27 @@ export function isFirebaseConfigured(): boolean {
 }
 
 let cachedApp: FirebaseApp | null = null;
+let appCheckInitialized = false;
+
+function configureAppCheck(app: FirebaseApp): void {
+  const siteKey = readEnv('VITE_FIREBASE_APPCHECK_SITE_KEY');
+  if (appCheckInitialized || !siteKey || typeof window === 'undefined') return;
+  initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(siteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+  appCheckInitialized = true;
+}
 
 export function getFirebaseApp(): FirebaseApp | null {
   if (!isFirebaseConfigured()) return null;
   if (cachedApp) return cachedApp;
   if (getApps().length > 0) {
     cachedApp = getApps()[0]!;
+    configureAppCheck(cachedApp);
     return cachedApp;
   }
   cachedApp = initializeApp(firebaseEnv());
+  configureAppCheck(cachedApp);
   return cachedApp;
 }
