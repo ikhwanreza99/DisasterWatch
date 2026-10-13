@@ -43,6 +43,7 @@ jobs:
       - name: Gated incident crawl → Firestore
         run: npx tsx scripts/incidentCrawlRun.ts
         env:
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           DISASTERWATCH_GOOGLE_SEARCH_ENABLED: ${{ vars.DISASTERWATCH_GOOGLE_SEARCH_ENABLED }}
           DISASTERWATCH_GOOGLE_SEARCH_MODEL: ${{ vars.DISASTERWATCH_GOOGLE_SEARCH_MODEL }}
           DISASTERWATCH_GEMINI_SEARCH_KEY: ${{ secrets.DISASTERWATCH_GEMINI_SEARCH_KEY }}

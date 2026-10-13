@@ -26,6 +26,10 @@ on:
     - cron: '7,37 * * * *'
   workflow_dispatch:
     inputs:
+      check_serpapi:
+        description: 'Uji SerpApi Google News sekali (tanpa menjalankan seluruh crawler)'
+        type: boolean
+        default: false
       check_google_search:
         description: 'Uji Google Search sekali (memakai kuota; tidak menjalankan seluruh crawler)'
         type: boolean
@@ -102,6 +106,8 @@ jobs:
         run: npx tsx scripts/status/googleStatusSnapshot.ts
         env:
           CHECK_GOOGLE_SEARCH: ${{ inputs.check_google_search || 'false' }}
+          CHECK_SERPAPI: ${{ inputs.check_serpapi || 'false' }}
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           DISASTERWATCH_GOOGLE_SEARCH_ENABLED: ${{ vars.DISASTERWATCH_GOOGLE_SEARCH_ENABLED }}
           DISASTERWATCH_GOOGLE_SEARCH_MODEL: ${{ vars.DISASTERWATCH_GOOGLE_SEARCH_MODEL }}
           DISASTERWATCH_GEMINI_SEARCH_KEY: ${{ secrets.DISASTERWATCH_GEMINI_SEARCH_KEY }}
