@@ -5,6 +5,27 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Browser counts are self-reported telemetry, never billing evidence.
+    // Server crawler writes use Admin SDK. Only superusers read usage.
+    function usageCount(value) {
+      return value == null || (value is int && value >= 0 && value <= 100000000);
+    }
+    match /aiUsage/{id} {
+      allow read: if superuser();
+      allow create: if request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.resource.data.keys().hasOnly(['at','createdAt','model','transport','source','uid','input','output','total'])
+        && request.resource.data.keys().hasAll(['at','createdAt','model','transport','source','uid','input','output','total'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.source == 'browser'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.at is string && request.resource.data.at.size() <= 30
+        && request.resource.data.model is string && request.resource.data.model.size() <= 100
+        && request.resource.data.transport is string && request.resource.data.transport.size() <= 100
+        && usageCount(request.resource.data.input) && usageCount(request.resource.data.output)
+        && request.resource.data.total is int && request.resource.data.total >= 0 && request.resource.data.total <= 100000000;
+      allow update, delete: if false;
+    }
     match /users/{id} {
       allow read: if request.auth != null && (superuser() || resource.data.authUid == request.auth.uid);
       allow write: if false; // Provisioned Admin SDK only; clients cannot assign roles.

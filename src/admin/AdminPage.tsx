@@ -34,7 +34,7 @@ import {
 import type { IntelligenceReport } from "../domain/intelligence";
 import { needLabel } from "../domain/intelligence";
 import { adminApi, AdminError, type Page } from "./api";
-import { readTokenUsage } from "./tokenUsage";
+import type { TokenSample } from "./tokenUsage";
 import "./admin.css";
 
 const GoogleStatusPage = lazy(() => import("../components/GoogleStatusPage"));
@@ -927,16 +927,22 @@ function Review({
 }
 
 function Tokens() {
-  const [samples, setSamples] = useState(readTokenUsage);
+  const [samples, setSamples] = useState<TokenSample[]>([]);
   const [days, setDays] = useState("7");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   useEffect(() => {
-    const update = () => setSamples(readTokenUsage());
-    window.addEventListener("storage", update);
-    window.addEventListener("dw-token-usage", update);
-    return () => {
-      window.removeEventListener("storage", update);
-      window.removeEventListener("dw-token-usage", update);
+    let active = true;
+    const update = async () => {
+      try {
+        const data = await adminApi<TokenSample[]>("/ai-usage");
+        if (active) { setSamples(data); setError(""); }
+      } catch { if (active) setError("Gagal membaca aiUsage. Periksa koneksi dan publikasikan Firestore Rules terbaru."); }
+      finally { if (active) setLoading(false); }
     };
+    void update();
+    const timer = window.setInterval(() => void update(), 30000);
+    return () => { active = false; window.clearInterval(timer); };
   }, []);
   const rows = samples.filter(
     (s) => Date.parse(s.at) >= Date.now() - Number(days) * 86400_000,
@@ -947,11 +953,11 @@ function Tokens() {
   return (
     <>
       <div className="admin-notice">
-        <strong>Cakupan: browser ini</strong>
+        <strong>Cakupan: Firestore aiUsage</strong>
         <span>
-          Angka berasal dari metadata respons Gemini yang tercatat di browser
-          ini (maksimal 500 panggilan terakhir), bukan total penggunaan proyek
-          atau tagihan. Panggilan crawler dan perangkat lain belum tercakup.
+          Maksimal 1.000 panggilan terbaru dari crawler dan browser pengguna yang login.
+          Metadata browser dilaporkan oleh klien; metadata crawler dicatat server.
+          Bukan total tagihan proyek. Diperbarui setiap 30 detik.
         </span>
       </div>
       <div className="admin-stats">
@@ -990,7 +996,7 @@ function Tokens() {
             <option value="30">30 hari terakhir</option>
           </select>
         </div>
-        {rows.length ? (
+        {error ? <Empty title="Data token belum dapat dibaca">{error}</Empty> : loading ? <Empty title="Memuat penggunaan token…">Mengambil catatan dari Firestore.</Empty> : rows.length ? (
           <div className="admin-table-scroll">
             <table>
               <thead>
@@ -1003,7 +1009,7 @@ function Tokens() {
                 </tr>
               </thead>
               <tbody>
-                {[...rows].reverse().map((row, i) => (
+                {rows.map((row, i) => (
                   <tr key={`${row.at}-${i}`}>
                     <td>{date(row.at)}</td>
                     <td>
@@ -1020,8 +1026,8 @@ function Tokens() {
           </div>
         ) : (
           <Empty title="Belum ada penggunaan token tercatat">
-            Metadata token akan muncul setelah panggilan AI berhasil di browser
-            ini. Data yang belum tersedia tidak dihitung sebagai nol.
+            Catatan muncul setelah panggilan Gemini baru berhasil dan metadata tersimpan di Firestore.
+            Riwayat sebelum pencatatan diaktifkan tidak tersedia.
           </Empty>
         )}
       </section>

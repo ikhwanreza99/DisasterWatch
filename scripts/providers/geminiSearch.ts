@@ -12,6 +12,7 @@ export interface SearchHit {
 interface Citation { type?: string; url?: string; title?: string; start_index?: number; end_index?: number }
 interface Block { type?: string; text?: string; annotations?: Citation[] }
 interface SearchResponse {
+  usage?: { total_input_tokens?: number; total_output_tokens?: number; total_tokens?: number };
   status?: string;
   steps?: Array<{ type?: string; content?: Block[]; result?: Array<{ search_suggestions?: string }> }>;
 }
@@ -44,7 +45,7 @@ export function parseGroundedSearch(data: SearchResponse): SearchHit[] {
   return [...hits.values()].slice(0, 20);
 }
 
-export async function searchGemini(query: string, apiKey: string, model = 'gemini-3.8-flash', request: typeof fetch = fetch): Promise<SearchHit[]> {
+export async function searchGemini(query: string, apiKey: string, model = 'gemini-3.8-flash', request: typeof fetch = fetch, onUsage?: (usage: SearchResponse["usage"]) => Promise<void>): Promise<SearchHit[]> {
   const response = await request('https://generativelanguage.googleapis.com/v1beta/interactions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -52,5 +53,7 @@ export async function searchGemini(query: string, apiKey: string, model = 'gemin
     signal: AbortSignal.timeout(60_000),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return parseGroundedSearch(await response.json() as SearchResponse);
+  const data = await response.json() as SearchResponse;
+  if (onUsage) await onUsage(data.usage);
+  return parseGroundedSearch(data);
 }
