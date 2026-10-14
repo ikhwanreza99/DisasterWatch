@@ -20,3 +20,10 @@ test('Gemini cannot inject an invented facility or replace coordinates',()=>{
   assert.throws(()=>rankCandidates(rows,'[-1,-1]'));
   assert.throws(()=>rankCandidates(rows,'[]'));
 });
+test('nearby facilities must match the disaster regency, not only its province',async()=>{
+  const {placeInRegion}=await import('../src/services/places/evacuationCandidates.ts');
+  const inCentral={...school,addressComponents:[{longText:'Kabupaten Bangka Tengah',types:['administrative_area_level_2']}]};
+  assert.equal(placeInRegion(inCentral,'Bangka Selatan'),false);
+  assert.equal(placeInRegion({...inCentral,addressComponents:[{longText:'Kabupaten Bangka Selatan',types:['administrative_area_level_2']}]},'Bangka Selatan'),true);
+  assert.equal(placeInRegion({...school,formattedAddress:'Simpang Rimba, Kabupaten Bangka Selatan'},'Bangka Selatan'),true);
+});

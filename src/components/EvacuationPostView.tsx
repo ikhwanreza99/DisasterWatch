@@ -81,6 +81,7 @@ export const EvacuationPostView: React.FC<EvacuationPostViewProps> = ({
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
   const [method,setMethod]=useState<'gemini'|'distance'|null>(null);
+  const [anchorNote,setAnchorNote]=useState<string|null>(null);
   const [radius,setRadius]=useState(5000);
   const [retry,setRetry]=useState(0);
   const onSuggestedRef=useRef(onSuggestedPosts);
@@ -88,12 +89,12 @@ export const EvacuationPostView: React.FC<EvacuationPostViewProps> = ({
   const hasReportedPosts=posts.some(p=>!p.recommendation);
   useEffect(()=>{
     let active=true;
-    setError('');setMethod(null);
+    setError('');setMethod(null);setAnchorNote(null);
     if(hasReportedPosts){setLoading(false);return;}
     setLoading(true);
     recommendEvacuation(disaster,posts=>{if(active)onSuggestedRef.current?.(disaster.id,posts);}).then(result=>{
       if(!active)return;
-      setMethod(result.method);setRadius(result.radius);
+      setMethod(result.method);setRadius(result.radius);setAnchorNote(result.anchorNote);
       onSuggestedRef.current?.(disaster.id,result.posts);
     }).catch(()=>{if(active)setError('Pencarian fasum belum berhasil. Periksa Places API (New), izin API key, dan koneksi.');}).finally(()=>{if(active)setLoading(false);});
     return ()=>{active=false;};
@@ -149,6 +150,7 @@ export const EvacuationPostView: React.FC<EvacuationPostViewProps> = ({
       {!hasReportedPosts && <div className="mx-5 mb-3 rounded-2xl border border-amber-200 bg-amber-50/90 p-3 text-[11px] leading-relaxed text-amber-900">
         <strong>Usulan lokasi posko</strong>
         <p>Fasum terdekat dari koordinat laporan. Belum ditetapkan sebagai posko aktif; kapasitas dan keamanan perlu pemeriksaan BPBD.</p>
+        {anchorNote && <p className="mt-2 font-semibold">{anchorNote}</p>}
         {method && <p className="mt-1">{method==='gemini'?'Urutan dibantu Gemini':'Urutan berdasarkan jarak; Gemini belum tersedia'} · radius {radius/1000} km · jarak garis lurus.</p>}
       </div>}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-5">
@@ -217,7 +219,7 @@ export const EvacuationPostView: React.FC<EvacuationPostViewProps> = ({
                       )}
                     </div>
 
-                    {post.recommendation && <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]"><span className="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-800">Usulan · {post.facilityType}</span><span className="rounded-full bg-cyan-50 px-2 py-1 text-cyan-700">{((post.distanceMeters??0)/1000).toFixed(1)} km dari titik laporan</span><span className="text-slate-500">Sumber: Google Maps</span></div>}
+                    {post.recommendation && <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]"><span className="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-800">Usulan · {post.facilityType}</span><span className="rounded-full bg-cyan-50 px-2 py-1 text-cyan-700">{((post.distanceMeters??0)/1000).toFixed(1)} km dari lokasi acuan</span><span className="text-slate-500">Sumber: Google Maps</span></div>}
                     {description && <p className="mt-2 text-[10px] leading-relaxed text-slate-500">{description}</p>}
                     <div className="mt-4">
                       <div className="flex items-center justify-between gap-3 mb-2">
