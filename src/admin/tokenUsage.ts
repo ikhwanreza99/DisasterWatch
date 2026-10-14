@@ -66,7 +66,7 @@ export function recordTokenUsage(
 async function persistTokenSample(sample: TokenSample) {
   try {
     const [{ getApps }, { getAuth }, { getFirestore, collection, addDoc, serverTimestamp }] = await Promise.all([import("firebase/app"), import("firebase/auth"), import("firebase/firestore")]);
-    const app = getApps().find(a => getAuth(a).currentUser);
+    const app = getApps().find(a => { const user = getAuth(a).currentUser; return user && !user.isAnonymous; });
     if (!app) return; // Anonymous/unauthenticated requests stay local.
     const uid = getAuth(app).currentUser!.uid;
     await addDoc(collection(getFirestore(app), "aiUsage"), { ...sample, source: "browser", uid, createdAt: serverTimestamp() });
