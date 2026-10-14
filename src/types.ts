@@ -92,6 +92,8 @@ export interface DisasterIncident {
   photoUrl: string;
   photoAlt: string;
   photoSource: string;
+  photoSourceUrl?: string;
+  photoReportDate?: string;
   stats: {
     hotspots: string;
     hotspotsChange: string;
@@ -111,4 +113,3 @@ export interface DisasterIncident {
   };
   reports: CitizenReport[];
 }
-

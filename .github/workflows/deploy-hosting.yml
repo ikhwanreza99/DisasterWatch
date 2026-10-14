@@ -114,8 +114,12 @@ jobs:
           FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
 
       - name: Sync source-backed REAL disaster records
-        run: node --import tsx scripts/syncRealDisasters.ts
+        # Photo URL metadata only; no remote images are copied into hosting.
+        run: |
+          node --import tsx scripts/snapshotDisasterPhotos.ts
+          node --import tsx scripts/syncRealDisasters.ts
         env:
+          BNPB_DRIVE_API_KEY: ${{ secrets.BNPB_DRIVE_API_KEY }}
           FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
 
       - name: Preserve Google service diagnostics

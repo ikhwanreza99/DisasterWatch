@@ -44,6 +44,8 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
   intelReports = [],
   aidRecords = [],
 }) => {
+  const [failedPhotoUrl, setFailedPhotoUrl] = React.useState<string | null>(null);
+  const showPhoto = !!disaster.photoUrl && disaster.photoUrl !== failedPhotoUrl;
 
   const recoveryServiceConfig = {
     water: {
@@ -235,20 +237,24 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
             </div>
 
             {/* Field Photo Banner with Source */}
-            {disaster.photoUrl && <div className="mb-4 relative rounded-xl overflow-hidden border border-slate-200/80 shadow-inner group">
+            {showPhoto && <div className="mb-4 relative rounded-xl overflow-hidden border border-slate-200/80 shadow-inner group">
               <img
                 src={disaster.photoUrl}
                 alt={disaster.photoAlt}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onError={() => setFailedPhotoUrl(disaster.photoUrl)}
                 className="w-full h-36 object-cover transform hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] text-white flex items-center gap-1.5 border border-white/10">
                 <Newspaper className="w-3 h-3 text-amber-400" />
-                <span>Sumber: {disaster.photoSource}</span>
+                {disaster.photoSourceUrl ? <a href={disaster.photoSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">Dokumentasi: {disaster.photoSource}</a> : <span>Sumber: {disaster.photoSource}</span>}
+                {disaster.photoReportDate && <span>· Laporan {new Date(disaster.photoReportDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' })}</span>}
               </div>
             </div>}
-            {!disaster.photoUrl && <div className="mb-4 h-36 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-2 text-slate-400" data-purpose="field-photo-placeholder">
+            {!showPhoto && <div className="mb-4 h-36 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-2 text-slate-400" data-purpose="field-photo-placeholder">
               <Newspaper className="w-6 h-6" />
-              <span className="text-xs font-semibold">Foto Lapangan Terkini</span>
+              <span className="text-xs font-semibold">Dokumentasi kejadian</span>
               <span className="text-[11px]">Belum tersedia</span>
             </div>}
 

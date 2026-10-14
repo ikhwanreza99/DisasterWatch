@@ -3,9 +3,18 @@ import 'dotenv/config';
 import { cert, initializeApp, deleteApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { realDisasterDataset } from './realDisasterDataset.ts';
+import { readFile } from 'node:fs/promises';
+import { validDisasterPhoto, type DisasterPhoto } from '../src/services/disasterPhoto.ts';
 
 async function main() {
-  const docs = realDisasterDataset();
+  const docs = realDisasterDataset().map(doc => ({ ...doc, photoSourceUrl: '', photoReportDate: '' }));
+  try {
+    const snapshot = JSON.parse(await readFile('public/data/disaster-photos.json', 'utf8')) as { photos: Record<string, DisasterPhoto> };
+    for (const doc of docs) {
+      const photo = snapshot.photos[doc.id];
+      if (validDisasterPhoto(photo, doc.id)) Object.assign(doc, { photoUrl: photo.imageUrl, photoSource: photo.sourceName, photoAlt: `Dokumentasi ${doc.name}`, photoSourceUrl: photo.sourceUrl, photoReportDate: photo.reportDate });
+    }
+  } catch { /* Missing photos don't affect source-backed incident sync. */ }
   if (new Set(docs.map(doc => doc.id)).size !== docs.length) throw new Error('Duplicate disaster ID');
   console.log(`REAL disasters planned: ${docs.length}; source snapshot + dedicated NTT case`);
   if (process.argv.includes('--dry-run')) { console.log('Dry run: no network or writes'); return; }
