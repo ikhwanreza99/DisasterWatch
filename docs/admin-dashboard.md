@@ -25,7 +25,7 @@ Deploy the changed `firestore.rules` with the backend: browser clients can creat
 
 - Reports: paginated Firestore `reports`, 50 per page, server-side status filter and collection count. Search explicitly applies to the loaded page. Approval verifies the expected status inside a transaction.
 - Disasters: switch between `disasters` (public dashboard) and `incidents` (pipeline). Both use complete cursor pagination without local demo merging when connected.
-- Service status: direct server Firestore check plus the existing `/data/google-status.json` snapshot. Missing snapshots show unknown; results older than 24 hours show stale. Reloading retrieves the latest published snapshot; it does not run the crawler or paid AI probes.
+- Service status: reuses the main-branch `/status` page inside the admin shell, including summary cards, automatic browser probes, per-service retries, the Maps diagnostic preview, backend/search-probe snapshots, troubleshooting advice and workflow links. Browser probes retain the shared ten-minute cache; explicit retries force a new request (including configured AI probes). Reloading retrieves the latest published backend snapshot and reruns browser checks, without running the crawler. Missing snapshots and stale checks remain labelled. The public `/status` page retains its standalone header.
 - Token usage: provider-reported metadata from the shared Firebase AI Logic / Gemini Direct accessor, persisted for up to 500 calls in this browser. No prompts or report contents are stored in token telemetry. This is not aggregate project billing; crawler calls, other devices and calls without metadata are excluded. A shared backend telemetry pipeline is required for project-wide totals.
 
 ## Validation

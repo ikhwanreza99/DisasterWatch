@@ -1089,3 +1089,13 @@
     transition: none !important;
   }
 }
+
+/* The shared status page uses the available admin content width. */
+.admin-status-view article {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 1100px) {
+  .admin-status-view article {
+    grid-template-columns: minmax(180px, 1fr) minmax(220px, 2fr) auto;
+  }
+}

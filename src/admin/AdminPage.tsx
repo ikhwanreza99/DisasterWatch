@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useRef,
@@ -31,15 +33,11 @@ import {
 } from "lucide-react";
 import type { IntelligenceReport } from "../domain/intelligence";
 import { needLabel } from "../domain/intelligence";
-import {
-  stateLabels,
-  stale,
-  type ServiceCheck,
-  type StatusSnapshot,
-} from "../services/status/model";
 import { adminApi, AdminError, type Page } from "./api";
 import { readTokenUsage } from "./tokenUsage";
 import "./admin.css";
+
+const GoogleStatusPage = lazy(() => import("../components/GoogleStatusPage"));
 
 const menus = [
   {
@@ -383,7 +381,7 @@ export default function AdminPage() {
             Dashboard <ChevronRight size={13} />
             <span>{current.name}</span>
           </div>
-          <div className="admin-page-heading">
+          {tab !== "services" && <div className="admin-page-heading">
             <div>
               <h1>{current.name}</h1>
               <p>{current.description}</p>
@@ -391,8 +389,8 @@ export default function AdminPage() {
             <span className="admin-role">
               <ShieldCheck size={15} /> Verificator
             </span>
-          </div>
-          {session.demo && (
+          </div>}
+          {session.demo && tab !== "services" && (
             <div className="admin-notice">
               <strong>Mode demo lokal</strong>
               <span>
@@ -411,7 +409,9 @@ export default function AdminPage() {
           ) : tab === "disasters" ? (
             <Records key="disasters" kind="disasters" onError={expire} />
           ) : tab === "services" ? (
-            <Services onError={expire} />
+            <Suspense fallback={<div className="admin-empty" role="status">Memuat status layanan…</div>}>
+              <GoogleStatusPage embedded />
+            </Suspense>
           ) : (
             <Tokens />
           )}
@@ -901,120 +901,6 @@ function Review({
         )}
       </footer>
     </dialog>
-  );
-}
-
-function Services({ onError }: { onError: (e: unknown) => void }) {
-  const [checks, setChecks] = useState<ServiceCheck[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refresh, setRefresh] = useState(0);
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    Promise.all([
-      adminApi<{
-        state: ServiceCheck["state"];
-        detail: string;
-        checkedAt: string;
-      }>("/health")
-        .then((r) => ({
-          id: "admin-firestore",
-          name: "Firestore · akses server admin",
-          scope: "backend" as const,
-          ...r,
-        }))
-        .catch((e) => {
-          if (active) onError(e);
-          return {
-            id: "admin-firestore",
-            name: "Firestore · akses server admin",
-            state: "error" as const,
-            scope: "backend" as const,
-            checkedAt: new Date().toISOString(),
-            detail: errorText(e),
-          };
-        }),
-      fetch("/data/google-status.json", {
-        cache: "no-store",
-        signal: AbortSignal.timeout(15_000),
-      })
-        .then(async (res) => {
-          if (!res.ok) throw new Error();
-          const snapshot: StatusSnapshot = await res.json();
-          if (snapshot.version !== 1 || !Array.isArray(snapshot.services))
-            throw new Error();
-          return snapshot.services;
-        })
-        .catch(() => [
-          {
-            id: "pipeline",
-            name: "API & pipeline data",
-            state: "unknown" as const,
-            scope: "snapshot" as const,
-            checkedAt: null,
-            detail:
-              "Snapshot pemeriksaan belum tersedia. Belum ada bukti status koneksi API dan pipeline.",
-          },
-        ]),
-    ]).then(([db, snapshot]) => {
-      if (active) {
-        setChecks([db, ...snapshot]);
-        setLoading(false);
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, [refresh, onError]);
-  return (
-    <section className="admin-panel">
-      <div className="admin-panel-heading">
-        <div>
-          <h2>Kesehatan layanan</h2>
-          <p>Hasil pemeriksaan terakhir beserta waktu dan sumbernya.</p>
-        </div>
-        <button
-          className="admin-secondary"
-          onClick={() => setRefresh((v) => v + 1)}
-          disabled={loading}
-        >
-          <RefreshCw size={15} /> Muat ulang
-        </button>
-      </div>
-      {loading ? (
-        <div className="admin-empty" role="status">
-          Memeriksa layanan…
-        </div>
-      ) : (
-        <div className="admin-service-list">
-          {checks.map((check) => (
-            <article key={check.id}>
-              <span className={`admin-service-icon ${check.state}`}>
-                <Activity size={20} />
-              </span>
-              <div>
-                <h3>{check.name}</h3>
-                <p>{check.detail}</p>
-                <small>
-                  {date(check.checkedAt || undefined)} ·{" "}
-                  {check.scope === "snapshot"
-                    ? "Snapshot pipeline"
-                    : "Pemeriksaan server"}
-                  {stale(check)
-                    ? " · Data lebih dari 24 jam / waktu tidak valid"
-                    : ""}
-                </small>
-              </div>
-              <span
-                className={`admin-badge ${stale(check) ? "unknown" : check.state}`}
-              >
-                {stale(check) ? "Perlu diperbarui" : stateLabels[check.state]}
-              </span>
-            </article>
-          ))}
-        </div>
-      )}
-    </section>
   );
 }
 
