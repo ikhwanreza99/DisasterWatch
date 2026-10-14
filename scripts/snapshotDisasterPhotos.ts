@@ -48,6 +48,7 @@ async function main() {
       const descriptor = descriptorFor(record.id);
       if (!photo && descriptor) {
         const matched = candidates.filter(a => {
+          if(a.discoveredBy==='threads:keyword-search')return false;
           const target = (a as IncidentArticle & { targetIncidentId?: string }).targetIncidentId;
           return (!target || target === record!.id) && classifyRelevance(a, descriptor).status === 'MATCHED';
         }).sort((a, b) => Date.parse(b.publishedAt ?? '') - Date.parse(a.publishedAt ?? ''));

@@ -24,11 +24,13 @@ interface Props {
 }
 
 export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched: matchedInput, review: reviewInput, freshness, compact = false, onExpandView, onOpenAIHelpdesk }) => {
-  const matched = matchedInput.filter(a => newsSourceUrl(a.url));
-  const review = reviewInput.filter(a => newsSourceUrl(a.url));
+  const social = matchedInput.filter(a=>a.discoveredBy==='threads:keyword-search' && newsSourceUrl(a.url));
+  const matched = matchedInput.filter(a => a.discoveredBy!=='threads:keyword-search' && newsSourceUrl(a.url));
+  const review = reviewInput.filter(a => a.discoveredBy!=='threads:keyword-search' && newsSourceUrl(a.url));
+  const [showSocial,setShowSocial]=useState(false);
   const [showReview, setShowReview] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const selected = showReview ? review : matched;
+  const selected = showSocial ? social : showReview ? review : matched;
   return (
     <section className={compact ? "min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-white p-4" : "bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col h-[min(70vh,640px)] min-h-[360px] shrink-0 transition-all hover:shadow-md"} aria-label={`Berita ${incidentName}`} data-testid="incident-news">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-100 pb-3">
@@ -40,10 +42,10 @@ export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched: matc
         {!compact && <span className="inline-flex shrink-0 items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-200">{selected.length} Berita</span>}
         {compact && (onExpandView || selected.length > 2) && (
           <button type="button" aria-expanded={expanded} onClick={() => onExpandView ? onExpandView() : setExpanded(!expanded)} className="text-xs font-semibold text-blue-600 shrink-0">
-            {expanded ? 'Ringkas' : `Lihat Semua (${(showReview ? review : matched).length})`}
+            {expanded ? 'Ringkas' : `Lihat Semua (${selected.length})`}
           </button>
         )}
-        {review.length > 0 && (
+        {!showSocial && review.length > 0 && (
           <button
             type="button"
             onClick={() => setShowReview((v) => !v)}
@@ -54,6 +56,11 @@ export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched: matc
           </button>
         )}
       </div>
+      <div className="mt-2 flex flex-wrap gap-3 text-xs font-semibold">
+        <button onClick={()=>{setShowSocial(false);setShowReview(false);}} aria-pressed={!showSocial} className="text-blue-600">Berita ({matched.length})</button>
+        <button onClick={()=>{setShowSocial(true);setShowReview(false);}} aria-pressed={showSocial} className="text-blue-600">Sosmed · Threads ({social.length})</button>
+      </div>
+      {showSocial && <p className="mt-2 text-xs leading-relaxed text-amber-700">Unggahan sosial media belum terverifikasi. Kecocokan lokasi dan tanggal bukan bukti kebenaran; periksa sumber sebelum digunakan sebagai eviden.</p>}
       {showReview && <p className="mt-2 break-words text-xs leading-relaxed text-slate-500">Kecocokan lemah — dipisahkan dari feed utama, bukan bukti kebenaran.</p>}
       {freshness.error && (
         <p role="status" className="mt-1 text-[10px] text-amber-700">
@@ -62,7 +69,7 @@ export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched: matc
       )}
       {selected.length === 0 && (
         <p role="status" className="mt-3 text-xs leading-relaxed text-slate-500" data-testid="news-empty">
-          {showReview ? 'Belum ada artikel untuk ditinjau.' : 'Belum ada berita yang relevan dengan lokasi bencana ini.'}
+          {showSocial ? 'Belum ada unggahan Threads yang cocok dengan lokasi bencana ini.' : showReview ? 'Belum ada artikel untuk ditinjau.' : 'Belum ada berita yang relevan dengan lokasi bencana ini.'}
         </p>
       )}
       <div className={compact ? "mt-3 space-y-2" : "mt-3 flex-1 min-h-0 space-y-3 overflow-y-auto overscroll-contain pr-1"}>

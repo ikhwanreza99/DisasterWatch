@@ -2,6 +2,7 @@ import { currentIncidents, currentRecords, CURRENT_REVIEWED_AT } from '../src/da
 import { nttIncident } from '../src/data/nttIncident.ts';
 import { NTT_CASE_ID } from '../src/domain/nttCase.ts';
 import { recentWindow } from '../src/services/recentWindow.ts';
+import { locationValidation } from '../src/services/locationValidation.ts';
 
 export function realDisasterDataset(now = Date.now()) {
   const window = recentWindow(now);
@@ -12,6 +13,7 @@ export function realDisasterDataset(now = Date.now()) {
     sourceReviewedAt: CURRENT_REVIEWED_AT, eventDate: record.date,
     eventStartDate: record.startDate ?? record.date,
     officialReports: record.reports ?? [],
+    locationValidation: {...locationValidation(record),coordinatePrecision:'REGION_REPRESENTATIVE',requiresSiteFactCheck:true},
     datasetWindow: { startDate: window.startDate, endDate: window.endDate, timeZone: 'Asia/Jakarta' },
     isArchivedCase: false, schemaVersion: 1,
   }));

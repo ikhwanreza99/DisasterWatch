@@ -7,6 +7,7 @@ import { validDisasterPhoto, type DisasterPhoto } from './services/disasterPhoto
 import { getDb } from './lib/firebase/firestore';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { inRecentWindow } from './services/recentWindow';
+import { locationValidation } from './services/locationValidation';
 import { CategoryFilter, DisasterCategory, DisasterIncident, DisasterCheckpoint } from './types';
 import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
@@ -83,7 +84,7 @@ export default function App() {
     if(!db)return;
     return onSnapshot(query(collection(db,'disasters'),where('approvalStatus','==','APPROVED')),snapshot=>{
       const approved = snapshot.docs.map(doc=>doc.data() as DisasterIncident & {isMock?:boolean;eventDate?:string});
-      setDisasters(previous=>({...previous,...Object.fromEntries(approved.filter(incident=>incident.isMock===false && incident.coords && (incident.id===NTT_CASE_ID || inRecentWindow(incident.eventDate))).map(incident=>[incident.id,incident]))}));
+      setDisasters(previous=>({...previous,...Object.fromEntries(approved.filter(incident=>incident.isMock===false && incident.coords && locationValidation(incident).status!=='REJECTED' && (incident.id===NTT_CASE_ID || inRecentWindow(incident.eventDate))).map(incident=>[incident.id,incident]))}));
     },()=>{ /* Reviewed snapshot remains available when database is unavailable. */ });
   },[]);
   useEffect(() => {
