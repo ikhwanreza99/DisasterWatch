@@ -60,6 +60,8 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
   nttCase,
   onOpenNttIntelligence,
 }) => {
+  const [failedPhotoUrl, setFailedPhotoUrl] = React.useState<string | null>(null);
+  const showPhoto = !!disaster.photoUrl && disaster.photoUrl !== failedPhotoUrl;
   const mobile = useMobileLayout();
   const pool = useIncidentPool();
   // Firestore-first humanitarian snapshot; explicit local fallback when absent.
@@ -240,24 +242,27 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
               <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-amber-500" style={{width: `${disaster.recoveryPct}%`}} /></div>
             </div>
           </div>
-          {!disaster.photoUrl && <div className="mt-3 mb-3 h-32 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-2 text-slate-400">
-            <span className="text-xs font-semibold">Foto Lapangan Terkini</span><span className="text-[11px]">Belum tersedia</span>
+          {!showPhoto && <div className="mt-3 mb-3 h-32 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-2 text-slate-400">
+            <span className="text-xs font-semibold">Dokumentasi kejadian</span><span className="text-[11px]">Belum tersedia</span>
           </div>}
           {/* Disaster Field Photo */}
-          {disaster.photoUrl && <div className="mt-3 mb-3 relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group">
+          {showPhoto && <div className="mt-3 mb-3 relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group">
             <img
               src={disaster.photoUrl}
               alt={disaster.photoAlt}
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              onError={() => setFailedPhotoUrl(disaster.photoUrl)}
               className="w-full h-32 object-cover transition-transform duration-300 group-hover:scale-105"
             />
             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 flex items-center justify-between text-white">
               <div className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                <span>Foto Lapangan Terkini</span>
+                <span>Dokumentasi kejadian</span>
               </div>
-              <span className="text-[9px] text-white/80 font-mono truncate max-w-[170px]">
-                {disaster.photoSource}
-              </span>
+              <div className="text-[9px] text-white/80 truncate max-w-[170px]">
+                {disaster.photoSourceUrl ? <a href={disaster.photoSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">{disaster.photoSource}</a> : disaster.photoSource}
+                {disaster.photoReportDate && <div>Laporan {new Date(disaster.photoReportDate).toLocaleDateString('id-ID', {day:'numeric', month:'short', timeZone:'Asia/Jakarta'})}</div>}
+              </div>
             </div>
           </div>}
 

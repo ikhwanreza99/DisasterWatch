@@ -9,7 +9,10 @@ export function articleImage(html: string, pageUrl: string): string | null {
     if (!['og:image', 'og:image:secure_url', 'twitter:image'].includes(attrs.property ?? attrs.name)) continue;
     const value = attrs.content?.replace(/&amp;/g, '&');
     if (!value) continue;
-    try { const safe = newsSourceUrl(new URL(value, pageUrl).href); if (safe) return safe; } catch { /* invalid */ }
+    try {
+      const safe = newsSourceUrl(new URL(value, pageUrl).href);
+      if (safe && !/(?:^|[\/_.-])(?:logo|intensity|shakemap|placeholder|default)(?:[\/_.-]|$)/i.test(new URL(safe).pathname)) return safe;
+    } catch { /* invalid */ }
   }
   return null;
 }

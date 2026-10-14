@@ -7,6 +7,7 @@ test('reads publisher image metadata with reversed attributes and safe relative 
   assert.equal(articleImage('<meta content="/foto.jpg?a=1&amp;b=2" property="og:image">', 'https://example.org/article'), 'https://example.org/foto.jpg?a=1&b=2');
   assert.equal(articleImage('<meta name="twitter:image" content="https://localhost/a.jpg">', 'https://example.org'), null);
   assert.equal(articleImage('<img src="logo.jpg">', 'https://example.org'), null);
+  assert.equal(articleImage('<meta property="og:image" content="https://cdn.bmkg.go.id/event/intensity_logo.jpg">', 'https://example.org'), null);
 });
 test('extracts multiple BNPB folder links without treating other domains as Drive', () => {
   assert.deepEqual(driveFolders('https://drive.google.com/drive/folders/abc-123?usp=sharing\nhttps://drive.google.com/drive/folders/xyz_456'), ['abc-123', 'xyz_456']);
