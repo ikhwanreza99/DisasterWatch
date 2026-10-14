@@ -1099,3 +1099,8 @@
     grid-template-columns: minmax(180px, 1fr) minmax(220px, 2fr) auto;
   }
 }
+
+.admin-status-view section h2 {
+  font-size: 15px;
+  font-weight: 700;
+}

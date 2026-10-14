@@ -381,7 +381,7 @@ export default function AdminPage() {
             Dashboard <ChevronRight size={13} />
             <span>{current.name}</span>
           </div>
-          {tab !== "services" && <div className="admin-page-heading">
+          <div className="admin-page-heading">
             <div>
               <h1>{current.name}</h1>
               <p>{current.description}</p>
@@ -389,7 +389,7 @@ export default function AdminPage() {
             <span className="admin-role">
               <ShieldCheck size={15} /> Verificator
             </span>
-          </div>}
+          </div>
           {session.demo && tab !== "services" && (
             <div className="admin-notice">
               <strong>Mode demo lokal</strong>
