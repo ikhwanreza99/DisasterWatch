@@ -1,7 +1,7 @@
 import { createCheckRunner } from './automaticChecks';
 import { firebaseEnv, getFirebaseApp, firebaseStatus } from '../../lib/firebase/config';
 import { getDb } from '../../lib/firebase/firestore';
-import { resolveGeminiModel } from '../../lib/firebase/geminiConfig';
+import { resolveGeminiCandidates, resolveGeminiModel } from '../../lib/firebase/geminiConfig';
 import { autocompletePlaces, getPlace, newSessionToken } from '../places/placeSearch';
 import { safeStatusError, type ServiceCheck } from './model';
 
@@ -19,8 +19,29 @@ export function initialChecks(): ServiceCheck[] {
 }
 async function checkedJson(url: string, init?: RequestInit) {
   const response = await fetch(url, { ...init, signal: AbortSignal.timeout(20_000) });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}${await safeErrorSnippet(response)}`);
   return response.json();
+}
+/** Short, key-safe snippet of an error body so HTTP codes carry a cause. */
+async function safeErrorSnippet(response: Response): Promise<string> {
+  try {
+    const clone = response.clone();
+    const body = await clone.text();
+    if (!body) return '';
+    const snippet = body.replace(/AIza[0-9A-Za-z\-_]{10,}/g, '[KEY]').slice(0, 160);
+    return ` · ${snippet}`;
+  } catch {
+    return '';
+  }
+}
+/**
+ * Try Gemini model candidates in order; return the model that answered.
+ * Throws the last error when every candidate fails.
+ */
+function fallbackNote(used: string, primary: string, lastError: unknown): string {
+  if (used === primary) return `menggunakan ${used}, tanpa fallback.`;
+  const cause = lastError instanceof Error ? lastError.message.slice(0, 120) : 'tidak tersedia';
+  return `menggunakan ${used} (fallback otomatis karena ${primary} gagal: ${cause}).`;
 }
 export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
   const base = initialChecks().find(c => c.id === id)!;
@@ -55,16 +76,49 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       if (id === 'weather' ? !data.temperature : !Array.isArray(data.forecastDays) || !data.forecastDays.length) throw new Error('No weather payload');
       detail = 'Respons Weather API valid untuk Jakarta; tidak memakai cuaca simulasi.';
     } else if (id === 'gemini-direct') {
-      const data = await checkedJson(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(resolveGeminiModel())}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': import.meta.env.VITE_GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ parts: [{ text: 'Jawab satu kata: OK' }] }], generationConfig: { maxOutputTokens: 64 } }) });
-      if (!data.candidates?.some((c: any) => c.content?.parts?.some((p: any) => p.text))) throw new Error('Empty model response');
-      detail = `GenerateContent berhasil menggunakan ${resolveGeminiModel()}, tanpa fallback.`;
+      const candidates = resolveGeminiCandidates();
+      const primary = candidates[0]!;
+      let lastError: unknown = null;
+      let used = '';
+      for (const model of candidates) {
+        try {
+          // One retry for transient overload (HTTP 503/429) before moving on.
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              const data = await checkedJson(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': import.meta.env.VITE_GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ parts: [{ text: 'Jawab satu kata: OK' }] }], generationConfig: { maxOutputTokens: 64 } }) });
+              if (!data.candidates?.some((c: any) => c.content?.parts?.some((p: any) => p.text))) throw new Error('Empty model response');
+              used = model;
+              break;
+            } catch (e) {
+              lastError = e;
+              const transient = e instanceof Error && /HTTP (429|500|502|503|504)/.test(e.message);
+              if (!transient || attempt === 1) throw e;
+              await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+            }
+          }
+          if (used) break;
+        } catch (e) { lastError = e; }
+      }
+      if (!used) throw lastError instanceof Error ? lastError : new Error('Gemini Direct gagal pada semua model kandidat');
+      detail = `GenerateContent berhasil ${fallbackNote(used, primary, lastError)}`;
     } else if (id === 'firebase-ai') {
       const { getAI, getGenerativeModel, GoogleAIBackend } = await import('firebase/ai');
       const app = getFirebaseApp(); if (!app) throw new Error('No Firebase app');
-      const model = getGenerativeModel(getAI(app, { backend: new GoogleAIBackend() }), { model: resolveGeminiModel(), generationConfig: { maxOutputTokens: 64 } });
-      const response = await model.generateContent('Jawab satu kata: OK');
-      if (!response.response.text()) throw new Error('Empty model response');
-      detail = `Firebase AI Logic berhasil menggunakan ${resolveGeminiModel()}, tanpa fallback.`;
+      const candidates = resolveGeminiCandidates();
+      const primary = candidates[0]!;
+      let lastError: unknown = null;
+      let used = '';
+      for (const model of candidates) {
+        try {
+          const generative = getGenerativeModel(getAI(app, { backend: new GoogleAIBackend() }), { model, generationConfig: { maxOutputTokens: 64 } });
+          const response = await generative.generateContent('Jawab satu kata: OK');
+          if (!response.response.text()) throw new Error('Empty model response');
+          used = model;
+          break;
+        } catch (e) { lastError = e; }
+      }
+      if (!used) throw lastError instanceof Error ? lastError : new Error('Firebase AI Logic gagal pada semua model kandidat');
+      detail = `Firebase AI Logic berhasil ${fallbackNote(used, primary, lastError)}`;
     } else if (id === 'storage') {
       return { ...base, detail: 'Bucket terkonfigurasi. Upload/download membutuhkan pengguna login dan lampiran; tidak mengunggah file uji otomatis.' };
     } else if (id === 'maps') {
