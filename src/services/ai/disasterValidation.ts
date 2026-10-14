@@ -55,7 +55,7 @@ export function validateReport(candidate: IntelligenceReport, existing: Intellig
   const boosted = Math.min(0.97, base + Math.min(0.15, supporters.length * 0.05));
   let status: VerificationStatus = 'AI_REVIEWED';
   if (conflictNotes) status = 'CONFLICTING';
-  else if (supporters.length >= 2 && boosted >= 0.75) status = 'VERIFIED';
+  // Human approval is required; corroboration raises confidence, never verification.
   else if (supporters.length === 0 && boosted < 0.4) status = 'UNVERIFIED';
   return { status, aiConfidence: Math.round(boosted * 100) / 100, supportingCount: supporters.length, conflictNotes };
 }

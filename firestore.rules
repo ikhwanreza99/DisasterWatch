@@ -1,6 +1,6 @@
 // DisasterWatch Firestore rules — prototype baseline.
 // - Authenticated (incl. anonymous) users may CREATE reports/aid.
-// - Nobody may overwrite verified intelligence except via constrained fields.
+// - Verification writes are server-only (Admin SDK); clients cannot self-approve.
 // - Reads are open for demo dashboard; tighten for production.
 rules_version = '2';
 service cloud.firestore {
@@ -15,11 +15,15 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['sourceType','rawText','location','createdAt'])
         && request.resource.data.rawText is string
         && request.resource.data.rawText.size() > 0
-        && request.resource.data.rawText.size() < 4000;
-      allow update: if request.auth != null
-        && !(resource.data.verificationStatus == 'VERIFIED'
-             && request.resource.data.verificationStatus != 'VERIFIED');
+        && request.resource.data.rawText.size() < 4000
+        && request.resource.data.verificationStatus in ['UNVERIFIED', 'AI_REVIEWED', 'CONFLICTING']
+        && !request.resource.data.keys().hasAny(['reviewedBy', 'reviewedAt', 'reviewNote']);
+      // Admin approval uses a protected server endpoint + Admin SDK transaction.
+      allow update: if false;
       allow delete: if false;
+    }
+    match /reportReviews/{id} {
+      allow read, write: if false; // audit records are server-only
     }
     match /aid/{id} {
       allow read: if true;

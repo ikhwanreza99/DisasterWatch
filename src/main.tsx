@@ -1,6 +1,6 @@
 import {StrictMode, Suspense, lazy} from 'react';
 import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
+const App = lazy(() => import('./App.tsx'));
 import 'leaflet/dist/leaflet.css';
 import './index.css';
 
@@ -23,10 +23,12 @@ console.error = (...args: unknown[]) => {
 };
 
 const GoogleStatusPage = lazy(() => import('./components/GoogleStatusPage'));
+const AdminPage = lazy(() => import('./admin/AdminPage'));
+const isAdminPage = /^\/admin(?:\/|$)/.test(window.location.pathname);
 const isStatusPage = ['/status', '/status/'].includes(window.location.pathname);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Suspense fallback={<div className="p-8 text-slate-500">Memuat status layanan...</div>}>{isStatusPage ? <GoogleStatusPage /> : <App />}</Suspense>
+    <Suspense fallback={<div className="p-8 text-slate-500">Memuat DisasterWatch...</div>}>{isAdminPage ? <AdminPage /> : isStatusPage ? <GoogleStatusPage /> : <App />}</Suspense>
   </StrictMode>,
 );
