@@ -7,6 +7,10 @@ export interface DisasterCheckpoint {
 
   // Posko bantuan fields
   name?: string;
+  recommendation?: boolean;
+  placeId?: string;
+  facilityType?: string;
+  distanceMeters?: number;
   location?: string;
   capacity?: {
     used: number;
