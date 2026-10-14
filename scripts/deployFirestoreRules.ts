@@ -8,7 +8,11 @@ async function main() {
   const base='https://firebaserules.googleapis.com/v1/projects/disasterwatch-61ed5';
   const rules=await readFile('firestore.rules','utf8');
   const test=await fetch(`${base}:test`,{method:'POST',headers,body:JSON.stringify({source:{files:[{name:'firestore.rules',content:rules}]}})});
-  if(!test.ok)throw new Error(`Rules validation HTTP ${test.status}`);
+  if(!test.ok) {
+    const failure=await test.json() as {error?:{status?:string;details?:Array<{reason?:string}>}};
+    console.log(`Rules access: ${failure.error?.status??'unknown'}; reasons: ${failure.error?.details?.map(detail=>detail.reason).filter(Boolean).join(', ')??'none'}`);
+    throw new Error(`Rules validation HTTP ${test.status}`);
+  }
   const validation=await test.json() as {issues?:Array<{severity?:string;description?:string}>};
   const errors=validation.issues?.filter(issue=>issue.severity==='ERROR')??[];
   if(errors.length){console.log(errors.map(issue=>issue.description).join('\n'));throw new Error('Rules validation failed');}

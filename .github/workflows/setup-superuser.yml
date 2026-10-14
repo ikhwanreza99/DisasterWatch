@@ -17,11 +17,20 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Validate and deploy protected approval rules
+        id: rules
+        continue-on-error: true
         run: node --import tsx scripts/deployFirestoreRules.ts
         env:
           FIREBASE_ADMIN_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
       - name: Provision dedicated superuser
+        id: account
+        continue-on-error: true
         run: node --import tsx scripts/provisionSuperuser.ts
         env:
           FIREBASE_ADMIN_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
           ADMIN_INITIAL_PASSWORD: ${{ secrets.ADMIN_INITIAL_PASSWORD }}
+      - name: Report setup result
+        if: steps.rules.outcome == 'failure' || steps.account.outcome == 'failure'
+        run: |
+          echo 'Setup incomplete; inspect rules/account steps. Hosting credentials may need Firebase Rules Admin and Firebase Authentication Admin.'
+          exit 1
