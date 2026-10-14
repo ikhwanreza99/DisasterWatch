@@ -80,6 +80,7 @@ const labels: Record<string, string> = {
   AI_REVIEWED: "Menunggu verifikasi",
   CONFLICTING: "Perlu perhatian",
   VERIFIED: "Terverifikasi",
+  REJECTED: "Ditolak",
 };
 const date = (value?: string) =>
   value && Number.isFinite(Date.parse(value))
@@ -680,7 +681,7 @@ function Records({
                       <td>
                         <small>{row.id}</small>
                         <small>{row.approvalStatus === 'APPROVED' ? 'Disetujui superuser' : 'Menunggu fact-check'}</small>
-                        {!row.isMock && collection === 'disasters' && <button className="admin-detail-link" onClick={() => setSelected({...row, targetCollection:'disasters', rawText:row.guide?.cause ?? row.summary ?? row.name, location:{name:row.name,lat:row.coords?.lat,lng:row.coords?.lng}, verificationStatus:row.approvalStatus==='APPROVED'?'VERIFIED':'UNVERIFIED', approvalStatus:row.approvalStatus??'PENDING'})}>Fact-check <ArrowRight size={15}/></button>}
+                        {!row.isMock && collection === 'disasters' && <button className="admin-detail-link" onClick={() => setSelected({...row, targetCollection:'disasters', rawText:row.guide?.cause ?? row.summary ?? row.name, location:{name:row.name,lat:row.coords?.lat,lng:row.coords?.lng}, verificationStatus:row.approvalStatus==='APPROVED'?'VERIFIED':row.approvalStatus==='REJECTED'?'REJECTED':'UNVERIFIED', approvalStatus:row.approvalStatus??'PENDING'})}>Fact-check <ArrowRight size={15}/></button>}
                       </td>
                     </tr>
                   ),
@@ -763,12 +764,13 @@ function Review({
     dialog.showModal();
     return () => dialog.close();
   }, []);
-  async function approve() {
+  const [rejectionReason,setRejectionReason]=useState("NO_DISASTER");
+  async function approve(decision: "approve" | "reject" = "approve") {
     setBusy(true);
     setError("");
     try {
-      await adminApi(`/${report.targetCollection??"reports"}/${encodeURIComponent(report.id)}/approve`, {
-        note,
+      await adminApi(`/${report.targetCollection??"reports"}/${encodeURIComponent(report.id)}/${decision}`, {
+        note, reason:rejectionReason,
         evidenceUrls:evidence.split(/\s+/).filter(Boolean),
         lat:latitude ? Number(latitude) : undefined, lng:longitude ? Number(longitude) : undefined, province,
         expectedStatus: report.targetCollection==='disasters' ? (report as Report & {approvalStatus:string}).approvalStatus : report.verificationStatus,
@@ -873,8 +875,15 @@ function Review({
               : "Laporan sudah berstatus terverifikasi. Riwayat persetujuan manusia belum tercatat."}
             {report.reviewNote && <p>{report.reviewNote}</p>}
           </div>
-        ) : (
+        ) : report.verificationStatus === "REJECTED" ? <div className="admin-error">Laporan ditolak. Marker bencana terkait disembunyikan.<p>{report.reviewNote}</p></div> : null}
+        {report.verificationStatus !== "REJECTED" && (
           <>
+            <label htmlFor="rejection-reason">Alasan penolakan</label>
+            <select id="rejection-reason" value={rejectionReason} onChange={e=>setRejectionReason(e.target.value)}>
+              <option value="NO_DISASTER">Tidak ada bencana di titik ini</option>
+              <option value="HOAX">Laporan hoaks</option>
+            </select>
+            <p>Penolakan menyembunyikan marker bencana terkait dari peta. Catatan fact-check wajib; tautan bukti dianjurkan.</p>
             <label htmlFor="review-note">
               Catatan fact-check <small>(wajib, minimal 10 karakter)</small>
             </label>
@@ -886,7 +895,7 @@ function Review({
               rows={3}
               placeholder="Tambahkan hasil pengecekan sumber atau konteks laporan…"
             />
-            <label htmlFor="evidence-urls">Tautan bukti (1–5 URL HTTPS, satu per baris)</label>
+            <label htmlFor="evidence-urls">Tautan bukti (wajib untuk persetujuan; opsional untuk penolakan, maksimal 5)</label>
             <textarea id="evidence-urls" value={evidence} onChange={event=>setEvidence(event.target.value)} rows={3} placeholder="Berita, laporan BNPB/BMKG, atau eviden lainnya" />
             {report.sourceUrl && <p><a href={report.sourceUrl} target="_blank" rel="noopener noreferrer">Sumber record</a></p>}
             {suggestions.map((source,index)=><p key={index}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.sourceName}: {source.title}</a></p>)}
@@ -911,11 +920,12 @@ function Review({
         <button className="admin-secondary" onClick={onClose} disabled={busy}>
           Tutup
         </button>
-        {report.verificationStatus !== "VERIFIED" && (
+        {report.verificationStatus !== "REJECTED" && <button className="admin-reject" disabled={!confirmed || busy || note.trim().length<10 || report.isMock} onClick={()=>approve("reject")}><X size={17}/>Tolak laporan</button>}
+        {!["VERIFIED","REJECTED"].includes(report.verificationStatus) && (
           <button
             className="admin-primary"
             disabled={!confirmed || busy || note.trim().length<10 || !evidence.trim() || report.isMock}
-            onClick={approve}
+            onClick={()=>approve("approve")}
           >
             <ShieldCheck size={17} />
             {busy ? "Menyimpan…" : "Setujui laporan"}
