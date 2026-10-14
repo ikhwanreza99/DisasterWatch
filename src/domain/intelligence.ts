@@ -38,6 +38,7 @@ export interface AIExtraction {
 }
 
 export interface IntelligenceReport {
+  reporterUid?: string;
   id: string;
   disasterId?: string;
   sourceType: SourceType;

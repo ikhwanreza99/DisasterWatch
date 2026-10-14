@@ -1,0 +1,27 @@
+name: Setup superuser and approval rules
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: setup-superuser
+  cancel-in-progress: false
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate and deploy protected approval rules
+        run: node --import tsx scripts/deployFirestoreRules.ts
+        env:
+          FIREBASE_ADMIN_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+      - name: Provision dedicated superuser
+        run: node --import tsx scripts/provisionSuperuser.ts
+        env:
+          FIREBASE_ADMIN_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+          ADMIN_INITIAL_PASSWORD: ${{ secrets.ADMIN_INITIAL_PASSWORD }}

@@ -4,6 +4,9 @@ import { newsSourceUrl } from './services/newsSourceUrl';
 import { classifyRelevance } from './services/incidentNews';
 import { descriptorFor } from './services/incidentRegistry';
 import { validDisasterPhoto, type DisasterPhoto } from './services/disasterPhoto';
+import { getDb } from './lib/firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { inRecentWindow } from './services/recentWindow';
 import { CategoryFilter, DisasterCategory, DisasterIncident, DisasterCheckpoint } from './types';
 import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
@@ -75,6 +78,14 @@ export default function App() {
     return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => id === NTT_CASE_ID || covered.has(id)));
   });
   const [ntt, setNtt] = useState<NttCaseState | null>(null);
+  useEffect(() => {
+    const db=getDb();
+    if(!db)return;
+    return onSnapshot(query(collection(db,'disasters'),where('approvalStatus','==','APPROVED')),snapshot=>{
+      const approved = snapshot.docs.map(doc=>doc.data() as DisasterIncident & {isMock?:boolean;eventDate?:string});
+      setDisasters(previous=>({...previous,...Object.fromEntries(approved.filter(incident=>incident.isMock===false && incident.coords && (incident.id===NTT_CASE_ID || inRecentWindow(incident.eventDate))).map(incident=>[incident.id,incident]))}));
+    },()=>{ /* Reviewed snapshot remains available when database is unavailable. */ });
+  },[]);
   useEffect(() => {
     const controller = new AbortController();
     fetch('/data/disaster-photos.json', { cache: 'no-cache', signal: controller.signal })

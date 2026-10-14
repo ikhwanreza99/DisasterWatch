@@ -64,7 +64,7 @@ export async function saveReport(report: IntelligenceReport): Promise<StoreStatu
   const db = getDb();
   if (!db) return { mode: 'mock', message: 'Laporan disimpan lokal (mock).' };
   try {
-    await setDoc(doc(db, COLLECTIONS.reports, report.id), report);
+    await setDoc(doc(db, COLLECTIONS.reports, report.id), JSON.parse(JSON.stringify(report)));
     return { mode: 'live', message: `Laporan ${report.id} tersimpan di Firestore.` };
   } catch (e) {
     return { mode: 'mock', message: `Firestore gagal (${String(e)}). Tersimpan lokal.` };

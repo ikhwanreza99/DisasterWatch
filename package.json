@@ -10,7 +10,9 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "seed:firestore": "tsx scripts/seedFirestore.ts",
-    "seed:verify": "tsx scripts/seedFirestore.ts --verify-only"
+    "seed:verify": "tsx scripts/seedFirestore.ts --verify-only",
+    "start": "tsx server/index.ts",
+    "test:admin": "tsx --test server/admin.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

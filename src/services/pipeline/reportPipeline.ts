@@ -4,6 +4,8 @@ import { newId, nowIso } from '../../domain/intelligence';
 import { extractDisasterInfo } from '../ai/disasterExtraction';
 import { validateReport } from '../ai/disasterValidation';
 import { listRecentReports, saveReport } from '../store/disasterStore';
+import { getAuthInstance } from '../../lib/firebase/auth';
+import { isFirebaseConfigured } from '../../lib/firebase/config';
 
 export interface SubmitReportInput {
   disasterId?: string;
@@ -30,12 +32,15 @@ export interface PipelineResult {
 }
 
 export async function submitReportPipeline(input: SubmitReportInput): Promise<PipelineResult> {
+  const user = getAuthInstance()?.currentUser;
+  if (isFirebaseConfigured() && (!user || !user.providerData.some(provider => provider.providerId === 'google.com'))) throw new Error('Login Google diperlukan sebelum mengirim laporan bencana.');
   const { extraction, engine, note } = await extractDisasterInfo(input.rawText, {
     locationHint: input.locationName,
   });
 
   const candidate: IntelligenceReport = {
     id: newId('REP'),
+    ...(user ? { reporterUid: user.uid } : {}),
     disasterId: input.disasterId,
     sourceType: input.sourceType,
     sourceName: input.sourceName,
@@ -49,7 +54,7 @@ export async function submitReportPipeline(input: SubmitReportInput): Promise<Pi
     verificationStatus: 'AI_REVIEWED' as VerificationStatus,
     aiConfidence: extraction.confidence,
     extractedData: extraction,
-    isMock: input.isMock ?? true,
+    isMock: user ? false : input.isMock ?? true,
   };
 
   const existing = await listRecentReports(input.disasterId, 50);

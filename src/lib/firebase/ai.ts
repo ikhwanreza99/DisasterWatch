@@ -1,3 +1,4 @@
+import { recordTokenUsage } from '../../admin/tokenUsage';
 // Firebase AI Logic (Gemini) accessor with safe fallback.
 // Transport order: Firebase AI Logic first, direct Gemini Developer API key second,
 // local heuristic last. Never throws when unconfigured — callers must handle `available === false`.
@@ -69,11 +70,12 @@ async function tryAILogicModel(): Promise<{ generateContent: (prompt: string) =>
       backend: new (GoogleAIBackend as unknown as new () => unknown)(),
     });
     const model = (getGenerativeModel as unknown as (ai: unknown, opts: unknown) => {
-      generateContent: (p: string | unknown) => Promise<{ response: { text: () => string } }>;
+      generateContent: (p: string | unknown) => Promise<{ response: { text: () => string; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } } }>;
     })(ai, { model: resolveGeminiModel() });
     return {
       generateContent: async (prompt: string) => {
         const res = await model.generateContent(prompt);
+        recordTokenUsage(res.response.usageMetadata, resolveGeminiModel(), 'Firebase AI Logic');
         return res.response.text();
       },
     };
@@ -104,6 +106,7 @@ async function tryDirectModel(): Promise<{ generateContent: (prompt: string) => 
         throw new Error(`Gemini Direct ${res.status} ${res.statusText}${body ? `: ${body.slice(0, 200)}` : ''}`);
       }
       const data = (await res.json()) as {
+        usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
         candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
         error?: { message?: string };
       };
@@ -112,6 +115,7 @@ async function tryDirectModel(): Promise<{ generateContent: (prompt: string) => 
         .map((p) => (typeof p?.text === 'string' ? p.text : ''))
         .join('');
       if (!text.trim()) throw new Error('Gemini Direct returned empty text.');
+      recordTokenUsage(data.usageMetadata, model, 'Gemini Direct');
       return text;
     },
   };
