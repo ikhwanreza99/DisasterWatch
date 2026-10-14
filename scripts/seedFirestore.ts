@@ -6,7 +6,7 @@
 // - Auth: GOOGLE_APPLICATION_CREDENTIALS -> service-account file OUTSIDE the repo.
 // - Usage: npm run seed:firestore [-- --dry-run] [-- --verify-only]
 import { existsSync, statSync } from 'node:fs';
-import { cert, initializeApp } from 'firebase-admin/app';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore, type WriteBatch } from 'firebase-admin/firestore';
 import { canDemoSeedOverwrite } from './realDisasterDataset.ts';
 import { disastersData } from '../src/data/disasters.js';
@@ -418,8 +418,9 @@ async function main() {
   console.log(`seed clock     : ${SEED_AT} (frozen)`);
   for (const g of plan) console.log(`plan ${g.col.padEnd(10)} : ${g.docs.length} docs (deterministic IDs)`);
   console.log(`credentials    : FIREBASE_NEWS_SERVICE_ACCOUNT=${raw ? '(set)' : 'unset'} GOOGLE_APPLICATION_CREDENTIALS=${gac || '(unset)'}`);
-  // Readback needs the same explicit credentials as writes. Dry-run stays offline.
+// Readback needs the same explicit credentials as writes. Dry-run stays offline.
   if (!dryRun) {
+    // Both live seed and verify-only need Firestore access.
     if (raw) {
       const account = JSON.parse(raw);
       if (account.project_id !== PROJECT_ID) throw new Error('Unexpected project');
@@ -436,6 +437,8 @@ async function main() {
       console.log('credentials    : GOOGLE_APPLICATION_CREDENTIALS valid (project_id matched)');
     }
   }
+
+  if (getApps().length === 0) initializeApp({ projectId: PROJECT_ID });
 
   if (dryRun) {
     console.log('dry-run        : no writes, no network (dataset assembly only)');
@@ -489,13 +492,46 @@ async function main() {
     console.log(`writes         : upserted demo docs in ${batches} batch(es), no deletes`);
   }
 
-  // Read-only verification (counts + 9 checks).
+  // Read-only verification (counts + NTT-specific checks).
   const counts: Record<string, number> = {};
   for (const g of plan) {
     const snap = await db.collection(g.col).get();
     counts[g.col] = snap.size;
   }
   console.log(`counts         : ${plan.map((g) => `${g.col}=${counts[g.col]}`).join(' ')}`);
+
+  // NTT-specific readback verification
+  const NTT_ID = 'ntt-sumba-barat-daya-2026-10-04';
+  const incidentDoc = await db.collection('incidents').doc(NTT_ID).get();
+  const nttIncidentExists = incidentDoc.exists && incidentDoc.data()?.isMock === false;
+  console.log(`NTT incident   : ${nttIncidentExists ? 'FOUND (isMock=false)' : 'MISSING or isMock=true'}`);
+
+  const nttArticlesSnap = await db.collection('incidentArticles').where('incidentId', '==', NTT_ID).get();
+  console.log(`NTT articles   : ${nttArticlesSnap.size} docs`);
+
+  const nttClaimsSnap = await db.collection('incidentClaims').where('incidentId', '==', NTT_ID).get();
+  console.log(`NTT claims     : ${nttClaimsSnap.size} docs`);
+
+  const nttPoskosSnap = await db.collection('incidentPoskos').where('incidentId', '==', NTT_ID).get();
+  console.log(`NTT poskos     : ${nttPoskosSnap.size} docs`);
+
+  const nttNeedsSnap = await db.collection('incidentAidNeeds').where('incidentId', '==', NTT_ID).get();
+  console.log(`NTT aid needs  : ${nttNeedsSnap.size} docs`);
+
+  const nttEventsSnap = await db.collection('incidentAidEvents').where('incidentId', '==', NTT_ID).get();
+  console.log(`NTT aid events : ${nttEventsSnap.size} docs`);
+
+  const nttRecoverySnap = await db.collection('incidentRecovery').where('incidentId', '==', NTT_ID).get();
+  console.log(`NTT recovery   : ${nttRecoverySnap.size} docs`);
+
+  // Posko coordinate check (should be null)
+  if (nttPoskosSnap.size > 0) {
+    const poskoData = nttPoskosSnap.docs[0].data();
+    console.log(`NTT posko coords: lat=${poskoData.latitude ?? 'null'} lng=${poskoData.longitude ?? 'null'} (expected null)`);
+    console.log(`NTT posko facilities: ${JSON.stringify(poskoData.availableFacilities)}`);
+  }
+
+  // Demo data sanity checks
   const repSnap = await db.collection('reports').get();
   const reps = repSnap.docs.map((d: { data: () => Record<string, unknown> }) => d.data());
   const has = (s: string) => reps.some((r) => r.verificationStatus === s);
@@ -513,6 +549,10 @@ async function main() {
     ['>=1 aid', aidSnap.size >= 1],
     ['demo metadata (seedBatch on reports)', demoMeta === repSnap.size && repSnap.size > 0],
     ['deterministic IDs stable (REP-DEMO-01, AID-DEMO-01 present)', (await db.collection('reports').doc('REP-DEMO-01').get()).exists && (await db.collection('aid').doc('AID-DEMO-01').get()).exists],
+    ['NTT incident exists (isMock=false)', nttIncidentExists],
+    ['NTT articles >= 10', nttArticlesSnap.size >= 10],
+    ['NTT claims >= 11', nttClaimsSnap.size >= 11],
+    ['NTT poskos >= 1', nttPoskosSnap.size >= 1],
   ];
   for (const [name, ok] of checks) console.log(`check ${ok ? 'PASS' : 'FAIL'} : ${name}`);
   // Aid-gap sanity (water): estimated 12000 vs received 8500 -> gap 3500.
