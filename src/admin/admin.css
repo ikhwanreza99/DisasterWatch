@@ -1104,3 +1104,9 @@
   font-size: 15px;
   font-weight: 700;
 }
+
+.admin-reject {border:1px solid #fecaca;background:#fff1f2;color:#b91c1c;border-radius:12px;padding:12px 16px;display:inline-flex;align-items:center;gap:8px;font-weight:600;}
+.admin-reject:disabled{opacity:.5;cursor:not-allowed;}
+.admin-badge.rejected{background:#fff1f2;color:#b91c1c;}
+
+.admin-review footer{flex-wrap:wrap;}

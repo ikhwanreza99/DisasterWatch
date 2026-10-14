@@ -5,6 +5,7 @@ import { ExternalLink } from 'lucide-react';
 import type { ClaimRef } from '../../domain/incidentDetail';
 
 const VERIF: Record<ClaimRef['verificationStatus'], string> = {
+  REJECTED: 'bg-red-50 text-red-700 border-red-200',
   VERIFIED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   AI_REVIEWED: 'bg-amber-50 text-amber-700 border-amber-200',
   UNVERIFIED: 'bg-slate-100 text-slate-600 border-slate-200',

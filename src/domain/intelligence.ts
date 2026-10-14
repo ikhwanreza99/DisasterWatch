@@ -4,7 +4,7 @@
 
 export type SourceType = 'official' | 'citizen' | 'media' | 'field' | 'aid' | 'internet' | 'social';
 
-export type VerificationStatus = 'UNVERIFIED' | 'AI_REVIEWED' | 'VERIFIED' | 'CONFLICTING';
+export type VerificationStatus = 'UNVERIFIED' | 'AI_REVIEWED' | 'VERIFIED' | 'CONFLICTING' | 'REJECTED';
 
 export type DisasterType = 'fire' | 'flood' | 'earthquake' | 'landslide' | 'other';
 

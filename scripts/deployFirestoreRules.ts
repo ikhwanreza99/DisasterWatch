@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 async function main() {
   const account=JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT??'{}');
   if(account.project_id!=='disasterwatch-61ed5')throw new Error('Project mismatch');
+  console.log(`Rules service account: ${account.client_email}`);
   const token=await cert(account).getAccessToken();
   const headers={Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'};
   const base='https://firebaserules.googleapis.com/v1/projects/disasterwatch-61ed5';

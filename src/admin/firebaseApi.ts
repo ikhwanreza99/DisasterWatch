@@ -3,7 +3,7 @@ import { getAuth, signInWithEmailAndPassword, signOut, browserSessionPersistence
 import { getFirestore, collection, doc, query, where, orderBy, documentId, limit, startAfter, getDocs, getDoc, getCountFromServer, runTransaction } from 'firebase/firestore';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { firebaseEnv, getFirebaseApp } from '../lib/firebase/config';
-import { reviewEvidence } from './reviewPolicy';
+import { reviewRejection, reviewEvidence } from './reviewPolicy';
 import { locationValidation } from '../services/locationValidation';
 
 let adminApp: ReturnType<typeof initializeApp> | null = null;
@@ -58,6 +58,29 @@ export async function firebaseAdminApi(path: string, body?: any): Promise<unknow
     const [rows, count] = await Promise.all([getDocs(page),getCountFromServer(base)]);
     return {rows:rows.docs.slice(0,50).map(d=>({...d.data(),id:d.id})),total:count.data().count,next:rows.size>50?rows.docs[49].id:null,demo:false};
   }
+  const reject = url.pathname.match(/^\/(reports|disasters)\/([^/]+)\/reject$/);
+  if (reject) {
+    const name=reject[1], id=decodeURIComponent(reject[2]);
+    if (id.includes('/')) throw new Error('ID tidak valid.');
+    const evidence=reviewRejection(body?.note,body?.reason,body?.evidenceUrls);
+    const audit=doc(collection(db,'reportReviews'));
+    const review={reviewedBy:user.uid,reviewedAt:new Date().toISOString(),reviewNote:evidence.note,evidenceUrls:evidence.urls,reviewAuditId:audit.id,rejectionReason:evidence.reason};
+    await runTransaction(db,async tx=>{
+      const ref=doc(db,name,id), snap=await tx.get(ref), record=snap.data();
+      if (!record) throw new Error('Data tidak ditemukan.');
+      if (record.isMock===true) throw new Error('Laporan demo tidak dapat digunakan untuk menolak kejadian nyata.');
+      const previousStatus=name==='reports'?record.verificationStatus:record.approvalStatus??'PENDING';
+      if (previousStatus!==body.expectedStatus || previousStatus==='REJECTED') throw new Error('Status berubah. Muat ulang daftar.');
+      const disasterRef=name==='disasters'?ref:doc(db,'disasters',record.disasterId || `reported-${id}`);
+      const disasterSnap=name==='disasters'?snap:await tx.get(disasterRef);
+      if (disasterSnap.data()?.isMock===true) throw new Error('Titik demo tidak dapat diputuskan sebagai kejadian nyata.');
+      if(name==='reports')tx.update(ref,{...review,verificationStatus:'REJECTED',disasterId:disasterRef.id});
+      if(disasterSnap.exists())tx.update(disasterRef,{...review,approvalStatus:'REJECTED'});
+      else tx.set(disasterRef,{id:disasterRef.id,isMock:false,...review,approvalStatus:'REJECTED'});
+      tx.set(audit,{...review,targetCollection:name,targetId:id,disasterId:disasterRef.id,previousStatus,decision:'REJECTED',reportId:name==='reports'?id:null});
+    });
+    return {...review,verificationStatus:'REJECTED'};
+  }
   const approve = url.pathname.match(/^\/(reports|disasters)\/([^/]+)\/approve$/);
   if (approve) {
     const name=approve[1], id=decodeURIComponent(approve[2]);
@@ -72,9 +95,10 @@ export async function firebaseAdminApi(path: string, body?: any): Promise<unknow
       if (record.isMock === true) throw new Error('Data demo tidak dapat disetujui sebagai kejadian nyata.');
       if (name==='disasters' && locationValidation(record).status==='REJECTED') throw new Error('Koordinat tidak sesuai provinsi. Koreksi data lokasi sebelum menyetujui titik ini.');
       const previousStatus=name==='reports'?record.verificationStatus:record.approvalStatus??'PENDING';
-      if (previousStatus!==body.expectedStatus || ['VERIFIED','APPROVED'].includes(previousStatus)) throw new Error('Status berubah. Muat ulang daftar.');
+      if (previousStatus!==body.expectedStatus || ['VERIFIED','APPROVED','REJECTED'].includes(previousStatus)) throw new Error('Status berubah. Muat ulang daftar.');
       let disasterRef = name==='disasters'?ref:doc(db,'disasters',record.disasterId || `reported-${id}`);
       const disasterSnap=name==='disasters'?snap:await tx.get(disasterRef);
+      if(disasterSnap.data()?.approvalStatus==='REJECTED')throw new Error('Titik ini sudah ditolak. Persetujuan laporan lain tidak dapat mengaktifkannya kembali.');
       const createPoint = name==='reports' && !disasterSnap.exists();
       const lat=Number(body.lat??record.location?.lat), lng=Number(body.lng??record.location?.lng);
       const province=typeof body.province==='string'?body.province.trim():record.province??'';

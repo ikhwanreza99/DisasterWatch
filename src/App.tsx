@@ -1,3 +1,4 @@
+import { applyDisasterDecisions } from './services/disasterModeration';
 import React, { useEffect, useState } from 'react';
 import { currentArticles, currentIncidents } from './data/currentIncidents';
 import { newsSourceUrl } from './services/newsSourceUrl';
@@ -5,7 +6,7 @@ import { classifyRelevance } from './services/incidentNews';
 import { descriptorFor } from './services/incidentRegistry';
 import { validDisasterPhoto, type DisasterPhoto } from './services/disasterPhoto';
 import { getDb } from './lib/firebase/firestore';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { inRecentWindow } from './services/recentWindow';
 import { locationValidation } from './services/locationValidation';
 import { CategoryFilter, DisasterCategory, DisasterIncident, DisasterCheckpoint } from './types';
@@ -78,14 +79,19 @@ export default function App() {
     // Keep the dedicated NTT case accessible independently of the recent dataset.
     return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => id === NTT_CASE_ID || covered.has(id)));
   });
+  const [moderationLoaded,setModerationLoaded]=useState(()=>!getDb());
   const [ntt, setNtt] = useState<NttCaseState | null>(null);
   useEffect(() => {
     const db=getDb();
     if(!db)return;
-    return onSnapshot(query(collection(db,'disasters'),where('approvalStatus','==','APPROVED')),snapshot=>{
-      const approved = snapshot.docs.map(doc=>doc.data() as DisasterIncident & {isMock?:boolean;eventDate?:string});
-      setDisasters(previous=>({...previous,...Object.fromEntries(approved.filter(incident=>incident.isMock===false && incident.coords && locationValidation(incident).status!=='REJECTED' && (incident.id===NTT_CASE_ID || inRecentWindow(incident.eventDate))).map(incident=>[incident.id,incident]))}));
-    },()=>{ /* Reviewed snapshot remains available when database is unavailable. */ });
+    return onSnapshot(collection(db,'disasters'),{includeMetadataChanges:true},snapshot=>{
+      if(snapshot.metadata.fromCache)return;
+      const records = snapshot.docs.map(doc=>({...doc.data(),id:doc.id}) as DisasterIncident & {isMock?:boolean;eventDate?:string;approvalStatus?:string});
+      const approved=records.filter(record=>record.approvalStatus==='APPROVED');
+      const rejected=records.filter(record=>record.approvalStatus==='REJECTED').map(record=>record.id);
+      setDisasters(previous=>applyDisasterDecisions(previous,Object.fromEntries(approved.filter(incident=>incident.isMock===false && incident.coords && locationValidation(incident).status!=='REJECTED' && (incident.id===NTT_CASE_ID || inRecentWindow(incident.eventDate))).map(incident=>[incident.id,incident])),rejected));
+      setModerationLoaded(true);
+    },()=>{ /* Do not reveal incident markers until moderation has been read successfully. */ });
   },[]);
   useEffect(() => {
     const controller = new AbortController();
@@ -500,7 +506,7 @@ export default function App() {
             target === 'magma' ? setMagmaDate(value) : target === 'bmkg' ? setBmkgDate(value) : setSelectedDate(value)
           }
           onReportDisaster={handleReportDisaster}
-          disasters={disasters}
+          disasters={moderationLoaded ? disasters : {}}
           onHighlightDisaster={setHighlightedDisasterKey}
           onOpenLogin={() => openLogin('account')}
           onSignOut={handleLogout}
@@ -536,7 +542,7 @@ export default function App() {
               handleOpenAI(false);
               setAiDraft({ message, file });
             }}
-            disasters={disasters}
+            disasters={moderationLoaded ? disasters : {}}
             activeDisasterKey={activeDisasterKey}
             onSelectDisaster={handleSelectDisaster}
             activeCategory={activeCategory}
@@ -655,7 +661,7 @@ export default function App() {
               disaster={activeDisaster}
               onClose={() => setIsAIOpen(false)}
               onReportSubmitted={handleNewReportSuccess}
-              disasters={disasters}
+              disasters={moderationLoaded ? disasters : {}}
               intelReports={intelReports}
               aidRecords={aidRecords}
               onIntelReport={handleIntelReport}

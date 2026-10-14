@@ -15,3 +15,26 @@ Setup: GitHub workflow `Setup superuser and approval rules` memvalidasi/deploy F
 Status layanan menggunakan halaman status yang sama dengan publik. Token Usage tetap data provider dari browser ini, bukan tagihan agregat proyek. Tidak ada password, token login, prompt atau isi laporan yang disimpan dalam telemetry token.
 
 Validasi: TypeScript/build, tes legacy Express, kebijakan evidence, rules validation dan uji login Firestore produksi. Persetujuan kejadian nyata tidak dilakukan otomatis demi uji: keputusan fact-check tetap milik superuser.
+
+## Rejecting a report or incident
+
+Use Tolak laporan, select HOAX or NO_DISASTER, write a 10–1000 character
+fact-check note and confirm the check. Evidence URLs are optional for rejection
+(max 5 HTTPS URLs), still required for approval. Real records only; demo reports
+cannot decide the existence of real incidents. An already approved report may
+also be rejected if later evidence disproves it. Rejected records cannot be
+approved through another report; reopening is not implemented.
+
+A transaction writes reports.verificationStatus=REJECTED (when reviewing a
+report), disasters.approvalStatus=REJECTED and an immutable reportReviews audit.
+The linked disasterId is authoritative: this action rejects the existence of
+that entire incident, not just one description. Unlinked reports create a
+rejection decision at disasters/reported-{reportId}, never a map point.
+Map incident markers wait for the server moderation snapshot and remove rejected
+IDs from bundled and previously approved markers. Sensor overlays are separate.
+The source sync merges source metadata and preserves approvalStatus.
+
+Publish the complete firestore.rules for rejection writes. The manual workflow
+Publish Firestore rules validates/releases rules without changing admin accounts.
+If IAM returns 403, publish through Firebase Console or grant Firebase Rules Admin
+to the service account shown in the workflow log. No credential secrets are logged.

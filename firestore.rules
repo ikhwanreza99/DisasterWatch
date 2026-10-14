@@ -38,8 +38,8 @@ service cloud.firestore {
     }
     function evidenceValid(data) {
       return data.reviewedBy == request.auth.uid && data.reviewNote is string && data.reviewNote.size() >= 10 && data.reviewNote.size() <= 1000
-        && data.evidenceUrls is list && data.evidenceUrls.size() >= 1 && data.evidenceUrls.size() <= 5
-        && data.evidenceUrls[0] is string && data.evidenceUrls[0].matches('https://.*')
+        && data.evidenceUrls is list && data.evidenceUrls.size() >= 0 && data.evidenceUrls.size() <= 5
+        && (data.evidenceUrls.size() == 0 || (data.evidenceUrls[0] is string && data.evidenceUrls[0].matches('https://.*')))
         && (data.evidenceUrls.size() < 2 || data.evidenceUrls[1].matches('https://.*'))
         && (data.evidenceUrls.size() < 3 || data.evidenceUrls[2].matches('https://.*'))
         && (data.evidenceUrls.size() < 4 || data.evidenceUrls[3].matches('https://.*'))
@@ -47,17 +47,19 @@ service cloud.firestore {
     }
     function audited(data, kind, id) {
       let audit = getAfter(/databases/$(database)/documents/reportReviews/$(data.reviewAuditId)).data;
-      return evidenceValid(data) && audit.reviewedBy == request.auth.uid && audit.decision == 'APPROVED'
+      return evidenceValid(data) && audit.reviewedBy == request.auth.uid && audit.decision in ['APPROVED','REJECTED']
+        && (audit.decision == 'APPROVED' ? data.evidenceUrls.size() >= 1 && (kind == 'disasters' ? data.approvalStatus == 'APPROVED' : data.verificationStatus == 'VERIFIED')
+          : data.rejectionReason in ['HOAX','NO_DISASTER'] && audit.rejectionReason == data.rejectionReason && (kind == 'disasters' ? data.approvalStatus == 'REJECTED' : data.verificationStatus == 'REJECTED'))
         && audit.reviewNote == data.reviewNote && audit.evidenceUrls == data.evidenceUrls
         && (kind == 'disasters' ? audit.disasterId == id : audit.targetCollection == kind && audit.targetId == id);
     }
     match /disasters/{id} {
       allow read: if true;
-      allow create: if superuser() && request.resource.data.isMock == false && request.resource.data.demoNotice == 'REAL'
-        && request.resource.data.id == id && request.resource.data.approvalStatus == 'APPROVED' && audited(request.resource.data, 'disasters', id);
+      allow create: if superuser() && request.resource.data.isMock == false && (request.resource.data.approvalStatus == 'REJECTED' || request.resource.data.demoNotice == 'REAL')
+        && request.resource.data.id == id && request.resource.data.approvalStatus in ['APPROVED','REJECTED'] && audited(request.resource.data, 'disasters', id);
       allow update: if superuser() && resource.data.get('isMock', false) == false
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approvalStatus','reviewedBy','reviewedAt','reviewNote','evidenceUrls','reviewAuditId'])
-        && request.resource.data.approvalStatus == 'APPROVED' && audited(request.resource.data, 'disasters', id);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approvalStatus','reviewedBy','reviewedAt','reviewNote','evidenceUrls','reviewAuditId','rejectionReason'])
+        && request.resource.data.approvalStatus in ['APPROVED','REJECTED'] && audited(request.resource.data, 'disasters', id);
       allow delete: if false;
     }
     match /reports/{id} {
@@ -69,21 +71,23 @@ service cloud.firestore {
         && request.resource.data.rawText.size() > 0
         && request.resource.data.rawText.size() < 4000
         && request.resource.data.verificationStatus in ['UNVERIFIED', 'AI_REVIEWED', 'CONFLICTING']
-        && !request.resource.data.keys().hasAny(['reviewedBy', 'reviewedAt', 'reviewNote', 'evidenceUrls', 'reviewAuditId']);
+        && !request.resource.data.keys().hasAny(['reviewedBy', 'reviewedAt', 'reviewNote', 'evidenceUrls', 'reviewAuditId', 'rejectionReason']);
       // Admin approval uses a protected server endpoint + Admin SDK transaction.
       allow update: if superuser() && resource.data.get('isMock', false) == false
-        && resource.data.verificationStatus in ['UNVERIFIED', 'AI_REVIEWED', 'CONFLICTING']
-        && request.resource.data.verificationStatus == 'VERIFIED'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verificationStatus','disasterId','reviewedBy','reviewedAt','reviewNote','evidenceUrls','reviewAuditId'])
+        && resource.data.verificationStatus in ['UNVERIFIED', 'AI_REVIEWED', 'CONFLICTING', 'VERIFIED']
+        && (request.resource.data.verificationStatus == 'REJECTED' || (request.resource.data.verificationStatus == 'VERIFIED' && resource.data.verificationStatus != 'VERIFIED'))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verificationStatus','disasterId','reviewedBy','reviewedAt','reviewNote','evidenceUrls','reviewAuditId','rejectionReason'])
         && audited(request.resource.data, 'reports', id);
       allow delete: if false;
     }
     match /reportReviews/{id} {
       allow read: if superuser();
       allow create: if superuser() && evidenceValid(request.resource.data) && request.resource.data.reviewAuditId == id
-        && request.resource.data.decision == 'APPROVED'
+        && request.resource.data.decision in ['APPROVED','REJECTED']
         && request.resource.data.targetCollection in ['reports','disasters']
-        && getAfter(/databases/$(database)/documents/disasters/$(request.resource.data.disasterId)).data.reviewAuditId == id;
+        && getAfter(/databases/$(database)/documents/disasters/$(request.resource.data.disasterId)).data.reviewAuditId == id
+        && getAfter(/databases/$(database)/documents/disasters/$(request.resource.data.disasterId)).data.approvalStatus == request.resource.data.decision
+        && (request.resource.data.targetCollection != 'reports' || getAfter(/databases/$(database)/documents/reports/$(request.resource.data.targetId)).data.reviewAuditId == id);
       allow update, delete: if false;
     }
     match /aid/{id} {

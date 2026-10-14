@@ -58,7 +58,7 @@ export interface AidEventRecord {
   eventTime: string | null;
   sourceUrl: string | null;
   sourceName: string | null;
-  verificationStatus: 'UNVERIFIED' | 'AI_REVIEWED' | 'VERIFIED' | 'CONFLICTING';
+  verificationStatus: 'UNVERIFIED' | 'AI_REVIEWED' | 'VERIFIED' | 'CONFLICTING' | 'REJECTED';
   recordKind: 'REPORTED_EVENT';
   isMock: boolean;
 }
@@ -86,7 +86,7 @@ export interface PoskoRecord {
   lastUpdatedAt: string | null;
   sourceUrl: string | null;
   sourceName: string | null;
-  verificationStatus: 'UNVERIFIED' | 'AI_REVIEWED' | 'VERIFIED' | 'CONFLICTING';
+  verificationStatus: 'UNVERIFIED' | 'AI_REVIEWED' | 'VERIFIED' | 'CONFLICTING' | 'REJECTED';
   isMock: boolean;
 }
 
@@ -120,7 +120,7 @@ export interface ClaimRef {
   location: string | null;
   sourceUrl: string | null;
   sourceName: string | null;
-  verificationStatus: 'UNVERIFIED' | 'AI_REVIEWED' | 'VERIFIED' | 'CONFLICTING';
+  verificationStatus: 'UNVERIFIED' | 'AI_REVIEWED' | 'VERIFIED' | 'CONFLICTING' | 'REJECTED';
 }
 
 /** Common detail data every incident adapter must supply. */
