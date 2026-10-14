@@ -70,6 +70,7 @@ export interface IncidentArticleDoc {
   contentStatus: 'FULL' | 'PARTIAL' | 'METADATA_ONLY' | 'FAILED';
   discoveredBy: string;
   googleSearchSuggestions?: string | null;
+  imageUrl?: string | null; // Publisher/SerpApi thumbnail; never an inferred field photo.
   relevance: {
     incidentId: string;
     status: RelevanceStatus;

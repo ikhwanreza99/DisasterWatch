@@ -3,10 +3,11 @@ import { newsSourceUrl } from '../../src/services/newsSourceUrl.ts';
 
 export interface SerpNewsHit {
   title: string; link: string; sourceName: string; publishedAt: string | null;
+  imageUrl: string | null;
 }
 interface NewsItem {
   title?: unknown; link?: unknown; source?: { name?: unknown }; iso_date?: unknown;
-  stories?: NewsItem[];
+  stories?: NewsItem[]; thumbnail?: unknown;
 }
 interface NewsResponse {
   error?: unknown; search_metadata?: { status?: string }; news_results?: NewsItem[];
@@ -30,6 +31,7 @@ export function parseSerpNews(data: NewsResponse): SerpNewsHit[] {
         title: title.slice(0, 1000), link,
         sourceName: typeof item.source?.name === 'string' && item.source.name.trim() ? item.source.name.trim().slice(0, 200) : new URL(link).hostname,
         publishedAt: Number.isFinite(time) ? new Date(time).toISOString() : null,
+        imageUrl: newsSourceUrl(item.thumbnail),
       };
       if (!unique.has(link) || (!unique.get(link)!.publishedAt && hit.publishedAt)) unique.set(link, hit);
     }

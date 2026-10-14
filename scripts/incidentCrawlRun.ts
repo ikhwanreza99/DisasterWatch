@@ -254,6 +254,7 @@ async function main() {
               id: articleDocId(id, hit.link), incidentId: id, canonicalUrl: hit.link, url: hit.link,
               title: hit.title, sourceName: hit.sourceName, sourceType: 'NEWS_MEDIA',
               publishedAt: hit.publishedAt, retrievedAt: now, updatedAt: now, summary: null,
+              imageUrl: hit.imageUrl,
               contentHash: createHash('sha256').update(`${hit.title}|${hit.link}|${hit.publishedAt ?? ''}`).digest('hex'),
               contentStatus: 'METADATA_ONLY', discoveredBy: 'serpapi:google-news',
               relevance: { incidentId: id, status: 'REJECTED', score: 0, matchedAliases: [], matchedKeywords: [], reason: 'pending classification', classifiedAt: now },

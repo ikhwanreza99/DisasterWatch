@@ -3,6 +3,7 @@ import { currentArticles, currentIncidents } from './data/currentIncidents';
 import { newsSourceUrl } from './services/newsSourceUrl';
 import { classifyRelevance } from './services/incidentNews';
 import { descriptorFor } from './services/incidentRegistry';
+import { validDisasterPhoto, type DisasterPhoto } from './services/disasterPhoto';
 import { CategoryFilter, DisasterCategory, DisasterIncident, DisasterCheckpoint } from './types';
 import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
@@ -74,6 +75,19 @@ export default function App() {
     return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => id === NTT_CASE_ID || covered.has(id)));
   });
   const [ntt, setNtt] = useState<NttCaseState | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/data/disaster-photos.json', { cache: 'no-cache', signal: controller.signal })
+      .then(response => { if (!response.ok) throw new Error('Photos unavailable'); return response.json(); })
+      .then((data: { photos?: Record<string, DisasterPhoto> }) => {
+        if (controller.signal.aborted || !data.photos) return;
+        setDisasters(previous => Object.fromEntries(Object.entries(previous).map(([id, incident]) => {
+          const photo = data.photos![id];
+          return [id, validDisasterPhoto(photo, id) ? { ...incident, photoUrl: photo.imageUrl, photoAlt: `Dokumentasi ${incident.name}`, photoSource: photo.sourceName, photoSourceUrl: photo.sourceUrl, photoReportDate: photo.reportDate } : incident];
+        })));
+      }).catch(() => { /* Keep explicit unavailable placeholder. */ });
+    return () => controller.abort();
+  }, []);
   const [isNttOpen, setIsNttOpen] = useState<boolean>(false);
   const [nttRefreshing, setNttRefreshing] = useState<boolean>(false);
   const [activeDisasterKey, setActiveDisasterKey] = useState<string>('padang');
