@@ -264,8 +264,8 @@
     "disasterLabel": "Banjir",
     "date": "2026-10-10",
     "startDate": "2026-10-10",
-    "lat": 1.5758644,
-    "lng": 99.634135,
+    "lat": -0.9471,
+    "lng": 100.4172,
     "aliases": [
       "Kota Padang"
     ],
@@ -286,7 +286,10 @@
           "damagedFacilities": 0
         }
       }
-    ]
+    ],
+    "coordinateSource": "Dataset reviewed Kota Padang; batas wilayah Pemko Padang https://padang.go.id/arsip/105",
+    "coordinatePrecision": "REGION_REPRESENTATIVE",
+    "coordinateNotice": "Titik mewakili Kota Padang; lokasi presisi terdampak tetap perlu fact-check."
   },
   {
     "id": "aceh-tamiang-2026-10",
@@ -540,8 +543,8 @@
     "disasterLabel": "Kebakaran Hutan Dan Lahan",
     "date": "2026-10-08",
     "startDate": "2026-10-03",
-    "lat": 0.8826809999999999,
-    "lng": 124.46695659999999,
+    "lat": -7.14613,
+    "lng": 111.8753,
     "aliases": [
       "Bojonegoro"
     ],
@@ -575,7 +578,10 @@
           "damagedFacilities": 0
         }
       }
-    ]
+    ],
+    "coordinateSource": "BPS Kecamatan Bojonegoro Dalam Angka 2022, Tabel 1.5: Kelurahan Ledokwetan",
+    "coordinatePrecision": "REGION_REPRESENTATIVE",
+    "coordinateNotice": "Titik mewakili wilayah Kecamatan Bojonegoro, bukan lokasi presisi lahan terbakar."
   },
   {
     "id": "bnpb-1905-fire-2026-10",

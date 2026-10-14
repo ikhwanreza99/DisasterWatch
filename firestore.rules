@@ -5,7 +5,16 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function superuser() { return request.auth != null && request.auth.token.get('superuser', false) == true; }
+    match /users/{id} {
+      allow read: if request.auth != null && (superuser() || resource.data.authUid == request.auth.uid);
+      allow write: if false; // Provisioned Admin SDK only; clients cannot assign roles.
+    }
+    function superuser() {
+      return request.auth != null && (request.auth.token.get('superuser', false) == true ||
+        (get(/databases/$(database)/documents/users/admin).data.authUid == request.auth.uid
+          && get(/databases/$(database)/documents/users/admin).data.role == 'SUPERUSER'
+          && get(/databases/$(database)/documents/users/admin).data.accountStatus == 'ACTIVE'));
+    }
     function evidenceValid(data) {
       return data.reviewedBy == request.auth.uid && data.reviewNote is string && data.reviewNote.size() >= 10 && data.reviewNote.size() <= 1000
         && data.evidenceUrls is list && data.evidenceUrls.size() >= 1 && data.evidenceUrls.size() <= 5

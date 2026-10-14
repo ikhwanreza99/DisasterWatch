@@ -748,6 +748,7 @@ function Review({
   const [suggestions, setSuggestions] = useState<Array<{title?:string;url?:string;sourceName?:string}>>([]);
   const [latitude,setLatitude]=useState(report.location?.lat?.toString()??'');
   const [longitude,setLongitude]=useState(report.location?.lng?.toString()??'');
+  const [province,setProvince]=useState((report as Report & {province?:string}).province??'');
   useEffect(()=>{
     let active=true;
     const id=report.targetCollection==='disasters'?report.id:report.disasterId;
@@ -769,7 +770,7 @@ function Review({
       await adminApi(`/${report.targetCollection??"reports"}/${encodeURIComponent(report.id)}/approve`, {
         note,
         evidenceUrls:evidence.split(/\s+/).filter(Boolean),
-        lat:latitude ? Number(latitude) : undefined, lng:longitude ? Number(longitude) : undefined,
+        lat:latitude ? Number(latitude) : undefined, lng:longitude ? Number(longitude) : undefined, province,
         expectedStatus: report.targetCollection==='disasters' ? (report as Report & {approvalStatus:string}).approvalStatus : report.verificationStatus,
       });
       onApproved();
@@ -889,14 +890,14 @@ function Review({
             <textarea id="evidence-urls" value={evidence} onChange={event=>setEvidence(event.target.value)} rows={3} placeholder="Berita, laporan BNPB/BMKG, atau eviden lainnya" />
             {report.sourceUrl && <p><a href={report.sourceUrl} target="_blank" rel="noopener noreferrer">Sumber record</a></p>}
             {suggestions.map((source,index)=><p key={index}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.sourceName}: {source.title}</a></p>)}
-            {report.targetCollection!=='disasters' && <div><label>Latitude titik<input value={latitude} onChange={event=>setLatitude(event.target.value)} type="number" min="-90" max="90" step="any"/></label><label>Longitude titik<input value={longitude} onChange={event=>setLongitude(event.target.value)} type="number" min="-180" max="180" step="any"/></label></div>}
+            {report.targetCollection!=='disasters' && <div><label>Provinsi titik<input value={province} onChange={event=>setProvince(event.target.value)} placeholder="Contoh: Jawa Timur"/></label><label>Latitude titik<input value={latitude} onChange={event=>setLatitude(event.target.value)} type="number" min="-90" max="90" step="any"/></label><label>Longitude titik<input value={longitude} onChange={event=>setLongitude(event.target.value)} type="number" min="-180" max="180" step="any"/></label></div>}
             <label className="admin-confirm">
               <input
                 type="checkbox"
                 checked={confirmed}
                 onChange={(e) => setConfirmed(e.target.checked)}
               />
-              Saya sudah memeriksa isi dan sumber laporan ini.
+              Saya sudah memeriksa nama kota/kabupaten, provinsi, koordinat pada peta, tanggal kejadian, dan sumber evidennya.
             </label>
           </>
         )}

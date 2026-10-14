@@ -213,6 +213,7 @@ export function buildIncidentDetail(
   const aid: AidEventRecord[] = [];
   const posko: PoskoRecord[] = [];
   for (const a of candidates) {
+    if(a.discoveredBy==='threads:keyword-search')continue;
     if (a.incidentRelevance?.status !== 'MATCHED') continue;
     aid.push(...extractAidEvents(a, disaster.id, !isNtt));
     posko.push(...extractPosko(a, disaster.id, !isNtt));

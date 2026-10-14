@@ -7,7 +7,10 @@ end=date.fromisoformat(sys.argv[3]) if len(sys.argv)>3 else datetime.now(ZoneInf
 start=end-timedelta(days=6)
 from pathlib import Path
 norm=lambda s: re.sub(r'[^a-z]','',re.sub(r'^kabupaten\s+','',s.lower()))
-coords={norm(r['name']):r for r in csv.DictReader(open(sys.argv[2]))}
+coord_groups={}
+for entry in csv.DictReader(open(sys.argv[2])):coord_groups.setdefault(norm(entry['name']),[]).append(entry)
+bounds=json.loads(Path('src/data/provinceBounds.json').read_text())
+
 rows=[]
 for tr in re.findall(r'<tr[^>]*>(.*?)</tr>',Path(sys.argv[1]).read_text(),re.S|re.I):
  cells=re.findall(r'<td[^>]*>(.*?)</td>',tr,re.S|re.I)
@@ -28,8 +31,11 @@ for r in rows:
 records=[]
 categories={'BANJIR':'flood','KEBAKARAN HUTAN DAN LAHAN':'fire','GEMPABUMI':'earthquake','KEKERINGAN':'other','TANAH LONGSOR':'landslide'}
 for (code,kind),rr in groups.items():
- r=rr[0]; co=coords.get(norm(r[6]))
- if not co:missing.append(r[6]);continue
+ r=rr[0]; matches=coord_groups.get(norm(r[6]),[])
+ matches=[co for co in matches if not co.get('province') or norm(co['province'])==norm(r[7])]
+ if len(matches)!=1:missing.append(r[6]+' (missing/ambiguous name + province)');continue
+ co=matches[0]; region=bounds.get(r[7]); latitude=float(co['lat']); longitude=float(co['long'])
+ if not region or not(region[0]<=latitude<=region[1] and region[2]<=longitude<=region[3]):missing.append(r[6]+' (coordinates outside province)');continue
  cat=categories.get(kind, 'other'); id=f"bnpb-{code}-{cat}-{end.strftime('%Y-%m')}"
  if code=='1371':id='padang'
  if code=='5318' and kind=='GEMPABUMI' and any(x[3]=='2026-10-04' for x in rr):id='ntt-sumba-barat-daya-2026-10-04'

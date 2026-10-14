@@ -1,4 +1,5 @@
 import { inRecentWindow } from '../services/recentWindow';
+import { locationValidation } from '../services/locationValidation';
 import { currentMedia } from './currentMedia';
 import nationalSnapshot from './nationalIncidents.json';
 import type { DisasterIncident, DisasterCategory } from '../types';
@@ -27,6 +28,7 @@ export const allCurrentRecords: CurrentRecord[] = [
 ];
 export function recentRecords(records: CurrentRecord[], now = Date.now()): CurrentRecord[] {
   return records.flatMap(record => {
+    if(locationValidation(record).status === 'REJECTED') return [];
     if (!record.reports?.length) return inRecentWindow(record.date, now) ? [record] : [];
     const reports = record.reports.filter(report => inRecentWindow(report.date, now));
     if (!reports.length) return [];

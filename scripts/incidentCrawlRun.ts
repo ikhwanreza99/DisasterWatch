@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { searchGemini } from './providers/geminiSearch.ts';
 import { searchSerpNews } from './providers/serpapiNews.ts';
+import { searchThreads } from './providers/threadsSearch.ts';
 import { newsSourceUrl } from '../src/services/newsSourceUrl.ts';
 import { ACTIVE_NEWS_IDS } from '../src/services/incidentRegistry.ts';
 // Gated incident crawl runner (Admin SDK, trusted GitHub Actions ONLY).
@@ -52,6 +53,7 @@ const NO_AI = args.has('--no-ai');
 const now = new Date().toISOString();
 const zapiKey = process.env.ZAPI_API_KEY || '';
 const serpapiKey = process.env.SERPAPI_API_KEY?.trim() || '';
+const threadsToken = process.env.THREADS_ACCESS_TOKEN?.trim() || '';
 const aiKey = process.env.DISASTERWATCH_GEMINI_KEY || '';
 const searchKey = process.env.DISASTERWATCH_GEMINI_SEARCH_KEY || aiKey;
 const searchEnabled = process.env.DISASTERWATCH_GOOGLE_SEARCH_ENABLED === 'true' && !!searchKey;
@@ -157,7 +159,7 @@ async function main() {
     return { outcome: 'GATED_SKIP' as CrawlOutcome, exitCode: 0 };
   }
 
-  if (!zapiKey && !searchEnabled && !serpapiKey) {
+  if (!zapiKey && !searchEnabled && !serpapiKey && !threadsToken) {
     // Due but unpaid path unavailable: record failure honestly, preserve all data.
     console.log('outcome        : PROVIDER_FAILED (No configured search provider — no request sent, data preserved)');
     if (db) await recordRun(db, 'PROVIDER_FAILED', lastSuccess, [], 0, 0, 0, 'missing-search-provider');
@@ -282,6 +284,14 @@ async function main() {
           }
         } catch (e) { console.log(`provider Gemini ${id}: ${safeError(e)}`); }
       }
+      if (threadsToken) {
+        try {
+          const q=queries[0].replace(/ after:.*$/,'');
+          const hits=await searchThreads(q,threadsToken);
+          successfulQueries++;
+          for(const hit of hits)fresh.push({id:articleDocId(id,hit.url),incidentId:id,canonicalUrl:hit.url,url:hit.url,title:hit.text,sourceName:`Threads · @${hit.username}`,sourceType:'OTHER',publishedAt:hit.publishedAt,retrievedAt:now,updatedAt:now,summary:null,contentHash:createHash('sha256').update(`${hit.url}|${hit.text}`).digest('hex'),contentStatus:'METADATA_ONLY',discoveredBy:'threads:keyword-search',relevance:{incidentId:id,status:'REJECTED',score:0,matchedAliases:[],matchedKeywords:[],reason:'pending location/date classification',classifiedAt:now},verificationStatus:'UNVERIFIED',isMock:false,schemaVersion:1});
+        }catch(error){console.log(`provider Threads ${id}: ${safeError(error)}`);}
+      }
       if (!successfulQueries) throw new Error('All search providers failed');
       // Prefer dated publisher metadata over undated duplicates across providers.
       const unique = new Map<string, IncidentArticleDoc>();
@@ -298,7 +308,7 @@ async function main() {
       fresh = [...unique.values()];
       fetched = fresh.length;
       // Classify (query hit never implies relevance) + AI summaries for new/changed only.
-      const aiTargets = DRY_RUN ? [] : selectForAI(prev.articles.filter((a) => a.incidentId === id), fresh);
+      const aiTargets = DRY_RUN ? [] : selectForAI(prev.articles.filter((a) => a.incidentId === id), fresh.filter(a=>a.discoveredBy!=='threads:keyword-search'));
       for (const c of aiTargets) {
         const s = await aiExtract(c.title, c.summary);
         if (s) {
@@ -322,7 +332,7 @@ async function main() {
       articlesUpdated += artFresh.length - artFresh.filter((a) => !prev.articles.some((p) => p.id === a.id)).length;
 
       // Derive claims/needs/events/poskos/recovery from MATCHED articles only.
-      const use = classified.filter((c) => c.relevance.status === 'MATCHED');
+      const use = classified.filter((c) => c.relevance.status === 'MATCHED' && c.discoveredBy!=='threads:keyword-search');
       const claimDocs: IncidentClaimDoc[] = [];
       const needDocs: IncidentAidNeedDoc[] = [];
       const eventDocs: IncidentAidEventDoc[] = [];
