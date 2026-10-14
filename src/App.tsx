@@ -631,6 +631,7 @@ export default function App() {
               isDarkMode={isDarkMode}
               selectedPostId={selectedPostId}
               onSelectPost={setSelectedPostId}
+              onSuggestedPosts={(id,posts)=>setDisasters(previous=>previous[id]?{...previous,[id]:{...previous[id],route:{...previous[id].route,checkpoints:posts}}}:previous)}
             />
           )}
 

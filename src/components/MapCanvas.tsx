@@ -1066,9 +1066,11 @@ const OSMMapRenderer: React.FC<{
       rGroup.addLayer(cpMarker);
     });
 
-    if (pts.length >= 2) {
+    if (pts.length >= 2 && !checkpoints.some(cp=>cp.recommendation)) {
       rGroup.addLayer(L.polyline(pts, { color: '#ea580c', weight: 8, opacity: 0.35 }));
       rGroup.addLayer(L.polyline(pts, { color: '#f97316', weight: 3.5, opacity: 0.95, dashArray: '8, 8' }));
+    }
+    if(pts.length>0) {
       map.fitBounds(L.latLngBounds(pts), { padding: [90, 90], animate: true, duration: 1.0 });
     }
   }, [isRouteOpen, activeData, selectedPostId, onSelectPost]);
@@ -1554,8 +1556,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 )}
 
               {/* Evacuation / Distribution Route Polyline */}
-              {isRouteOpen && googleRoutePoints.length >= 2 && (
+              {isRouteOpen && googleRoutePoints.length > 0 && (
                 <>
+                  {!activeData?.route.checkpoints.some(cp=>cp.recommendation) && <>
                   <Polyline
                     path={googleRoutePoints}
                     strokeColor="#ea580c"
@@ -1568,6 +1571,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     strokeOpacity={0.95}
                     strokeWeight={4}
                   />
+                  </>}
                   {googleRoutePoints.map((pt, idx) => (
                     <AdvancedMarker
                       key={`gcp-${idx}`}

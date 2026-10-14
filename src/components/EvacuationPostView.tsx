@@ -1,5 +1,6 @@
 import { MobileSheetHandle } from './MobileSheetHandle';
-import React, { useEffect, useRef } from 'react';
+import { recommendEvacuation } from '../services/places/recommendEvacuation';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
   MapPinned,
@@ -20,6 +21,7 @@ interface EvacuationPostViewProps {
   isDarkMode?: boolean;
   selectedPostId: DisasterCheckpoint['id'] | null;
   onSelectPost: (id: DisasterCheckpoint['id']) => void;
+  onSuggestedPosts?: (incidentId:string,posts:DisasterCheckpoint[]) => void;
 }
 
 const getCapacityMeta = (post: DisasterCheckpoint) => {
@@ -71,10 +73,31 @@ export const EvacuationPostView: React.FC<EvacuationPostViewProps> = ({
   onClose,
   selectedPostId,
   onSelectPost,
+  onSuggestedPosts,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef(new Map<DisasterCheckpoint['id'], HTMLElement>());
   const posts = disaster.route.checkpoints;
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState('');
+  const [method,setMethod]=useState<'gemini'|'distance'|null>(null);
+  const [radius,setRadius]=useState(5000);
+  const [retry,setRetry]=useState(0);
+  const onSuggestedRef=useRef(onSuggestedPosts);
+  onSuggestedRef.current=onSuggestedPosts;
+  const hasReportedPosts=posts.some(p=>!p.recommendation);
+  useEffect(()=>{
+    let active=true;
+    setError('');setMethod(null);
+    if(hasReportedPosts){setLoading(false);return;}
+    setLoading(true);
+    recommendEvacuation(disaster,posts=>{if(active)onSuggestedRef.current?.(disaster.id,posts);}).then(result=>{
+      if(!active)return;
+      setMethod(result.method);setRadius(result.radius);
+      onSuggestedRef.current?.(disaster.id,result.posts);
+    }).catch(()=>{if(active)setError('Pencarian fasum belum berhasil. Periksa Places API (New), izin API key, dan koneksi.');}).finally(()=>{if(active)setLoading(false);});
+    return ()=>{active=false;};
+  },[disaster.id,disaster.coords.lat,disaster.coords.lng,hasReportedPosts,retry]);
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -107,7 +130,7 @@ export const EvacuationPostView: React.FC<EvacuationPostViewProps> = ({
                 Posko Bantuan
               </h3>
               <p className="mt-0.5 text-[10px] text-slate-500 font-medium truncate">
-                {disaster.name} • {posts.length} Posko
+                {disaster.name} • {posts.length} {hasReportedPosts ? 'Posko' : 'Usulan fasum'}
               </p>
             </div>
           </div>
@@ -123,14 +146,22 @@ export const EvacuationPostView: React.FC<EvacuationPostViewProps> = ({
         </div>
 
       </div>
+      {!hasReportedPosts && <div className="mx-5 mb-3 rounded-2xl border border-amber-200 bg-amber-50/90 p-3 text-[11px] leading-relaxed text-amber-900">
+        <strong>Usulan lokasi posko</strong>
+        <p>Fasum terdekat dari koordinat laporan. Belum ditetapkan sebagai posko aktif; kapasitas dan keamanan perlu pemeriksaan BPBD.</p>
+        {method && <p className="mt-1">{method==='gemini'?'Urutan dibantu Gemini':'Urutan berdasarkan jarak; Gemini belum tersedia'} · radius {radius/1000} km · jarak garis lurus.</p>}
+      </div>}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-5">
+        {loading && <p role="status" className="mb-3 rounded-xl bg-cyan-50 p-3 text-xs text-cyan-800">Mencari fasum terdekat dan meminta pertimbangan Gemini…</p>}
+        {error && <div role="alert" className="mb-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">{error}<button className="mt-2 block font-bold underline" onClick={()=>setRetry(v=>v+1)}>Coba lagi</button></div>}
+        {!loading && !error && posts.length===0 && <p role="status" className="text-xs text-slate-500">Belum ditemukan fasum yang sesuai dalam radius 15 km. Periksa koordinat laporan atau cari lokasi melalui BPBD setempat.</p>}
         <div className="space-y-3">
           {posts.map((post, idx) => {
             const isSelected = selectedPostId === post.id;
             const capacity = getCapacityMeta(post);
             // Temporary presentation adapter for the legacy route data.
             const rawName = (post.name ?? post.title ?? '').replace(/^(?:Titik Awal|Titik Akhir|Checkpoint\s*\d*)\s*:\s*/i, '').trim();
-            const postName = /^posko\b/i.test(rawName) ? rawName
+            const postName = post.recommendation ? rawName : /^posko\b/i.test(rawName) ? rawName
               : `Posko ${rawName.replace(/^(?:Jalur Poros|Pos Aju|Desa)\s*/i, '') || idx + 1}`;
             const location = post.location ?? 'Lokasi belum tersedia';
             const description = post.subtitle;
@@ -186,6 +217,7 @@ export const EvacuationPostView: React.FC<EvacuationPostViewProps> = ({
                       )}
                     </div>
 
+                    {post.recommendation && <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]"><span className="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-800">Usulan · {post.facilityType}</span><span className="rounded-full bg-cyan-50 px-2 py-1 text-cyan-700">{((post.distanceMeters??0)/1000).toFixed(1)} km dari titik laporan</span><span className="text-slate-500">Sumber: Google Maps</span></div>}
                     {description && <p className="mt-2 text-[10px] leading-relaxed text-slate-500">{description}</p>}
                     <div className="mt-4">
                       <div className="flex items-center justify-between gap-3 mb-2">
@@ -251,7 +283,7 @@ export const EvacuationPostView: React.FC<EvacuationPostViewProps> = ({
                     {isSelected && (
                       <div className="mt-4 pt-3 border-t border-slate-200/70 flex items-center gap-1.5 text-[9px] font-semibold text-emerald-600">
                         <CheckCircle2 className="w-3 h-3" />
-                        Posko dipilih di peta
+                        {post.recommendation ? 'Usulan fasum dipilih di peta' : 'Posko dipilih di peta'}
                       </div>
                     )}
                   </div>
