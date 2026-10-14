@@ -1,5 +1,5 @@
 import type { DisasterCheckpoint } from '../../types';
-export interface FacilityPlace {id?:string;displayName?:{text?:string};formattedAddress?:string;location?:{latitude?:number;longitude?:number};types?:string[];businessStatus?:string}
+export interface FacilityPlace {id?:string;displayName?:{text?:string};formattedAddress?:string;location?:{latitude?:number;longitude?:number};types?:string[];businessStatus?:string;addressComponents?:Array<{longText?:string;types?:string[]}>}
 export const FACILITY_TYPES = ['mosque','church','school','primary_school','secondary_school','park','stadium','sports_complex','community_center'];
 export function distanceMeters(lat:number,lng:number,toLat:number,toLng:number) {
   const rad=Math.PI/180, a=Math.sin((toLat-lat)*rad/2)**2+Math.cos(lat*rad)*Math.cos(toLat*rad)*Math.sin((toLng-lng)*rad/2)**2;
@@ -22,4 +22,11 @@ export function rankCandidates(candidates:DisasterCheckpoint[],response:string):
   const ids=JSON.parse(response.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,''));
   if(!Array.isArray(ids) || ids.length!==candidates.length || new Set(ids).size!==ids.length || ids.some(id=>!Number.isInteger(id)||!candidates.some(c=>c.id===id)))throw new Error('Invalid Gemini facility ranking');
   return ids.map(id=>candidates.find(c=>c.id===id)!);
+}
+
+function regionName(value:string){return value.toLowerCase().replace(/\b(kabupaten|kab|kota|regency|city)\b/g,'').replace(/[^a-z0-9]/g,'');}
+export function placeInRegion(place:FacilityPlace,name:string):boolean {
+  const expected=regionName(name);
+  const region=place.addressComponents?.find(c=>c.types?.includes('administrative_area_level_2'))?.longText;
+  return !!expected && (region ? regionName(region)===expected : regionName(place.formattedAddress??'').includes(expected));
 }

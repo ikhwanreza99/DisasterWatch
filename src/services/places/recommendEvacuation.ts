@@ -1,8 +1,9 @@
-import {nearbyFacilities} from './placeSearch';
-import {facilityCandidates,rankCandidates} from './evacuationCandidates';
+import {currentRecords} from '../../data/currentIncidents';
+import {nearbyFacilities,findReportedArea} from './placeSearch';
+import {facilityCandidates,rankCandidates,placeInRegion} from './evacuationCandidates';
 import {getGeminiModel} from '../../lib/firebase/ai';
 import type {DisasterIncident,DisasterCheckpoint} from '../../types';
-interface Recommendation {posts:DisasterCheckpoint[];method:'gemini'|'distance';radius:number}
+interface Recommendation {posts:DisasterCheckpoint[];method:'gemini'|'distance';radius:number;anchorNote:string|null}
 type Listener=(posts:DisasterCheckpoint[])=>void;
 const cache=new Map<string,{at:number;promise:Promise<Recommendation>;listeners:Set<Listener>;posts?:DisasterCheckpoint[]}>();
 export function recommendEvacuation(disaster:DisasterIncident,onCandidates?:Listener):Promise<Recommendation> {
@@ -14,9 +15,19 @@ export function recommendEvacuation(disaster:DisasterIncident,onCandidates?:List
   }
   const listeners=new Set<Listener>();if(onCandidates)listeners.add(onCandidates);
   const promise=(async()=>{
-    let radius=5000;
-    let posts=facilityCandidates(await nearbyFacilities(lat,lng,radius),lat,lng,radius);
-    if(posts.length<3){radius=15000;posts=facilityCandidates(await nearbyFacilities(lat,lng,radius),lat,lng,radius);}
+    let radius=5000, centre={lat,lng}, anchorNote:string|null=null;
+    const search=async()=>facilityCandidates((await nearbyFacilities(centre.lat,centre.lng,radius)).filter(p=>placeInRegion(p,disaster.name)),centre.lat,centre.lng,radius);
+    let posts=await search();
+    if(!posts.length){
+      const source=currentRecords.find(r=>r.id===disaster.id);
+      const area=(disaster as DisasterIncident & {officialReports?:Array<{location?:string}>}).officialReports?.at(-1)?.location ?? source?.reports?.at(-1)?.location;
+      if(area){
+        const query=`${area.replace(/Kecamatan:|Kec\.|Ds\./g,' ').replace(/\s+/g,' ').trim()}, ${disaster.name}, ${disaster.province}`;
+        const found=(await findReportedArea(query)).find(p=>placeInRegion(p,disaster.name)&&Number.isFinite(p.location?.latitude)&&Number.isFinite(p.location?.longitude));
+        if(found?.location){centre={lat:found.location.latitude!,lng:found.location.longitude!};anchorNote=`Acuan wilayah laporan: ${area.replace(/\s+/g,' ')}. Lokasi dicocokkan melalui Google Places.`;posts=await search();}
+      }
+    }
+    if(posts.length<3){radius=15000;posts=await search();}
     posts=posts.slice(0,10);
     const entry=cache.get(key);if(entry)entry.posts=posts;
     listeners.forEach(listener=>listener(posts));
@@ -28,7 +39,7 @@ export function recommendEvacuation(disaster:DisasterIncident,onCandidates?:List
         posts=rankCandidates(posts,response);method='gemini';
       }
     }catch{/* Keep verified Places coordinates sorted by straight-line distance. */}
-    return {posts,method,radius};
+    return {posts,method,radius,anchorNote};
   })();
   cache.set(key,{at:Date.now(),promise,listeners});
   promise.then(()=>listeners.clear(),()=>listeners.clear());

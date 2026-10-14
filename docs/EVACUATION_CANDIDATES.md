@@ -26,3 +26,10 @@ Gemini uses existing client configuration. Google metadata does not establish
 capacity, safety, accessibility, opening availability or permission to shelter.
 BPBD/operator verification is required before treating a candidate as active.
 Reference: https://developers.google.com/maps/documentation/places/web-service/nearby-search
+
+Facilities must match the incident regency/city (Places addressComponents,
+address fallback) as well as the radius. If no matching facilities are found,
+resolve the area named in the BNPB report with Text Search, validate its regency,
+then search around that representative area. Show the changed search reference
+explicitly; do not silently label Bangka Tengah facilities as Bangka Selatan.
+This does not change the incident's official coordinates or prove the exact site.

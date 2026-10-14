@@ -125,6 +125,13 @@ export async function nearbyFacilities(lat:number,lng:number,radius:number):Prom
   if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)throw new Error('Koordinat bencana belum valid');
   const response=await call<{places?:import('./evacuationCandidates').FacilityPlace[]}>(`${API}/places:searchNearby`,{
     method:'POST',body:JSON.stringify({includedTypes:FACILITY_TYPES,maxResultCount:20,rankPreference:'DISTANCE',languageCode:'id',locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius}}}),
-  },'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.businessStatus',AbortSignal.timeout(30000));
+  },'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.businessStatus,places.addressComponents',AbortSignal.timeout(30000));
+  return response.places??[];
+}
+
+export async function findReportedArea(textQuery:string):Promise<import('./evacuationCandidates').FacilityPlace[]> {
+  const response=await call<{places?:import('./evacuationCandidates').FacilityPlace[]}>(`${API}/places:searchText`,{
+    method:'POST',body:JSON.stringify({textQuery,languageCode:'id',regionCode:'ID',pageSize:5}),
+  },'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.addressComponents',AbortSignal.timeout(30000));
   return response.places??[];
 }
