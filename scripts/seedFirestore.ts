@@ -8,6 +8,7 @@
 import { existsSync, statSync } from 'node:fs';
 import { cert, initializeApp } from 'firebase-admin/app';
 import { getFirestore, type WriteBatch } from 'firebase-admin/firestore';
+import { canDemoSeedOverwrite } from './realDisasterDataset.ts';
 import { disastersData } from '../src/data/disasters.js';
 import { DEMO_SCENARIO_ID, demoAid, demoReports } from '../src/data/seedDemo.js';
 import { INCIDENT_DESCRIPTORS, descriptorFor } from '../src/services/incidentRegistry.js';
@@ -472,6 +473,13 @@ async function main() {
     const commit = async () => { if (pending > 0) { await batch.commit(); batches += 1; batch = db.batch(); pending = 0; } };
     for (const g of plan) {
       for (const d of g.docs) {
+        if (g.col === 'disasters' && d.isMock === true) {
+          const existing = await db.collection(g.col).doc(d.id).get();
+          if (!canDemoSeedOverwrite(existing.data())) {
+            console.log(`preserved REAL disaster: ${d.id}`);
+            continue;
+          }
+        }
         batch.set(db.collection(g.col).doc(d.id), d, { merge: false });
         pending += 1;
         if (pending >= BATCH_LIMIT) await commit();

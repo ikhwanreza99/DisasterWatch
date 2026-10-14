@@ -1,6 +1,6 @@
 # Production auto-deploy: push to main → build → Firebase Hosting (LIVE).
 #
-# Scope: Hosting plus newsArticles/newsFeeds metadata writes via Admin SDK.
+# Scope: Hosting plus newsArticles/newsFeeds and sourced disasters writes via Admin SDK.
 # This workflow never deploys Firestore rules,
 # Cloud Functions, Cloud Run, App Hosting, or the Blaze plan (Spark free tier).
 #
@@ -111,6 +111,11 @@ jobs:
           DISASTERWATCH_GOOGLE_SEARCH_ENABLED: ${{ vars.DISASTERWATCH_GOOGLE_SEARCH_ENABLED }}
           DISASTERWATCH_GOOGLE_SEARCH_MODEL: ${{ vars.DISASTERWATCH_GOOGLE_SEARCH_MODEL }}
           DISASTERWATCH_GEMINI_SEARCH_KEY: ${{ secrets.DISASTERWATCH_GEMINI_SEARCH_KEY }}
+          FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+
+      - name: Sync source-backed REAL disaster records
+        run: node --import tsx scripts/syncRealDisasters.ts
+        env:
           FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
 
       - name: Preserve Google service diagnostics
