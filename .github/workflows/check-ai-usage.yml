@@ -1,0 +1,25 @@
+name: Check AI usage collection
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Publish usage and approval rules
+        continue-on-error: true
+        run: node --import tsx scripts/deployFirestoreRules.ts
+        env:
+          FIREBASE_ADMIN_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+      - name: Record one real Gemini response and verify Firestore
+        run: node --import tsx scripts/checkAiUsage.ts
+        env:
+          FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT }}
+          DISASTERWATCH_GEMINI_SEARCH_KEY: ${{ secrets.DISASTERWATCH_GEMINI_SEARCH_KEY }}

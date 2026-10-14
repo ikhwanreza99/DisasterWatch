@@ -38,6 +38,10 @@ export async function firebaseAdminApi(path: string, body?: any): Promise<unknow
     return {username:'admin', demo:false};
   }
   const {auth, db, user} = await superuser();
+  if (path === '/ai-usage') {
+    const snapshot = await getDocs(query(collection(db,'aiUsage'), orderBy('at','desc'), limit(1000)));
+    return snapshot.docs.map(d => ({...d.data(), id:d.id}));
+  }
   if (path === '/session') return {username:'admin', demo:false};
   if (path === '/logout') { await signOut(auth); return {ok:true}; }
   if (path === '/health') { await getDocs(query(collection(db,'reports'),limit(1))); return {state:'ok', checkedAt:new Date().toISOString(), detail:'Firebase Auth superuser dan akses Firestore berhasil.'}; }

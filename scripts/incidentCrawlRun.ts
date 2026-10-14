@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { recordServerUsage } from './recordAiUsage.ts';
 import { searchGemini } from './providers/geminiSearch.ts';
 import { searchSerpNews } from './providers/serpapiNews.ts';
 import { searchThreads } from './providers/threadsSearch.ts';
@@ -89,7 +90,7 @@ async function latestSuccess(db: Firestore): Promise<string | null> {
 }
 
 /** Minimal Gemini extraction for NEW/CHANGED content only. Key never logged. Returns null on any failure. */
-async function aiExtract(title: string, summary: string | null): Promise<{ summary: string } | null> {
+async function aiExtract(title: string, summary: string | null, db: Firestore | null): Promise<{ summary: string } | null> {
   if (NO_AI || !aiKey) return null;
   try {
     const res = await fetch(
@@ -105,7 +106,8 @@ async function aiExtract(title: string, summary: string | null): Promise<{ summa
       },
     );
     if (!res.ok) return null;
-    const data = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const data = (await res.json()) as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }; candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    await recordServerUsage(db, data.usageMetadata, 'gemini-2.0-flash', 'Crawler extraction');
     const text = (data?.candidates?.[0]?.content?.parts ?? []).map((p) => p?.text ?? '').join('').trim();
     return text ? { summary: text.slice(0, 500) } : null;
   } catch {
@@ -268,7 +270,7 @@ async function main() {
       if (searchEnabled) {
         // One bounded request per incident combining all query angles.
         try {
-          const hits = await searchGemini(queries.join(' ; '), searchKey, searchModel);
+          const hits = await searchGemini(queries.join(' ; '), searchKey, searchModel, fetch, usage => recordServerUsage(db, {promptTokenCount:usage?.total_input_tokens, candidatesTokenCount:usage?.total_output_tokens, totalTokenCount:usage?.total_tokens}, searchModel, 'Crawler Google Search'));
           successfulQueries++;
           for (const hit of hits) {
             fresh.push({
@@ -310,7 +312,7 @@ async function main() {
       // Classify (query hit never implies relevance) + AI summaries for new/changed only.
       const aiTargets = DRY_RUN ? [] : selectForAI(prev.articles.filter((a) => a.incidentId === id), fresh.filter(a=>a.discoveredBy!=='threads:keyword-search'));
       for (const c of aiTargets) {
-        const s = await aiExtract(c.title, c.summary);
+        const s = await aiExtract(c.title, c.summary, db);
         if (s) {
           c.summary = s.summary;
           aiExtractions += 1;

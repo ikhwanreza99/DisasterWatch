@@ -1,3 +1,4 @@
+import { recordTokenUsage } from '../../admin/tokenUsage';
 import { createCheckRunner } from './automaticChecks';
 import { firebaseEnv, getFirebaseApp, firebaseStatus } from '../../lib/firebase/config';
 import { getDb } from '../../lib/firebase/firestore';
@@ -87,6 +88,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
             try {
               const data = await checkedJson(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': import.meta.env.VITE_GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ parts: [{ text: 'Jawab satu kata: OK' }] }], generationConfig: { maxOutputTokens: 64 } }) });
               if (!data.candidates?.some((c: any) => c.content?.parts?.some((p: any) => p.text))) throw new Error('Empty model response');
+              recordTokenUsage(data.usageMetadata, model, 'Status · Gemini Direct');
               used = model;
               break;
             } catch (e) {
@@ -113,6 +115,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
           const generative = getGenerativeModel(getAI(app, { backend: new GoogleAIBackend() }), { model, generationConfig: { maxOutputTokens: 64 } });
           const response = await generative.generateContent('Jawab satu kata: OK');
           if (!response.response.text()) throw new Error('Empty model response');
+          recordTokenUsage(response.response.usageMetadata, model, 'Status · Firebase AI Logic');
           used = model;
           break;
         } catch (e) { lastError = e; }

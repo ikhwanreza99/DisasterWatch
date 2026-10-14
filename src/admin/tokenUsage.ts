@@ -60,4 +60,17 @@ export function recordTokenUsage(
   } catch {
     /* Telemetry must never interrupt AI requests. */
   }
+  void persistTokenSample(sample);
+}
+
+async function persistTokenSample(sample: TokenSample) {
+  try {
+    const [{ getApps }, { getAuth }, { getFirestore, collection, addDoc, serverTimestamp }] = await Promise.all([import("firebase/app"), import("firebase/auth"), import("firebase/firestore")]);
+    const app = getApps().find(a => getAuth(a).currentUser);
+    if (!app) return; // Anonymous/unauthenticated requests stay local.
+    const uid = getAuth(app).currentUser!.uid;
+    await addDoc(collection(getFirestore(app), "aiUsage"), { ...sample, source: "browser", uid, createdAt: serverTimestamp() });
+  } catch {
+    window.dispatchEvent(new Event("dw-token-sync-error"));
+  }
 }
