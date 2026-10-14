@@ -174,8 +174,8 @@
     "disasterLabel": "Kebakaran Hutan Dan Lahan",
     "date": "2026-10-10",
     "startDate": "2026-10-10",
-    "lat": -2.2884782,
-    "lng": 106.0640179,
+    "lat": -2.6219968,
+    "lng": 106.0522616,
     "aliases": [
       "Bangka Selatan"
     ],
@@ -196,7 +196,10 @@
           "damagedFacilities": 0
         }
       }
-    ]
+    ],
+    "coordinateSource": "https://www.google.com/maps/search/?api=1&query=-2.6219968,106.0522616&query_place_id=ChIJIZ0ckfo9PS4RRt46GlvpJgo",
+    "coordinatePrecision": "REGION_REPRESENTATIVE",
+    "coordinateNotice": "Titik representatif Jelutung II, Simpang Rimba, Bangka Selatan dari Google Places (SOBLI STADIUM92). Sesuai wilayah laporan BNPB; bukan koordinat batas area karhutla."
   },
   {
     "id": "bnpb-3301-fire-2026-10",

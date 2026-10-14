@@ -19,6 +19,7 @@ const reviewedRecords = [
 
 export interface CurrentRecord {
   id: string; name: string; province: string; category: DisasterCategory; date: string;
+  coordinateSource?: string; coordinateNotice?: string; coordinatePrecision?: string;
   startDate?: string; disasterLabel?: string; lat: number; lng: number; aliases: readonly string[];
   source: string; url: string; summary: string; reports?: {date: string; location: string; documentationUrl?: string | null; impact?: Record<string, number | null>}[];
 }

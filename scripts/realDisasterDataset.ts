@@ -13,7 +13,7 @@ export function realDisasterDataset(now = Date.now()) {
     sourceReviewedAt: CURRENT_REVIEWED_AT, eventDate: record.date,
     eventStartDate: record.startDate ?? record.date,
     officialReports: record.reports ?? [],
-    locationValidation: {...locationValidation(record),coordinatePrecision:'REGION_REPRESENTATIVE',requiresSiteFactCheck:true},
+    locationValidation: {...locationValidation(record),coordinatePrecision:'REGION_REPRESENTATIVE',coordinateSource:record.coordinateSource??null,coordinateNotice:record.coordinateNotice??null,requiresSiteFactCheck:true},
     datasetWindow: { startDate: window.startDate, endDate: window.endDate, timeZone: 'Asia/Jakarta' },
     isArchivedCase: false, schemaVersion: 1,
   }));
