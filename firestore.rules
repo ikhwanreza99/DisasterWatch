@@ -62,6 +62,24 @@ service cloud.firestore {
         && request.resource.data.approvalStatus in ['APPROVED','REJECTED'] && audited(request.resource.data, 'disasters', id);
       allow delete: if false;
     }
+    function demoAudited(data, id) {
+      let audit = getAfter(/databases/$(database)/documents/demoReportReviews/$(data.reviewAuditId)).data;
+      return evidenceValid(data) && audit.isMock == true && audit.reportId == id
+        && audit.reviewedBy == request.auth.uid && audit.reviewNote == data.reviewNote
+        && audit.evidenceUrls == data.evidenceUrls
+        && ((audit.decision == 'APPROVED' && data.verificationStatus == 'VERIFIED')
+          || (audit.decision == 'REJECTED' && data.verificationStatus == 'REJECTED'
+            && data.rejectionReason in ['HOAX','NO_DISASTER'] && audit.rejectionReason == data.rejectionReason));
+    }
+    match /demoReportReviews/{id} {
+      allow read: if superuser();
+      allow create: if superuser() && request.resource.data.isMock == true
+        && request.resource.data.reviewAuditId == id && evidenceValid(request.resource.data)
+        && getAfter(/databases/$(database)/documents/reports/$(request.resource.data.reportId)).data.isMock == true
+        && getAfter(/databases/$(database)/documents/reports/$(request.resource.data.reportId)).data.reviewAuditId == id
+        && demoAudited(getAfter(/databases/$(database)/documents/reports/$(request.resource.data.reportId)).data, request.resource.data.reportId);
+      allow update, delete: if false;
+    }
     match /reports/{id} {
       allow read: if true;
       allow create: if request.auth != null && request.auth.token.firebase.sign_in_provider == 'google.com'
@@ -72,7 +90,11 @@ service cloud.firestore {
         && request.resource.data.rawText.size() < 4000
         && request.resource.data.verificationStatus in ['UNVERIFIED', 'AI_REVIEWED', 'CONFLICTING']
         && !request.resource.data.keys().hasAny(['reviewedBy', 'reviewedAt', 'reviewNote', 'evidenceUrls', 'reviewAuditId', 'rejectionReason']);
-      // Admin approval uses a protected server endpoint + Admin SDK transaction.
+      // Demo decisions cannot write linked disaster IDs or remove the demo flag.
+      allow update: if superuser() && resource.data.isMock == true && request.resource.data.isMock == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verificationStatus','reviewedBy','reviewedAt','reviewNote','evidenceUrls','reviewAuditId','rejectionReason'])
+        && demoAudited(request.resource.data, id);
+      // Real decisions require the existing linked disaster audit.
       allow update: if superuser() && resource.data.get('isMock', false) == false
         && resource.data.verificationStatus in ['UNVERIFIED', 'AI_REVIEWED', 'CONFLICTING', 'VERIFIED']
         && (request.resource.data.verificationStatus == 'REJECTED' || (request.resource.data.verificationStatus == 'VERIFIED' && resource.data.verificationStatus != 'VERIFIED'))
