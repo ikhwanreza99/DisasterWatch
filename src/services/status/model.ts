@@ -17,11 +17,49 @@ export function stale(check: ServiceCheck, now = Date.now()): boolean {
 export function safeStatusError(error: unknown): string {
   const code = (error as { code?: unknown })?.code;
   const status = (error as { customErrorData?: { status?: unknown } })?.customErrorData?.status;
+  // Terse by design: only SDK code + numeric HTTP status, never raw provider message/body.
+  // Raw snippets live only in redacted fetch bodies (safeErrorSnippet), not here.
   if (typeof status === 'number' && Number.isInteger(status) && status >= 400 && status <= 599) return `${typeof code === 'string' && /^[a-z/-]{1,80}$/i.test(code) ? code + ' · ' : ''}HTTP ${status}`;
   if (typeof code === 'string' && /^[a-z/-]{1,80}$/i.test(code)) return code;
   const msg = error instanceof Error ? error.message : '';
   if (['Google search not executed', 'Incomplete Google search'].includes(msg)) return msg;
   return msg.match(/HTTP \d{3}/)?.[0] || (msg.includes('timeout') || (error as { name?: string })?.name === 'TimeoutError' ? 'Batas waktu pemeriksaan habis' : 'Permintaan gagal; periksa akses, jaringan, atau kuota');
+}
+
+/** Redact key/token-like material from status strings. Never logs or returns raw secrets. */
+export function redactStatusText(input: string): string {
+  return input
+    .replace(/AIza[0-9A-Za-z\-_]{10,}/g, '[KEY]')
+    .replace(/eyJ[0-9A-Za-z\-_.]{10,}/g, '[TOKEN]')
+    .replace(/(api[_-]?key|token|site[_-]?key)\s*[:=]\s*['"]?[^'"\s,}]{8,}['"]?/gi, '$1=[REDACTED]')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Success note for Gemini candidate loops. Concise by design: names the model
+ * that actually answered; when a fallback was used, adds a short secondary
+ * note WITHOUT the primary model's raw error payload.
+ */
+export function fallbackNote(used: string, primary: string): string {
+  if (used === primary) return `menggunakan ${used}, tanpa fallback.`;
+  return `menggunakan ${used}. Model utama dilewati; fallback berhasil digunakan.`;
+}
+
+/** True only for non-empty, non-whitespace model text. Empty output is never success. */
+export function isNonEmptyModelText(text: unknown): boolean {
+  return typeof text === 'string' && text.trim().length > 0;
+}
+
+/** True when a Gemini `generateContent` payload holds at least one non-empty text part. */
+export function hasValidGeminiCandidates(data: unknown): boolean {
+  const candidates = (data as { candidates?: Array<{ content?: { parts?: Array<{ text?: unknown }> } }> } | null)?.candidates;
+  return (
+    Array.isArray(candidates) &&
+    candidates.some(
+      (c) => Array.isArray(c?.content?.parts) && c.content.parts.some((p) => isNonEmptyModelText(p?.text)),
+    )
+  );
 }
 
 export function statusAdvice(check: ServiceCheck): string | null {

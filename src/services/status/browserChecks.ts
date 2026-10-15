@@ -1,20 +1,22 @@
 import { recordTokenUsage } from '../../admin/tokenUsage';
 import { createCheckRunner } from './automaticChecks';
-import { firebaseEnv, getFirebaseApp, firebaseStatus } from '../../lib/firebase/config';
+import { appCheckStatus, firebaseEnv, getFirebaseApp, firebaseStatus, hasAppCheckSiteKey, probeAppCheckToken } from '../../lib/firebase/config';
 import { getDb } from '../../lib/firebase/firestore';
 import { resolveGeminiCandidates, resolveGeminiModel } from '../../lib/firebase/geminiConfig';
 import { autocompletePlaces, getPlace, newSessionToken } from '../places/placeSearch';
-import { safeStatusError, type ServiceCheck } from './model';
+import { fallbackNote, hasValidGeminiCandidates, isNonEmptyModelText, redactStatusText, safeStatusError, type ServiceCheck } from './model';
 
 export function initialChecks(): ServiceCheck[] {
   const env = firebaseEnv();
   const maps = !!import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const firebase = firebaseStatus().configured;
+  const appCheckPresent = hasAppCheckSiteKey();
   return [
     ['maps', 'Google Maps JavaScript', maps], ['places', 'Google Places · Autocomplete & Details', maps],
     ['weather', 'Google Weather · Kondisi sekarang', maps], ['forecast', 'Google Weather · Prakiraan', maps],
     ['auth', 'Firebase Auth · Google Login', firebase], ['firestore', 'Cloud Firestore · baca dari web', firebase],
     ['storage', 'Firebase Storage · lampiran laporan', !!env.storageBucket],
+    ['appcheck', 'Firebase App Check · token', firebase && appCheckPresent],
     ['firebase-ai', 'Firebase AI Logic · Gemini', firebase], ['gemini-direct', 'Gemini Developer API · fallback', !!import.meta.env.VITE_GEMINI_API_KEY],
   ].map(([id, name, configured]) => ({ id: String(id), name: String(name), state: configured ? 'configured' : 'disabled', detail: configured ? 'Konfigurasi tersedia; belum ada bukti request berhasil dari halaman ini.' : 'Konfigurasi browser belum tersedia.', checkedAt: null, scope: 'browser' }));
 }
@@ -29,7 +31,7 @@ async function safeErrorSnippet(response: Response): Promise<string> {
     const clone = response.clone();
     const body = await clone.text();
     if (!body) return '';
-    const snippet = body.replace(/AIza[0-9A-Za-z\-_]{10,}/g, '[KEY]').slice(0, 160);
+    const snippet = redactStatusText(body).slice(0, 160);
     return ` · ${snippet}`;
   } catch {
     return '';
@@ -39,11 +41,6 @@ async function safeErrorSnippet(response: Response): Promise<string> {
  * Try Gemini model candidates in order; return the model that answered.
  * Throws the last error when every candidate fails.
  */
-function fallbackNote(used: string, primary: string, lastError: unknown): string {
-  if (used === primary) return `menggunakan ${used}, tanpa fallback.`;
-  const cause = lastError instanceof Error ? lastError.message.slice(0, 120) : 'tidak tersedia';
-  return `menggunakan ${used} (fallback otomatis karena ${primary} gagal: ${cause}).`;
-}
 export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
   const base = initialChecks().find(c => c.id === id)!;
   if (base.state === 'disabled') return base;
@@ -87,7 +84,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
               const data = await checkedJson(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': import.meta.env.VITE_GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ parts: [{ text: 'Jawab satu kata: OK' }] }], generationConfig: { maxOutputTokens: 64 } }) });
-              if (!data.candidates?.some((c: any) => c.content?.parts?.some((p: any) => p.text))) throw new Error('Empty model response');
+              if (!hasValidGeminiCandidates(data)) throw new Error('Empty model response');
               recordTokenUsage(data.usageMetadata, model, 'Status · Gemini Direct');
               used = model;
               break;
@@ -102,10 +99,24 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
         } catch (e) { lastError = e; }
       }
       if (!used) throw lastError instanceof Error ? lastError : new Error('Gemini Direct gagal pada semua model kandidat');
-      detail = `GenerateContent berhasil ${fallbackNote(used, primary, lastError)}`;
+      detail = `GenerateContent berhasil ${fallbackNote(used, primary)}`;
+    } else if (id === 'appcheck') {
+      const app = getFirebaseApp(); if (!app) throw new Error('No Firebase app');
+      const status = appCheckStatus();
+      if (!status.siteKeyPresent) throw new Error('App Check site key tidak tersedia di bundle ini.');
+      if (!status.initialized) throw new Error(status.error ?? status.skippedReason ?? 'App Check belum terinisialisasi.');
+      const probe = await probeAppCheckToken();
+      if (!probe.ok) throw new Error(probe.detail);
+      detail = `${probe.detail} Init: terinisialisasi.`;
     } else if (id === 'firebase-ai') {
       const { getAI, getGenerativeModel, GoogleAIBackend } = await import('firebase/ai');
       const app = getFirebaseApp(); if (!app) throw new Error('No Firebase app');
+      // Baseline protection (Spark): session tokens, no limited-use tokens.
+      // Uses the same default Firebase app that configureAppCheck() initialized.
+      const appCheck = appCheckStatus();
+      const appCheckNote = appCheck.initialized
+        ? 'App Check: terinisialisasi.'
+        : `App Check: ${appCheck.error ?? appCheck.skippedReason ?? 'tidak terinisialisasi'}.`;
       const candidates = resolveGeminiCandidates();
       const primary = candidates[0]!;
       let lastError: unknown = null;
@@ -114,14 +125,17 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
         try {
           const generative = getGenerativeModel(getAI(app, { backend: new GoogleAIBackend() }), { model, generationConfig: { maxOutputTokens: 64 } });
           const response = await generative.generateContent('Jawab satu kata: OK');
-          if (!response.response.text()) throw new Error('Empty model response');
+          if (!isNonEmptyModelText(response.response.text())) throw new Error('Empty model response');
           recordTokenUsage(response.response.usageMetadata, model, 'Status · Firebase AI Logic');
           used = model;
           break;
         } catch (e) { lastError = e; }
       }
-      if (!used) throw lastError instanceof Error ? lastError : new Error('Firebase AI Logic gagal pada semua model kandidat');
-      detail = `Firebase AI Logic berhasil ${fallbackNote(used, primary, lastError)}`;
+      if (!used) {
+        const cause = safeStatusError(lastError instanceof Error ? lastError : new Error('Firebase AI Logic gagal pada semua model kandidat'));
+        throw new Error(`${cause} · ${appCheckNote}`);
+      }
+      detail = `Firebase AI Logic berhasil ${fallbackNote(used, primary)} ${appCheckNote}`;
     } else if (id === 'storage') {
       return { ...base, detail: 'Bucket terkonfigurasi. Upload/download membutuhkan pengguna login dan lampiran; tidak mengunggah file uji otomatis.' };
     } else if (id === 'maps') {
