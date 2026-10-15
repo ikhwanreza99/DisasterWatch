@@ -785,13 +785,13 @@ export function Review({
   const [rejectionReason,setRejectionReason]=useState("NO_DISASTER");
   async function approve(decision: "approve" | "reject" = "approve") {
     setError("");
-        if(decision==='approve' && !report.isMock && (evidence.length<1 || evidence.length>3)){setError('Centang 1–3 berita pendukung sebelum menyetujui laporan.');return;}
+    if(decision==='approve' && !report.isMock && (evidence.length<1 || evidence.length>3)){setError('Centang 1–3 berita pendukung sebelum menyetujui laporan.');return;}
     if(decision==='approve' && note.trim() && note.trim().length<10){setError('Catatan tambahan minimal 10 karakter, atau kosongkan untuk menggunakan ringkasan bukti terpilih.');return;}
     if(decision==='reject' && rejectNote.trim().length<10){setError('Isi alasan penolakan minimal 10 karakter.');return;}
     setBusy(true);
     try {
       await adminApi(`/${report.targetCollection??"reports"}/${encodeURIComponent(report.id)}/${decision}`, {
-        note:decision==='reject'?rejectNote:note.trim() || `Disetujui berdasarkan ${evidence.length} berita pendukung setelah pemeriksaan lokasi dan kejadian.`, reason:rejectionReason,
+        note:decision==='reject'?rejectNote:note.trim() || (report.isMock ? 'Persetujuan simulasi DEMO untuk latihan verifikasi; tidak menerbitkan titik peta.' : `Disetujui berdasarkan ${evidence.length} berita pendukung setelah pemeriksaan lokasi dan kejadian.`), reason:rejectionReason,
         evidenceUrls:evidence,
         lat:latitude ? Number(latitude) : undefined, lng:longitude ? Number(longitude) : undefined, province,
         expectedStatus: report.targetCollection==='disasters' ? (report as Report & {approvalStatus:string}).approvalStatus : report.verificationStatus,
