@@ -443,6 +443,7 @@ function Records({
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [selected, setSelected] = useState<Report | null>(null);
+  const [selectedDisaster, setSelectedDisaster] = useState<any | null>(null);
   const [message, setMessage] = useState("");
   const cursor = cursors[cursors.length - 1];
   useEffect(() => {
@@ -666,7 +667,7 @@ function Records({
                         <strong>
                           {row.name || row.title || row.fullName || row.id}
                         </strong>
-                        <small>{row.isMock === true ? "DEMO · data simulasi" : row.isMock === false ? "REAL · belum tentu terverifikasi" : "Asal data belum diketahui"}{row.reviewDisaster ? " · titik REAL terhubung" : ""}</small>
+                        <small>{row.isMock === true ? "DEMO · data simulasi" : row.isMock === false ? "REAL · data kejadian" : "Asal data belum diketahui"}{row.reviewDisaster ? " · titik REAL terhubung" : ""}</small>
                       </td>
                       <td>
                         {row.province ||
@@ -683,9 +684,10 @@ function Records({
                       </td>
                       <td>
                         <small>{row.id}</small>
-                        <small>{(row.reviewDisaster?.approvalStatus ?? row.approvalStatus) === 'APPROVED' ? 'Disetujui superuser' : (row.reviewDisaster?.approvalStatus ?? row.approvalStatus) === 'REJECTED' ? 'Ditolak' : row.isMock && !row.reviewDisaster ? 'Demo · hanya ditinjau' : 'Menunggu fact-check'}</small>
-                        {((row.isMock === false && collection === 'disasters') || (collection === 'incidents' && row.reviewDisaster)) && <button className="admin-detail-link" onClick={() => { const target = row.reviewDisaster ?? row; setSelected({...target, targetCollection:'disasters', rawText:target.guide?.cause ?? target.summary ?? target.name, location:{name:target.name,lat:target.coords?.lat,lng:target.coords?.lng}, verificationStatus:target.approvalStatus==='APPROVED'?'VERIFIED':target.approvalStatus==='REJECTED'?'REJECTED':'UNVERIFIED', approvalStatus:target.approvalStatus??'PENDING'}); }}>{row.reviewDisaster ? "Fact-check titik REAL" : "Fact-check"} <ArrowRight size={15}/></button>}
-                        {collection === "incidents" && row.isMock === false && !row.reviewDisaster && <small>Titik real belum tersedia di collection disasters; belum dapat diputuskan untuk peta.</small>}
+                        <small>{row.isMock === true ? "Data simulasi" : "Data bencana"}</small>
+                        <button className="admin-detail-link" onClick={() => setSelectedDisaster(row)}>
+                          Lihat detail <ArrowRight size={15} />
+                        </button>
                       </td>
                     </tr>
                   ),
@@ -732,7 +734,90 @@ function Records({
           }}
         />
       )}
+      {selectedDisaster && (
+        <DisasterDetail
+          row={selectedDisaster}
+          onClose={() => setSelectedDisaster(null)}
+        />
+      )}
     </>
+  );
+}
+
+function DisasterDetail({
+  row,
+  onClose,
+}: {
+  row: any;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [articles, setArticles] = useState<Array<{title?: string; url: string; sourceName?: string}>>([]);
+  const record = row.reviewDisaster ?? row;
+  const id = record.id ?? row.id;
+  const name = row.name || row.title || record.name || record.title || row.fullName || id;
+  const summary = row.summary || row.description || record.summary || record.description || record.guide?.cause || row.rawText;
+  const sourceRows = [row, record].flatMap((item) => [
+    ...(Array.isArray(item.evidenceUrls) ? item.evidenceUrls : []),
+    item.sourceUrl,
+    item.url,
+  ]).filter((url): url is string => typeof url === "string");
+
+  useEffect(() => {
+    const dialog = ref.current!;
+    dialog.showModal();
+    return () => dialog.close();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const normalize = (rows: Array<{title?: string; url?: string; sourceName?: string}>) => rows
+      .flatMap((article) => (article.url?.match(/https:\/\/[^\s]+/g) ?? []).map((url) => ({...article, url: newsSourceUrl(url)})))
+      .filter((article): article is {title?: string; url: string; sourceName?: string} => !!article.url)
+      .filter((article, index, all) => all.findIndex((candidate) => candidate.url === article.url) === index);
+    const fallback = normalize([
+      ...currentArticles.filter((article) => article.incidentId === id),
+      ...sourceRows.map((url) => ({url, sourceName: "Sumber data bencana"})),
+    ]);
+    setArticles(fallback);
+    adminApi<{rows: Array<{title?: string; url?: string; sourceName?: string}>}>(`/evidence/${encodeURIComponent(id)}`)
+      .then((data) => {
+        if (active) setArticles(normalize([...data.rows, ...fallback]));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [id]);
+
+  const location = row.province || row.location?.name || (typeof row.location === "string" ? row.location : record.province) || "—";
+  const category = row.category || row.disasterType || row.type || record.category || record.disasterType || "—";
+  const occurredAt = row.eventDate || row.timestamp || row.updatedAt || row.createdAt || record.eventDate || record.timestamp;
+
+  return (
+    <dialog ref={ref} className="admin-review" aria-labelledby="disaster-detail-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+      <header>
+        <div>
+          <span className="admin-eyebrow">DETAIL BENCANA {row.isMock === true ? "· DEMO" : ""}</span>
+          <h2 id="disaster-detail-title">{name}</h2>
+        </div>
+        <button aria-label="Tutup detail bencana" onClick={onClose}><X /></button>
+      </header>
+      <div className="admin-review-body">
+        <dl>
+          <div><dt>Lokasi</dt><dd>{location}</dd></div>
+          <div><dt>Kategori</dt><dd>{category}</dd></div>
+          <div><dt>Waktu kejadian</dt><dd>{date(occurredAt)}</dd></div>
+          <div><dt>ID catatan</dt><dd>{id}</dd></div>
+        </dl>
+        {summary && <><h3>Ringkasan</h3><p className="admin-report-text">{summary}</p></>}
+        <h3>Sumber berita dan data</h3>
+        {articles.length ? articles.map((article) => (
+          <a key={article.url} href={article.url} target="_blank" rel="noopener noreferrer">
+            {article.title || article.sourceName || article.url} · Buka sumber ↗
+          </a>
+        )) : <p>Belum ada tautan sumber yang tercatat.</p>}
+      </div>
+      <footer><button className="admin-secondary" onClick={onClose}>Tutup</button></footer>
+    </dialog>
   );
 }
 
