@@ -47,3 +47,6 @@ public/data/vaac.json
 # Generated service diagnostics; published by Hosting workflow.
 public/data/google-status.json
 public/data/disaster-photos.json
+
+# Generated structured article narratives; published at deploy time.
+public/data/incident-narratives.json

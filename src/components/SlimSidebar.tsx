@@ -1,3 +1,4 @@
+import { NarrativeImpact } from './detail/NarrativeImpact';
 import { BnpbImpactCard } from './detail/BnpbImpactCard';
 import { useMemo } from 'react';
 import { useMobileLayout } from './useMobileLayout';
@@ -242,6 +243,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
               <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-amber-500" style={{width: `${disaster.recoveryPct}%`}} /></div>
             </div>
           </div>
+          <NarrativeImpact incidentId={disaster.id}/>
           {!showPhoto && <div className="mt-3 mb-3 h-32 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-2 text-slate-400">
             <span className="text-xs font-semibold">Dokumentasi kejadian</span><span className="text-[11px]">Belum tersedia</span>
           </div>}
