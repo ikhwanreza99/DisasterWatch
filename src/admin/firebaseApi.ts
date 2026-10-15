@@ -117,7 +117,7 @@ export async function firebaseAdminApi(path: string, body?: any): Promise<unknow
   if(evidenceMatch) {
     const id=decodeURIComponent(evidenceMatch[1]);
     const records=await getDocs(query(collection(db,'incidentArticles'),where('incidentId','==',id),limit(30)));
-    return {rows:records.docs.map(d=>({id:d.id,...d.data()}))};
+    return {rows:records.docs.map(d=>({id:d.id,...d.data()})).filter((row:any)=>row.discoveredBy!=='threads:keyword-search')};
   }
   throw new Error('Endpoint tidak tersedia.');
 }

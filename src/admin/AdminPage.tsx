@@ -1,3 +1,6 @@
+import { PROVINCE_BOUNDS } from '../services/locationValidation';
+import { currentArticles, currentRecords } from '../data/currentIncidents';
+import { newsSourceUrl } from '../services/newsSourceUrl';
 import {
   lazy,
   Suspense,
@@ -723,7 +726,7 @@ function Records({
             setSelected(null);
             setRefresh((v) => v + 1);
             setMessage(
-              "Fact-check tersimpan. Laporan/titik disetujui superuser.",
+              "Keputusan fact-check berhasil disimpan.",
             );
           }}
         />
@@ -732,7 +735,7 @@ function Records({
   );
 }
 
-function Review({
+export function Review({
   report,
   onClose,
   onApproved,
@@ -745,18 +748,30 @@ function Review({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [note, setNote] = useState("");
-  const [evidence, setEvidence] = useState("");
+  const [evidence, setEvidence] = useState<string[]>([]);
+  const [evidenceLoading,setEvidenceLoading]=useState(true);
+  const [evidenceError,setEvidenceError]=useState("");
+  const [rejectOpen,setRejectOpen]=useState(false);
+  const rejectRef=useRef<HTMLDialogElement>(null);
+  const [rejectNote,setRejectNote]=useState("");
+  useEffect(()=>{if(rejectOpen)rejectRef.current?.showModal();},[rejectOpen]);
   const [suggestions, setSuggestions] = useState<Array<{title?:string;url?:string;sourceName?:string}>>([]);
   const [latitude,setLatitude]=useState(report.location?.lat?.toString()??'');
   const [longitude,setLongitude]=useState(report.location?.lng?.toString()??'');
   const [province,setProvince]=useState((report as Report & {province?:string}).province??'');
   useEffect(()=>{
     let active=true;
-    const id=report.targetCollection==='disasters'?report.id:report.disasterId;
-    if(id) adminApi<{rows:Array<{title?:string;url?:string;sourceName?:string}>}>(`/evidence/${encodeURIComponent(id)}`).then(data=>{if(active)setSuggestions(data.rows);}).catch(()=>{});
+    const name=report.location?.name?.toLowerCase()??'';
+    const inferred=currentRecords.filter(r=>[r.name,...r.aliases].some(alias=>name.split(/[,;]/).some(part=>part.trim()===alias.toLowerCase())));
+    const id=report.targetCollection==='disasters'?report.id:report.disasterId || (inferred.length===1?inferred[0].id:undefined);
+    const normalize=(rows:Array<{title?:string;url?:string;sourceName?:string}>)=>rows.flatMap(row=>(row.url?.match(/https:\/\/[^\s]+/g)??[]).map(raw=>({...row,url:newsSourceUrl(raw)}))).filter((row,index,all)=>!!row.url&&all.findIndex(other=>other.url===row.url)===index) as Array<{title?:string;url:string;sourceName?:string}>;
+    const fallback=normalize(currentArticles.filter(a=>a.incidentId===id && a.discoveredBy!=='threads:keyword-search'));
+    if(!id){setEvidenceLoading(false);setEvidenceError('Belum ada kejadian yang cocok untuk memuat berita pendukung.');return;}
+    adminApi<{rows:Array<{title?:string;url?:string;sourceName?:string}>}>(`/evidence/${encodeURIComponent(id)}`).then(data=>{
+      if(active)setSuggestions(normalize([...data.rows,...fallback]));
+    }).catch(()=>{if(active){setSuggestions(fallback);setEvidenceError('Berita Firestore gagal dimuat; menampilkan berita snapshot jika tersedia.');}}).finally(()=>{if(active)setEvidenceLoading(false);});
     return ()=>{active=false;};
   },[report.id,report.disasterId,report.targetCollection]);
-  const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -766,12 +781,16 @@ function Review({
   }, []);
   const [rejectionReason,setRejectionReason]=useState("NO_DISASTER");
   async function approve(decision: "approve" | "reject" = "approve") {
-    setBusy(true);
     setError("");
+    if(report.isMock){setError('Laporan ini adalah data DEMO. Persetujuan atau penolakan kejadian nyata hanya berlaku untuk laporan real.');return;}
+    if(decision==='approve' && (evidence.length<1 || evidence.length>3)){setError('Centang 1–3 berita pendukung sebelum menyetujui laporan.');return;}
+    if(decision==='approve' && note.trim() && note.trim().length<10){setError('Catatan tambahan minimal 10 karakter, atau kosongkan untuk menggunakan ringkasan bukti terpilih.');return;}
+    if(decision==='reject' && rejectNote.trim().length<10){setError('Isi alasan penolakan minimal 10 karakter.');return;}
+    setBusy(true);
     try {
       await adminApi(`/${report.targetCollection??"reports"}/${encodeURIComponent(report.id)}/${decision}`, {
-        note, reason:rejectionReason,
-        evidenceUrls:evidence.split(/\s+/).filter(Boolean),
+        note:decision==='reject'?rejectNote:note.trim() || `Disetujui berdasarkan ${evidence.length} berita pendukung setelah pemeriksaan lokasi dan kejadian.`, reason:rejectionReason,
+        evidenceUrls:evidence,
         lat:latitude ? Number(latitude) : undefined, lng:longitude ? Number(longitude) : undefined, province,
         expectedStatus: report.targetCollection==='disasters' ? (report as Report & {approvalStatus:string}).approvalStatus : report.verificationStatus,
       });
@@ -878,14 +897,8 @@ function Review({
         ) : report.verificationStatus === "REJECTED" ? <div className="admin-error">Laporan ditolak. Marker bencana terkait disembunyikan.<p>{report.reviewNote}</p></div> : null}
         {report.verificationStatus !== "REJECTED" && (
           <>
-            <label htmlFor="rejection-reason">Alasan penolakan</label>
-            <select id="rejection-reason" value={rejectionReason} onChange={e=>setRejectionReason(e.target.value)}>
-              <option value="NO_DISASTER">Tidak ada bencana di titik ini</option>
-              <option value="HOAX">Laporan hoaks</option>
-            </select>
-            <p>Penolakan menyembunyikan marker bencana terkait dari peta. Catatan fact-check wajib; tautan bukti dianjurkan.</p>
             <label htmlFor="review-note">
-              Catatan fact-check <small>(wajib, minimal 10 karakter)</small>
+              Catatan fact-check <small>(opsional untuk persetujuan)</small>
             </label>
             <textarea
               id="review-note"
@@ -895,19 +908,14 @@ function Review({
               rows={3}
               placeholder="Tambahkan hasil pengecekan sumber atau konteks laporan…"
             />
-            <label htmlFor="evidence-urls">Tautan bukti (wajib untuk persetujuan; opsional untuk penolakan, maksimal 5)</label>
-            <textarea id="evidence-urls" value={evidence} onChange={event=>setEvidence(event.target.value)} rows={3} placeholder="Berita, laporan BNPB/BMKG, atau eviden lainnya" />
-            {report.sourceUrl && <p><a href={report.sourceUrl} target="_blank" rel="noopener noreferrer">Sumber record</a></p>}
-            {suggestions.map((source,index)=><p key={index}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.sourceName}: {source.title}</a></p>)}
-            {report.targetCollection!=='disasters' && <div><label>Provinsi titik<input value={province} onChange={event=>setProvince(event.target.value)} placeholder="Contoh: Jawa Timur"/></label><label>Latitude titik<input value={latitude} onChange={event=>setLatitude(event.target.value)} type="number" min="-90" max="90" step="any"/></label><label>Longitude titik<input value={longitude} onChange={event=>setLongitude(event.target.value)} type="number" min="-180" max="180" step="any"/></label></div>}
-            <label className="admin-confirm">
-              <input
-                type="checkbox"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-              />
-              Saya sudah memeriksa nama kota/kabupaten, provinsi, koordinat pada peta, tanggal kejadian, dan sumber evidennya.
-            </label>
+            <fieldset className="admin-evidence"><legend>Berita pendukung — pilih 1–3 berita ({evidence.length}/3)</legend>
+              {evidenceLoading && <p role="status">Memuat berita pendukung…</p>}
+              {evidenceError && <p role="status">{evidenceError}</p>}
+              {!evidenceLoading && suggestions.length===0 && <p>Belum ada berita pendukung yang cocok. Laporan belum dapat disetujui; pilihan Tolak tetap tersedia.</p>}
+              {suggestions.map((source,index)=>{const url=newsSourceUrl(source.url)!;return <label key={url||index} className="admin-evidence-row"><input type="checkbox" aria-label={`Pilih bukti: ${source.title||source.sourceName||new URL(url).hostname}`} checked={evidence.includes(url)} disabled={!evidence.includes(url)&&evidence.length>=3} onChange={e=>setEvidence(previous=>e.target.checked?[...previous,url]:previous.filter(v=>v!==url))}/><span>{source.title||source.sourceName||url}<a href={url} target="_blank" rel="noopener noreferrer">Buka sumber · {source.sourceName||new URL(url).hostname}</a></span></label>;})}
+            </fieldset>
+            {report.targetCollection!=='disasters' && <div><label>Provinsi titik<select value={province} onChange={event=>setProvince(event.target.value)}><option value="">Pilih provinsi</option>{Object.keys(PROVINCE_BOUNDS).sort().map(name=><option key={name} value={name}>{name}</option>)}</select></label><label>Latitude titik<input value={latitude} onChange={event=>setLatitude(event.target.value)} type="number" min="-90" max="90" step="any"/></label><label>Longitude titik<input value={longitude} onChange={event=>setLongitude(event.target.value)} type="number" min="-180" max="180" step="any"/></label></div>}
+
           </>
         )}
         {error && (
@@ -920,11 +928,11 @@ function Review({
         <button className="admin-secondary" onClick={onClose} disabled={busy}>
           Tutup
         </button>
-        {report.verificationStatus !== "REJECTED" && <button className="admin-reject" disabled={!confirmed || busy || note.trim().length<10 || report.isMock} onClick={()=>approve("reject")}><X size={17}/>Tolak laporan</button>}
+        {report.verificationStatus !== "REJECTED" && <button className="admin-reject" disabled={busy} onClick={()=>{setError("");setRejectOpen(true);}}><X size={17}/>Tolak laporan</button>}
         {!["VERIFIED","REJECTED"].includes(report.verificationStatus) && (
           <button
             className="admin-primary"
-            disabled={!confirmed || busy || note.trim().length<10 || !evidence.trim() || report.isMock}
+            disabled={busy}
             onClick={()=>approve("approve")}
           >
             <ShieldCheck size={17} />
@@ -932,6 +940,18 @@ function Review({
           </button>
         )}
       </footer>
+      {rejectOpen && <dialog ref={rejectRef} className="admin-review admin-reject-dialog" aria-labelledby="reject-title" onCancel={e=>{e.preventDefault();if(!busy){rejectRef.current?.close();setRejectOpen(false);setError('');}}}>
+        <header><h2 id="reject-title">Tolak laporan</h2></header>
+        <div className="admin-review-body">
+          <p>Penolakan menyembunyikan marker bencana terkait. Tentukan alasan berdasarkan pemeriksaan Anda.</p>
+          <label htmlFor="rejection-reason">Alasan penolakan</label>
+          <select id="rejection-reason" value={rejectionReason} onChange={e=>setRejectionReason(e.target.value)}><option value="NO_DISASTER">Tidak ada bencana di titik ini</option><option value="HOAX">Laporan hoaks</option></select>
+          <label htmlFor="rejection-note">Catatan penolakan (minimal 10 karakter)</label>
+          <textarea id="rejection-note" value={rejectNote} onChange={e=>setRejectNote(e.target.value)} maxLength={1000} rows={4}/>
+          {error && <div className="admin-error" role="alert">{error}</div>}
+        </div>
+        <footer><button className="admin-secondary" disabled={busy} onClick={()=>{rejectRef.current?.close();setRejectOpen(false);setError('');}}>Batal</button><button className="admin-reject" disabled={busy} onClick={()=>approve('reject')}>{busy?'Menyimpan…':'Konfirmasi penolakan'}</button></footer>
+      </dialog>}
     </dialog>
   );
 }

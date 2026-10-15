@@ -48,7 +48,7 @@ service cloud.firestore {
     function audited(data, kind, id) {
       let audit = getAfter(/databases/$(database)/documents/reportReviews/$(data.reviewAuditId)).data;
       return evidenceValid(data) && audit.reviewedBy == request.auth.uid && audit.decision in ['APPROVED','REJECTED']
-        && (audit.decision == 'APPROVED' ? data.evidenceUrls.size() >= 1 && (kind == 'disasters' ? data.approvalStatus == 'APPROVED' : data.verificationStatus == 'VERIFIED')
+        && (audit.decision == 'APPROVED' ? data.evidenceUrls.size() >= 1 && data.evidenceUrls.size() <= 3 && (kind == 'disasters' ? data.approvalStatus == 'APPROVED' : data.verificationStatus == 'VERIFIED')
           : data.rejectionReason in ['HOAX','NO_DISASTER'] && audit.rejectionReason == data.rejectionReason && (kind == 'disasters' ? data.approvalStatus == 'REJECTED' : data.verificationStatus == 'REJECTED'))
         && audit.reviewNote == data.reviewNote && audit.evidenceUrls == data.evidenceUrls
         && (kind == 'disasters' ? audit.disasterId == id : audit.targetCollection == kind && audit.targetId == id);
