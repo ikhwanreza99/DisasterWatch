@@ -1,4 +1,8 @@
 import { newsSourceUrl } from '../services/newsSourceUrl';
+export function isFinalReviewStatus(status: unknown): boolean {
+  return ['VERIFIED', 'REJECTED', 'APPROVED'].includes(String(status));
+}
+
 export function reviewEvidence(note: unknown, urls: unknown): { note: string; urls: string[] } {
   if (typeof note !== 'string' || note.trim().length < 10 || note.trim().length > 1000 || !Array.isArray(urls) || !urls.length || urls.length > 3) throw new Error('Isi catatan fact-check minimal 10 karakter dan 1–3 tautan bukti HTTPS.');
   const safe = urls.map(newsSourceUrl);

@@ -38,6 +38,7 @@ import type { IntelligenceReport } from "../domain/intelligence";
 import { needLabel } from "../domain/intelligence";
 import { adminApi, AdminError, type Page } from "./api";
 import type { TokenSample } from "./tokenUsage";
+import { isFinalReviewStatus } from "./reviewPolicy";
 import "./admin.css";
 
 const GoogleStatusPage = lazy(() => import("../components/GoogleStatusPage"));
@@ -833,7 +834,7 @@ export function Review({
   onError: (e: unknown) => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const reviewed=!report.isMock && (report.verificationStatus==='VERIFIED' || report.verificationStatus==='REJECTED');
+  const reviewed = isFinalReviewStatus(report.verificationStatus);
   const savedEvidence=(report.evidenceUrls??[]).map(newsSourceUrl).filter((url):url is string=>!!url);
   const [note, setNote] = useState(report.reviewNote??"");
   const [evidence, setEvidence] = useState<string[]>(savedEvidence);
@@ -1018,7 +1019,7 @@ export function Review({
           Tutup
         </button>
         {!reviewed && <button className="admin-reject" disabled={busy} onClick={()=>{setError("");setRejectOpen(true);}}><X size={17}/>Tolak laporan</button>}
-        {(report.isMock || !["VERIFIED","REJECTED"].includes(report.verificationStatus)) && (
+        {!reviewed && (
           <button
             className="admin-primary"
             disabled={busy}

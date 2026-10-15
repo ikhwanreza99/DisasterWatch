@@ -3,7 +3,7 @@ import { getAuth, signInWithEmailAndPassword, signOut, browserSessionPersistence
 import { getFirestore, collection, doc, query, where, orderBy, documentId, limit, startAfter, getDocs, getDoc, getCountFromServer, runTransaction } from 'firebase/firestore';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { firebaseEnv, getFirebaseApp } from '../lib/firebase/config';
-import { reviewRejection, reviewEvidence } from './reviewPolicy';
+import { isFinalReviewStatus, reviewRejection, reviewEvidence } from './reviewPolicy';
 import { locationValidation } from '../services/locationValidation';
 
 let adminApp: ReturnType<typeof initializeApp> | null = null;
@@ -79,7 +79,9 @@ export async function firebaseAdminApi(path: string, body?: any): Promise<unknow
       const status=rejected?'REJECTED':'VERIFIED';
       await runTransaction(db,async tx=>{
         const current=(await tx.get(ref)).data();
-        if(current?.isMock!==true || current.verificationStatus!==body.expectedStatus)throw new Error('Status berubah. Muat ulang daftar.');
+        if(current?.isMock!==true)throw new Error('Laporan demo tidak ditemukan.');
+        if(isFinalReviewStatus(current.verificationStatus))throw new Error('Laporan sudah diputuskan dan tidak dapat diubah.');
+        if(current.verificationStatus!==body.expectedStatus)throw new Error('Status berubah. Muat ulang daftar.');
         tx.update(ref,{...review,verificationStatus:status});
         tx.set(audit,{...review,isMock:true,reportId:id,previousStatus:current.verificationStatus,decision:rejected?'REJECTED':'APPROVED'});
       });
@@ -98,7 +100,8 @@ export async function firebaseAdminApi(path: string, body?: any): Promise<unknow
       if (!record) throw new Error('Data tidak ditemukan.');
       if (record.isMock===true) throw new Error('Laporan demo tidak dapat digunakan untuk menolak kejadian nyata.');
       const previousStatus=name==='reports'?record.verificationStatus:record.approvalStatus??'PENDING';
-      if (previousStatus!==body.expectedStatus || previousStatus==='REJECTED') throw new Error('Status berubah. Muat ulang daftar.');
+      if(isFinalReviewStatus(previousStatus))throw new Error('Laporan sudah diputuskan dan tidak dapat diubah.');
+      if (previousStatus!==body.expectedStatus) throw new Error('Status berubah. Muat ulang daftar.');
       const disasterRef=name==='disasters'?ref:doc(db,'disasters',record.disasterId || `reported-${id}`);
       const disasterSnap=name==='disasters'?snap:await tx.get(disasterRef);
       if (disasterSnap.data()?.isMock===true) throw new Error('Titik demo tidak dapat diputuskan sebagai kejadian nyata.');
@@ -123,7 +126,7 @@ export async function firebaseAdminApi(path: string, body?: any): Promise<unknow
       if (record.isMock === true) throw new Error('Data demo tidak dapat disetujui sebagai kejadian nyata.');
       if (name==='disasters' && locationValidation(record).status==='REJECTED') throw new Error('Koordinat tidak sesuai provinsi. Koreksi data lokasi sebelum menyetujui titik ini.');
       const previousStatus=name==='reports'?record.verificationStatus:record.approvalStatus??'PENDING';
-      if (previousStatus!==body.expectedStatus || ['VERIFIED','APPROVED','REJECTED'].includes(previousStatus)) throw new Error('Status berubah. Muat ulang daftar.');
+      if (isFinalReviewStatus(previousStatus) || previousStatus!==body.expectedStatus) throw new Error('Status berubah. Muat ulang daftar.');
       let disasterRef = name==='disasters'?ref:doc(db,'disasters',record.disasterId || `reported-${id}`);
       const disasterSnap=name==='disasters'?snap:await tx.get(disasterRef);
       if(disasterSnap.data()?.approvalStatus==='REJECTED')throw new Error('Titik ini sudah ditolak. Persetujuan laporan lain tidak dapat mengaktifkannya kembali.');
