@@ -64,6 +64,28 @@ export async function firebaseAdminApi(path: string, body?: any): Promise<unknow
     }
     return {rows:records,total:count.data().count,next:rows.size>50?rows.docs[49].id:null,demo:false};
   }
+  // Training decisions update only the mock report and its own audit collection.
+  const demoDecision=url.pathname.match(/^\/reports\/([^/]+)\/(approve|reject)$/);
+  if(demoDecision) {
+    const id=decodeURIComponent(demoDecision[1]);
+    if(id.includes('/'))throw new Error('ID tidak valid.');
+    const ref=doc(db,'reports',id);
+    const candidate=await getDoc(ref);
+    if(candidate.data()?.isMock===true) {
+      const rejected=demoDecision[2]==='reject';
+      const evidence=rejected?reviewRejection(body?.note,body?.reason,body?.evidenceUrls):reviewRejection(body?.note,'NO_DISASTER',body?.evidenceUrls);
+      const audit=doc(collection(db,'demoReportReviews'));
+      const review={reviewedBy:user.uid,reviewedAt:new Date().toISOString(),reviewNote:evidence.note,evidenceUrls:evidence.urls,reviewAuditId:audit.id,...(rejected?{rejectionReason:evidence.reason}:{})};
+      const status=rejected?'REJECTED':'VERIFIED';
+      await runTransaction(db,async tx=>{
+        const current=(await tx.get(ref)).data();
+        if(current?.isMock!==true || current.verificationStatus!==body.expectedStatus)throw new Error('Status berubah. Muat ulang daftar.');
+        tx.update(ref,{...review,verificationStatus:status});
+        tx.set(audit,{...review,isMock:true,reportId:id,previousStatus:current.verificationStatus,decision:rejected?'REJECTED':'APPROVED'});
+      });
+      return {...review,verificationStatus:status};
+    }
+  }
   const reject = url.pathname.match(/^\/(reports|disasters)\/([^/]+)\/reject$/);
   if (reject) {
     const name=reject[1], id=decodeURIComponent(reject[2]);

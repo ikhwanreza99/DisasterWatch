@@ -748,7 +748,7 @@ export function Review({
   onError: (e: unknown) => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const reviewed=report.verificationStatus==='VERIFIED' || report.verificationStatus==='REJECTED';
+  const reviewed=!report.isMock && (report.verificationStatus==='VERIFIED' || report.verificationStatus==='REJECTED');
   const savedEvidence=(report.evidenceUrls??[]).map(newsSourceUrl).filter((url):url is string=>!!url);
   const [note, setNote] = useState(report.reviewNote??"");
   const [evidence, setEvidence] = useState<string[]>(savedEvidence);
@@ -785,8 +785,7 @@ export function Review({
   const [rejectionReason,setRejectionReason]=useState("NO_DISASTER");
   async function approve(decision: "approve" | "reject" = "approve") {
     setError("");
-    if(report.isMock){setError('Laporan ini adalah data DEMO. Persetujuan atau penolakan kejadian nyata hanya berlaku untuk laporan real.');return;}
-    if(decision==='approve' && (evidence.length<1 || evidence.length>3)){setError('Centang 1–3 berita pendukung sebelum menyetujui laporan.');return;}
+        if(decision==='approve' && !report.isMock && (evidence.length<1 || evidence.length>3)){setError('Centang 1–3 berita pendukung sebelum menyetujui laporan.');return;}
     if(decision==='approve' && note.trim() && note.trim().length<10){setError('Catatan tambahan minimal 10 karakter, atau kosongkan untuk menggunakan ringkasan bukti terpilih.');return;}
     if(decision==='reject' && rejectNote.trim().length<10){setError('Isi alasan penolakan minimal 10 karakter.');return;}
     setBusy(true);
@@ -838,7 +837,7 @@ export function Review({
       </header>
       <div className="admin-review-body">
         <Badge status={report.verificationStatus} />
-        {report.isMock && <p className="admin-error">DEMO — laporan simulasi tersimpan di Firestore. Hanya dapat ditinjau; tidak mengubah keputusan atau marker bencana real.</p>}
+        {report.isMock && <p className="admin-error">DEMO — approve/tolak disimpan ke laporan simulasi di Firestore. Tidak membuat atau mengubah marker bencana real. Berita pendukung opsional untuk latihan.</p>}
         <dl>
           <div>
             <dt>Pelapor</dt>
@@ -933,8 +932,8 @@ export function Review({
         <button className="admin-secondary" onClick={onClose} disabled={busy}>
           Tutup
         </button>
-        {!report.isMock && !reviewed && <button className="admin-reject" disabled={busy} onClick={()=>{setError("");setRejectOpen(true);}}><X size={17}/>Tolak laporan</button>}
-        {!report.isMock && !["VERIFIED","REJECTED"].includes(report.verificationStatus) && (
+        {!reviewed && <button className="admin-reject" disabled={busy} onClick={()=>{setError("");setRejectOpen(true);}}><X size={17}/>Tolak laporan</button>}
+        {(report.isMock || !["VERIFIED","REJECTED"].includes(report.verificationStatus)) && (
           <button
             className="admin-primary"
             disabled={busy}
