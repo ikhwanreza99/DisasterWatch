@@ -747,8 +747,10 @@ export function Review({
   onError: (e: unknown) => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [note, setNote] = useState("");
-  const [evidence, setEvidence] = useState<string[]>([]);
+  const reviewed=report.verificationStatus==='VERIFIED' || report.verificationStatus==='REJECTED';
+  const savedEvidence=(report.evidenceUrls??[]).map(newsSourceUrl).filter((url):url is string=>!!url);
+  const [note, setNote] = useState(report.reviewNote??"");
+  const [evidence, setEvidence] = useState<string[]>(savedEvidence);
   const [evidenceLoading,setEvidenceLoading]=useState(true);
   const [evidenceError,setEvidenceError]=useState("");
   const [rejectOpen,setRejectOpen]=useState(false);
@@ -765,8 +767,8 @@ export function Review({
     const inferred=currentRecords.filter(r=>[r.name,...r.aliases].some(alias=>name.split(/[,;]/).some(part=>part.trim()===alias.toLowerCase())));
     const id=report.targetCollection==='disasters'?report.id:report.disasterId || (inferred.length===1?inferred[0].id:undefined);
     const normalize=(rows:Array<{title?:string;url?:string;sourceName?:string}>)=>rows.flatMap(row=>(row.url?.match(/https:\/\/[^\s]+/g)??[]).map(raw=>({...row,url:newsSourceUrl(raw)}))).filter((row,index,all)=>!!row.url&&all.findIndex(other=>other.url===row.url)===index) as Array<{title?:string;url:string;sourceName?:string}>;
-    const fallback=normalize(currentArticles.filter(a=>a.incidentId===id && a.discoveredBy!=='threads:keyword-search'));
-    if(!id){setEvidenceLoading(false);setEvidenceError('Belum ada kejadian yang cocok untuk memuat berita pendukung.');return;}
+    const fallback=normalize([...currentArticles.filter(a=>a.incidentId===id && a.discoveredBy!=='threads:keyword-search'),...savedEvidence.map(url=>({url,sourceName:new URL(url).hostname,title:'Bukti tersimpan oleh verifikator'}))]);
+    if(!id){setSuggestions(fallback);setEvidenceLoading(false);setEvidenceError('Belum ada kejadian yang cocok untuk memuat berita pendukung.');return;}
     adminApi<{rows:Array<{title?:string;url?:string;sourceName?:string}>}>(`/evidence/${encodeURIComponent(id)}`).then(data=>{
       if(active)setSuggestions(normalize([...data.rows,...fallback]));
     }).catch(()=>{if(active){setSuggestions(fallback);setEvidenceError('Berita Firestore gagal dimuat; menampilkan berita snapshot jika tersedia.');}}).finally(()=>{if(active)setEvidenceLoading(false);});
@@ -897,7 +899,7 @@ export function Review({
         ) : report.verificationStatus === "REJECTED" ? <div className="admin-error">Laporan ditolak. Marker bencana terkait disembunyikan.<p>{report.reviewNote}</p></div> : null}
         {report.verificationStatus !== "REJECTED" && (
           <>
-            <label htmlFor="review-note">
+            {!reviewed && <><label htmlFor="review-note">
               Catatan fact-check <small>(opsional untuk persetujuan)</small>
             </label>
             <textarea
@@ -908,13 +910,14 @@ export function Review({
               rows={3}
               placeholder="Tambahkan hasil pengecekan sumber atau konteks laporan…"
             />
-            <fieldset className="admin-evidence"><legend>Berita pendukung — pilih 1–3 berita ({evidence.length}/3)</legend>
+            </>}
+            <fieldset className="admin-evidence"><legend>{reviewed ? `Bukti pilihan verifikator (${evidence.length} terpilih)` : `Berita pendukung — pilih 1–3 berita (${evidence.length}/3)`}</legend>
               {evidenceLoading && <p role="status">Memuat berita pendukung…</p>}
               {evidenceError && <p role="status">{evidenceError}</p>}
               {!evidenceLoading && suggestions.length===0 && <p>Belum ada berita pendukung yang cocok. Laporan belum dapat disetujui; pilihan Tolak tetap tersedia.</p>}
-              {suggestions.map((source,index)=>{const url=newsSourceUrl(source.url)!;return <label key={url||index} className="admin-evidence-row"><input type="checkbox" aria-label={`Pilih bukti: ${source.title||source.sourceName||new URL(url).hostname}`} checked={evidence.includes(url)} disabled={!evidence.includes(url)&&evidence.length>=3} onChange={e=>setEvidence(previous=>e.target.checked?[...previous,url]:previous.filter(v=>v!==url))}/><span>{source.title||source.sourceName||url}<a href={url} target="_blank" rel="noopener noreferrer">Buka sumber · {source.sourceName||new URL(url).hostname}</a></span></label>;})}
+              {suggestions.map((source,index)=>{const url=newsSourceUrl(source.url)!;return <label key={url||index} className="admin-evidence-row"><input type="checkbox" aria-label={`Pilih bukti: ${source.title||source.sourceName||new URL(url).hostname}`} checked={evidence.includes(url)} disabled={reviewed || (!evidence.includes(url)&&evidence.length>=3)} onChange={e=>setEvidence(previous=>e.target.checked?[...previous,url]:previous.filter(v=>v!==url))}/><span>{source.title||source.sourceName||url}<a href={url} target="_blank" rel="noopener noreferrer">Buka sumber · {source.sourceName||new URL(url).hostname}</a></span></label>;})}
             </fieldset>
-            {report.targetCollection!=='disasters' && <div><label>Provinsi titik<select value={province} onChange={event=>setProvince(event.target.value)}><option value="">Pilih provinsi</option>{Object.keys(PROVINCE_BOUNDS).sort().map(name=><option key={name} value={name}>{name}</option>)}</select></label><label>Latitude titik<input value={latitude} onChange={event=>setLatitude(event.target.value)} type="number" min="-90" max="90" step="any"/></label><label>Longitude titik<input value={longitude} onChange={event=>setLongitude(event.target.value)} type="number" min="-180" max="180" step="any"/></label></div>}
+            {!reviewed && report.targetCollection!=='disasters' && <div><label>Provinsi titik<select value={province} onChange={event=>setProvince(event.target.value)}><option value="">Pilih provinsi</option>{Object.keys(PROVINCE_BOUNDS).sort().map(name=><option key={name} value={name}>{name}</option>)}</select></label><label>Latitude titik<input value={latitude} onChange={event=>setLatitude(event.target.value)} type="number" min="-90" max="90" step="any"/></label><label>Longitude titik<input value={longitude} onChange={event=>setLongitude(event.target.value)} type="number" min="-180" max="180" step="any"/></label></div>}
 
           </>
         )}
@@ -928,7 +931,7 @@ export function Review({
         <button className="admin-secondary" onClick={onClose} disabled={busy}>
           Tutup
         </button>
-        {report.verificationStatus !== "REJECTED" && <button className="admin-reject" disabled={busy} onClick={()=>{setError("");setRejectOpen(true);}}><X size={17}/>Tolak laporan</button>}
+        {!reviewed && <button className="admin-reject" disabled={busy} onClick={()=>{setError("");setRejectOpen(true);}}><X size={17}/>Tolak laporan</button>}
         {!["VERIFIED","REJECTED"].includes(report.verificationStatus) && (
           <button
             className="admin-primary"
