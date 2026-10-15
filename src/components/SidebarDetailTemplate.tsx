@@ -1,3 +1,4 @@
+import { InsightCalculator } from './detail/InsightCalculator';
 import React from 'react';
 import {
   X,
@@ -333,7 +334,8 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
               </div>
               <h4 className="text-[14px] font-bold text-slate-900">Kesenjangan Bantuan</h4>
             </div>
-            <AidGapCard disasterId={disaster.id} reports={intelReports} aid={aidRecords} />
+            <InsightCalculator incidentId={disaster.id} />
+            <AidGapCard hazard={disaster.category} disasterId={disaster.id} reports={intelReports} aid={aidRecords} />
             <button
               type="button"
               onClick={onOpenDonationModal}
