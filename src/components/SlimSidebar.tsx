@@ -1,3 +1,4 @@
+import { AutomaticImpact } from './detail/AutomaticImpact';
 import { NarrativeImpact } from './detail/NarrativeImpact';
 import { BnpbImpactCard } from './detail/BnpbImpactCard';
 import { useMemo } from 'react';
@@ -234,7 +235,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           <div className="grid grid-cols-2 gap-3 mt-3 mb-3">
             <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
               <p className="text-[11px] font-medium text-slate-400">Estimasi Dampak</p>
-              <p className="mt-1 text-[18px] font-bold text-slate-900">{disaster.cost || 'Belum tersedia'}</p>
+              <div className="mt-1 text-[18px] font-bold text-slate-900"><AutomaticImpact incidentId={disaster.id} fallback={disaster.cost}/></div>
               <p className="mt-2 text-[11px] font-medium text-slate-400">{disaster.impact}</p>
             </div>
             <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">

@@ -1,4 +1,3 @@
-import { InsightCalculator } from './InsightCalculator';
 // DisasterDetailView: THE shared disaster-detail template for every incident.
 // Same header hierarchy, cards, panels, and states — data comes from the adapter,
 // never from hardcoded per-city UI.
@@ -87,7 +86,6 @@ export const DisasterDetailView: React.FC<Props> = ({
               </div>
               <h4 className="text-[14px] font-bold text-slate-900">Kesenjangan Bantuan</h4>
             </div>
-            <InsightCalculator incidentId={disaster.id} />
             <AidGapCard hazard={disaster.category} disasterId={disaster.id} reports={intelReports} aid={aidRecords} />
             <button
               type="button"

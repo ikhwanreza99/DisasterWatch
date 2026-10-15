@@ -1,4 +1,4 @@
-import { InsightCalculator } from './detail/InsightCalculator';
+import { AutomaticImpact } from './detail/AutomaticImpact';
 import React from 'react';
 import {
   X,
@@ -216,9 +216,9 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
             <div className="grid grid-cols-2 gap-3 text-xs mb-4">
               <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
                 <span className="text-[11px] font-medium text-slate-400 block">Estimasi Dampak</span>
-                <strong className="mt-1 text-[18px] font-bold text-slate-900 block">
-                  {disaster.cost}
-                </strong>
+                <div className="mt-1 text-[18px] font-bold text-slate-900 block">
+                  <AutomaticImpact incidentId={disaster.id} fallback={disaster.cost}/>
+                </div>
                 <span className="mt-2 text-[11px] font-medium text-slate-400 block">
                   {disaster.impact}
                 </span>
@@ -334,7 +334,6 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
               </div>
               <h4 className="text-[14px] font-bold text-slate-900">Kesenjangan Bantuan</h4>
             </div>
-            <InsightCalculator incidentId={disaster.id} />
             <AidGapCard hazard={disaster.category} disasterId={disaster.id} reports={intelReports} aid={aidRecords} />
             <button
               type="button"

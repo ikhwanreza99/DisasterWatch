@@ -1,3 +1,4 @@
+import { AutomaticImpact } from './AutomaticImpact';
 import { NarrativeImpact } from './NarrativeImpact';
 import { BnpbImpactCard } from './BnpbImpactCard';
 // Shared incident overview card (header hierarchy, status badge, impact/recovery, photo, posko action).
@@ -73,6 +74,7 @@ export const IncidentOverviewCard: React.FC<Props> = ({ disaster, detail, onOpen
         </div>
       </div>
 
+      <div className="mb-3 rounded-xl bg-slate-50 p-3 text-xs"><span className="text-slate-400">Estimasi Dampak</span><AutomaticImpact incidentId={disaster.id} fallback={disaster.cost}/></div>
       <NarrativeImpact incidentId={disaster.id}/>
       <BnpbImpactCard incidentId={disaster.id} />
 
