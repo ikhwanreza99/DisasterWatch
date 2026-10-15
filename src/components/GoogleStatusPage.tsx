@@ -19,6 +19,8 @@ export default function GoogleStatusPage({ embedded = false }: { embedded?: bool
   const [mapsTest, setMapsTest] = useState(false);
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [mapAttempt, setMapAttempt] = useState(0);
+  const [backendRefresh,setBackendRefresh]=useState(0);
+  const [backendNotice,setBackendNotice]=useState('');
   const [recheck, setRecheck] = useState(0);
   const update = (result: ServiceCheck) => setChecks(current => current.map(c => c.id === result.id ? result : c));
   useEffect(() => {
@@ -31,10 +33,10 @@ export default function GoogleStatusPage({ embedded = false }: { embedded?: bool
       if (!r.ok) throw new Error();
       const data = await r.json();
       if (data.version !== 1 || !Array.isArray(data.services)) throw new Error();
-      if (active) setSnapshot(data);
+      if (active) {setSnapshot(data);if(backendRefresh>0)setBackendNotice('Laporan server terbaru dimuat. Untuk menjalankan uji Google Search baru, buka workflow dan aktifkan opsi Uji Google Search.');}
     }).catch(() => { if (active) setSnapshotError('Laporan backend belum tersedia atau gagal dimuat. Jalankan workflow Deploy untuk menerbitkannya.'); }).finally(() => { window.clearTimeout(timer); if (active) setSnapshotLoading(false); });
     return () => { active = false; window.clearTimeout(timer); controller.abort(); };
-  }, [recheck]);
+  }, [recheck,backendRefresh]);
   useEffect(() => {
     const fail = () => update({ ...initialChecks()[0], state: 'error', checkedAt: new Date().toISOString(), detail: 'Google Maps menolak autentikasi. Periksa API aktif, referrer domain, billing, dan kuota.' });
     window.addEventListener('gmp-auth-failure', fail);
@@ -75,6 +77,7 @@ export default function GoogleStatusPage({ embedded = false }: { embedded?: bool
   function table(rows: ServiceCheck[], browser = false) { return <div className="divide-y divide-slate-100">{rows.map(c => <article key={c.id} className="grid gap-3 px-5 py-5 sm:grid-cols-[minmax(180px,1fr)_minmax(220px,2fr)_auto] sm:items-start">
     <div><h3 className="font-semibold text-slate-900 text-sm">{c.name}</h3><p className="mt-1 text-xs text-slate-400">{c.scope === 'browser' ? 'Browser ini' : c.scope === 'backend' ? 'GitHub Actions / server' : 'Snapshot produksi'}</p></div>
     <div><span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${colors[c.state]}`}>{stateLabels[c.state]}</span>{stale(c) && <span className="ml-2 text-[11px] text-amber-700">Hasil lebih dari 24 jam</span>}<p className="mt-2 text-xs leading-relaxed text-slate-600 break-words">{c.detail}</p>{statusAdvice(c) && <p className="mt-2 text-xs leading-relaxed text-amber-700">{statusAdvice(c)}</p>}<p className="mt-2 text-[11px] text-slate-400">{date(c.checkedAt)}</p></div>
+    {!browser && c.id==='google-search-probe' && <div className="flex flex-col items-start gap-2"><button type="button" disabled={snapshotLoading} onClick={()=>{setBackendNotice('Mengambil laporan Google Search terbaru…');setBackendRefresh(v=>v+1);}} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"><RefreshCw size={14}/>{snapshotLoading?'Memuat…':'Refresh Google Search'}</button><a className="text-xs text-blue-600 underline" href="https://github.com/ikhwanreza99/DisasterWatch/actions/workflows/deploy-hosting.yml" target="_blank" rel="noreferrer">Jalankan uji baru di server</a>{backendNotice && <p role="status" className="max-w-xs text-xs text-slate-500">{backendNotice}</p>}</div>}
     {browser && <button onClick={() => test(c.id)} disabled={!!running || c.state === 'checking' || c.state === 'disabled' || c.id === 'storage'} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40">{running === c.id || c.state === 'checking' ? 'Memeriksa...' : c.id === 'maps' ? 'Uji ulang Maps' : c.id === 'storage' ? 'Perlu lampiran' : 'Uji ulang'}</button>}
   </article>)}</div>; }
   return <div className={embedded ? "admin-status-view text-slate-900" : "min-h-screen bg-[#f8fafb] text-slate-900"}>
