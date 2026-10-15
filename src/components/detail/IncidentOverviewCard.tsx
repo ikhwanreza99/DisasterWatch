@@ -1,3 +1,4 @@
+import { NarrativeImpact } from './NarrativeImpact';
 import { BnpbImpactCard } from './BnpbImpactCard';
 // Shared incident overview card (header hierarchy, status badge, impact/recovery, photo, posko action).
 // Same layout for every incident — only data changes.
@@ -72,6 +73,7 @@ export const IncidentOverviewCard: React.FC<Props> = ({ disaster, detail, onOpen
         </div>
       </div>
 
+      <NarrativeImpact incidentId={disaster.id}/>
       <BnpbImpactCard incidentId={disaster.id} />
 
       {disaster.photoUrl ? (

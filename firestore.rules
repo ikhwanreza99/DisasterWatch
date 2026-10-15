@@ -140,6 +140,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+    match /incidentNarratives/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
     match /incidentArticles/{id} {
       allow read: if true;
       allow write: if false;

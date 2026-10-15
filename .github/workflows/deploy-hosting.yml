@@ -82,6 +82,12 @@ jobs:
         env:
           ZAPI_API_KEY: ${{ secrets.ZAPI_API_KEY }}
 
+      - name: Extract Padang article narratives
+        continue-on-error: true
+        run: npx tsx scripts/fetchIncidentNarratives.ts
+        env:
+          FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT }}
+
       - name: Cache Google News snapshot
         uses: actions/cache/save@v4
         with:
