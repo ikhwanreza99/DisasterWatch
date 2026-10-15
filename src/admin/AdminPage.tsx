@@ -666,7 +666,7 @@ function Records({
                         <strong>
                           {row.name || row.title || row.fullName || row.id}
                         </strong>
-                        {row.isMock && <small>DEMO</small>}
+                        <small>{row.isMock === true ? "DEMO · data simulasi" : row.isMock === false ? "REAL · belum tentu terverifikasi" : "Asal data belum diketahui"}{row.reviewDisaster ? " · titik REAL terhubung" : ""}</small>
                       </td>
                       <td>
                         {row.province ||
@@ -679,12 +679,13 @@ function Records({
                         {row.category || row.disasterType || row.type || "—"}
                       </td>
                       <td className="admin-date">
-                        {date(row.timestamp || row.updatedAt || row.createdAt)}
+                        {date(row.reviewDisaster?.eventDate || row.eventDate || row.timestamp || row.updatedAt || row.createdAt)}
                       </td>
                       <td>
                         <small>{row.id}</small>
-                        <small>{row.approvalStatus === 'APPROVED' ? 'Disetujui superuser' : 'Menunggu fact-check'}</small>
-                        {!row.isMock && collection === 'disasters' && <button className="admin-detail-link" onClick={() => setSelected({...row, targetCollection:'disasters', rawText:row.guide?.cause ?? row.summary ?? row.name, location:{name:row.name,lat:row.coords?.lat,lng:row.coords?.lng}, verificationStatus:row.approvalStatus==='APPROVED'?'VERIFIED':row.approvalStatus==='REJECTED'?'REJECTED':'UNVERIFIED', approvalStatus:row.approvalStatus??'PENDING'})}>Fact-check <ArrowRight size={15}/></button>}
+                        <small>{(row.reviewDisaster?.approvalStatus ?? row.approvalStatus) === 'APPROVED' ? 'Disetujui superuser' : (row.reviewDisaster?.approvalStatus ?? row.approvalStatus) === 'REJECTED' ? 'Ditolak' : row.isMock && !row.reviewDisaster ? 'Demo · hanya ditinjau' : 'Menunggu fact-check'}</small>
+                        {((row.isMock === false && collection === 'disasters') || (collection === 'incidents' && row.reviewDisaster)) && <button className="admin-detail-link" onClick={() => { const target = row.reviewDisaster ?? row; setSelected({...target, targetCollection:'disasters', rawText:target.guide?.cause ?? target.summary ?? target.name, location:{name:target.name,lat:target.coords?.lat,lng:target.coords?.lng}, verificationStatus:target.approvalStatus==='APPROVED'?'VERIFIED':target.approvalStatus==='REJECTED'?'REJECTED':'UNVERIFIED', approvalStatus:target.approvalStatus??'PENDING'}); }}>{row.reviewDisaster ? "Fact-check titik REAL" : "Fact-check"} <ArrowRight size={15}/></button>}
+                        {collection === "incidents" && row.isMock === false && !row.reviewDisaster && <small>Titik real belum tersedia di collection disasters; belum dapat diputuskan untuk peta.</small>}
                       </td>
                     </tr>
                   ),
@@ -837,6 +838,7 @@ export function Review({
       </header>
       <div className="admin-review-body">
         <Badge status={report.verificationStatus} />
+        {report.isMock && <p className="admin-error">DEMO — laporan simulasi tersimpan di Firestore. Hanya dapat ditinjau; tidak mengubah keputusan atau marker bencana real.</p>}
         <dl>
           <div>
             <dt>Pelapor</dt>
@@ -931,8 +933,8 @@ export function Review({
         <button className="admin-secondary" onClick={onClose} disabled={busy}>
           Tutup
         </button>
-        {!reviewed && <button className="admin-reject" disabled={busy} onClick={()=>{setError("");setRejectOpen(true);}}><X size={17}/>Tolak laporan</button>}
-        {!["VERIFIED","REJECTED"].includes(report.verificationStatus) && (
+        {!report.isMock && !reviewed && <button className="admin-reject" disabled={busy} onClick={()=>{setError("");setRejectOpen(true);}}><X size={17}/>Tolak laporan</button>}
+        {!report.isMock && !["VERIFIED","REJECTED"].includes(report.verificationStatus) && (
           <button
             className="admin-primary"
             disabled={busy}

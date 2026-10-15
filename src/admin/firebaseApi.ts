@@ -56,7 +56,13 @@ export async function firebaseAdminApi(path: string, body?: any): Promise<unknow
     const after = url.searchParams.get('after');
     const page = query(base,orderBy(documentId()),...(after ? [startAfter(after)] : []),limit(51));
     const [rows, count] = await Promise.all([getDocs(page),getCountFromServer(base)]);
-    return {rows:rows.docs.slice(0,50).map(d=>({...d.data(),id:d.id})),total:count.data().count,next:rows.size>50?rows.docs[49].id:null,demo:false};
+    const records = rows.docs.slice(0,50).map(d=>({...d.data(),id:d.id}));
+    if(name==='incidents') {
+      // Exact IDs only: never join unrelated incidents by city name.
+      const linked = await Promise.all(records.map(row=>getDoc(doc(db,'disasters',row.id))));
+      return {rows:records.map((row,i)=>({...row,reviewDisaster:linked[i].exists() && linked[i].data()?.isMock===false ? {...linked[i].data(),id:linked[i].id} : null})),total:count.data().count,next:rows.size>50?rows.docs[49].id:null,demo:false};
+    }
+    return {rows:records,total:count.data().count,next:rows.size>50?rows.docs[49].id:null,demo:false};
   }
   const reject = url.pathname.match(/^\/(reports|disasters)\/([^/]+)\/reject$/);
   if (reject) {
