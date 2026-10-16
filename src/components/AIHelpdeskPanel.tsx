@@ -159,8 +159,10 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
         status: result.storeMode === 'mock' ? t('Laporan tersimpan dalam sesi demo lokal.') : t('Laporan berhasil disimpan untuk ditinjau.'),
         attachment: attachment ? (reportUser.isMock ? t('Dokumen pendukung tersedia dalam sesi lokal ini.') : t('Dokumen pendukung telah dilampirkan.')) : '',
       }));
-    } catch {
-      if (mounted.current) add('ai', t('Laporan belum berhasil dikirim. Informasi Anda masih ada di sini. Silakan coba “Kirim Laporan” lagi.'));
+    } catch (error) {
+      console.error('[DisasterAI] report submission failed', error);
+      const reason = error instanceof Error ? error.message : String(error);
+      if (mounted.current) add('ai', t('Laporan belum berhasil dikirim. Informasi Anda masih ada di sini. Silakan coba “Kirim Laporan” lagi. ({error})', { error: reason }));
     } finally { sending.current = false; if (mounted.current) setBusy(false); }
   };
   const send = async (suggestion?: string) => {
