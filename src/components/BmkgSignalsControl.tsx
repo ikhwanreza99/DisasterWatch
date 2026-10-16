@@ -7,6 +7,7 @@ import { RefreshCw } from 'lucide-react';
 import { BMKG_SOURCE_URL, BMKG_WEATHER_FEED_ID } from '../services/bmkg';
 import { BMKG_FORECAST_INFO_URL } from '../services/bmkg/bmkgWeatherForecast';
 import type { BmkgForecastState } from '../services/bmkg/bmkgWeatherForecast';
+import { useI18n } from '../i18n';
 
 interface Props {
   quakeCount: number;
@@ -43,6 +44,7 @@ export const BmkgSignalsControl: React.FC<Props> = ({
   forecastLocation,
   inline = false,
 }) => {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const forecastLive = forecastState === 'READY';
   return (
@@ -81,7 +83,7 @@ export const BmkgSignalsControl: React.FC<Props> = ({
             {quakeLatestText ? (
               <div className="text-xs font-semibold text-slate-800 dark:text-slate-100">{quakeLatestText}</div>
             ) : (
-              <div className="text-xs text-slate-500">Memuat data resmi BMKG…</div>
+              <div className="text-xs text-slate-500">{t('Memuat data resmi BMKG…')}</div>
             )}
             <div className="flex items-center justify-between mt-1.5">
               <a
@@ -124,10 +126,10 @@ export const BmkgSignalsControl: React.FC<Props> = ({
             ) : (
               <div className="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
                 {forecastState === 'NO_LOCATION'
-                  ? 'Prakiraan BMKG belum tersedia untuk lokasi ini.'
+                  ? t('Prakiraan BMKG belum tersedia untuk lokasi ini.')
                   : forecastState === 'LOADING'
-                    ? 'Memuat prakiraan BMKG…'
-                    : 'Prakiraan BMKG sementara tidak dapat dimuat.'}
+                    ? t('Memuat prakiraan BMKG…')
+                    : t('Prakiraan BMKG sementara tidak dapat dimuat.')}
               </div>
             )}
             <div className="flex items-center justify-between mt-1.5">
@@ -137,7 +139,7 @@ export const BmkgSignalsControl: React.FC<Props> = ({
                 rel="noopener noreferrer"
                 className="text-[10px] text-slate-400 underline hover:text-sky-600"
               >
-                Source: BMKG · Prakiraan Cuaca{forecastLocation ? ` · ${forecastLocation}` : ''}
+                Source: BMKG · {t('Prakiraan Cuaca')}{forecastLocation ? ` · ${forecastLocation}` : ''}
               </a>
             </div>
           </div>
@@ -168,7 +170,7 @@ export const BmkgSignalsControl: React.FC<Props> = ({
               <>
                 <div className="text-xs font-semibold text-slate-700 dark:text-slate-200">Official source detected</div>
                 <div className="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
-                  Data tersedia di BMKG, tetapi endpoint resmi tidak dapat diakses langsung dari browser.
+                  {t('Data tersedia di BMKG, tetapi endpoint resmi tidak dapat diakses langsung dari browser.')}
                 </div>
               </>
             ) : weatherReady ? (
@@ -176,7 +178,7 @@ export const BmkgSignalsControl: React.FC<Props> = ({
                 {weatherActiveCount > 0 ? `${weatherActiveCount} active warning(s)` : 'No active BMKG weather warnings'}
               </div>
             ) : (
-              <div className="text-xs text-slate-500">Memuat peringatan dini cuaca BMKG…</div>
+              <div className="text-xs text-slate-500">{t('Memuat peringatan dini cuaca BMKG…')}</div>
             )}
             <div className="flex items-center justify-between mt-1.5">
               <a

@@ -1,3 +1,5 @@
+import { translate } from '../i18n';
+
 export class AdminError extends Error {
   constructor(
     message: string,
@@ -30,11 +32,11 @@ export async function legacyAdminApi<T>(path: string, body?: unknown): Promise<T
   });
   const data = await response.json().catch(() => {
     throw new Error(
-      "API admin belum tersedia. Jalankan server admin terlebih dahulu.",
+      translate("API admin belum tersedia. Jalankan server admin terlebih dahulu."),
     );
   });
   if (!response.ok)
-    throw new AdminError(data.error || "Permintaan gagal.", response.status);
+    throw new AdminError(data.error || translate("Permintaan gagal."), response.status);
   return data;
 }
 export interface Page<T> {

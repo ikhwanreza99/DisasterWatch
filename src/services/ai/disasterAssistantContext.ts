@@ -10,6 +10,7 @@
 import type { DisasterIncident } from '../../types';
 import type { AidRecord, IntelligenceReport } from '../../domain/intelligence';
 import { needLabel } from '../../domain/intelligence';
+import { localeFor } from '../../i18n';
 import { estimateImpact } from '../intelligence/impactEngine';
 import { summarizeGaps } from '../intelligence/aidGapEngine';
 import { rankDisasters } from '../intelligence/priorityEngine';
@@ -274,7 +275,7 @@ export function buildAssistantSnapshot(deps: AssistantDeps): AssistantSnapshot {
 }
 
 function fmt(n: number): string {
-  return n.toLocaleString('id-ID');
+  return n.toLocaleString(localeFor());
 }
 
 /** Render the snapshot as compact grounded text for the Gemini prompt. Numbers are precomputed. */

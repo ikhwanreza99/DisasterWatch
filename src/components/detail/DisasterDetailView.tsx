@@ -3,6 +3,7 @@
 // never from hardcoded per-city UI.
 import React from 'react';
 import { X, HeartHandshake } from 'lucide-react';
+import { useI18n } from '../../i18n';
 import type { DisasterIncident } from '../../types';
 import type { AidRecord, IntelligenceReport } from '../../domain/intelligence';
 import { AidGapCard } from '../AidGapCard';
@@ -44,6 +45,7 @@ export const DisasterDetailView: React.FC<Props> = ({
   aidRecords = [],
   extraAction,
 }) => {
+  const { t } = useI18n();
   const matched = filterIncidentNews(detail.articles, detail.incidentId);
   const review = reviewQueue(detail.articles, detail.incidentId);
   return (
@@ -52,15 +54,15 @@ export const DisasterDetailView: React.FC<Props> = ({
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-orange-400 animate-ping"></span>
           <span className={`text-xs font-bold uppercase tracking-wider ${mobile ? 'text-slate-800' : 'text-white'}`}>
-            {mobile ? 'Detail Situasi Wilayah' : 'Detail Situasi Wilayah & Jalur Logistik Terbuka'}
+            {mobile ? t('Detail Situasi Wilayah') : t('Detail Situasi Wilayah & Jalur Logistik Terbuka')}
           </span>
         </div>
         <button
           onClick={onClose}
           className="group flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-slate-100 text-slate-800 shadow-xl border border-slate-200 transition-all active:scale-95 text-xs font-bold cursor-pointer"
-          title="Tutup & Kembali ke Homepage Peta"
+          title={t('Tutup & Kembali ke Homepage Peta')}
         >
-          <span>Tutup</span>
+          <span>{t('Tutup')}</span>
           <X className="w-4 h-4 text-slate-500 group-hover:text-rose-600 transition-transform group-hover:rotate-90 duration-200" />
         </button>
       </div>
@@ -84,7 +86,7 @@ export const DisasterDetailView: React.FC<Props> = ({
               <div className="w-7 h-7 rounded-lg bg-orange-500 text-white flex items-center justify-center shadow-xs shrink-0">
                 <HeartHandshake className="w-4 h-4" aria-hidden="true" />
               </div>
-              <h4 className="text-[14px] font-bold text-slate-900">Kesenjangan Bantuan</h4>
+              <h4 className="text-[14px] font-bold text-slate-900">{t('Kesenjangan Bantuan')}</h4>
             </div>
             <AidGapCard hazard={disaster.category} disasterId={disaster.id} reports={intelReports} aid={aidRecords} />
             <button
@@ -93,7 +95,7 @@ export const DisasterDetailView: React.FC<Props> = ({
               className="mt-4 w-full py-3 px-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all cursor-pointer"
             >
               <HeartHandshake className="w-4 h-4 text-white" />
-              <span>Salurkan Bantuan / Donasi</span>
+              <span>{t('Salurkan Bantuan / Donasi')}</span>
             </button>
           </article>
           <IncidentTimeline events={timeline} />

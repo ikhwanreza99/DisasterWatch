@@ -4,6 +4,7 @@ import { DisasterIncident } from '../types';
 import type { AidRecord } from '../domain/intelligence';
 import { newId, nowIso } from '../domain/intelligence';
 import { saveAid } from '../services/store/disasterStore';
+import { useI18n } from '../i18n';
 
 interface DonationModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
   disaster,
   onAidAdded,
 }) => {
+  const { t } = useI18n();
   const [selectedAid, setSelectedAid] = useState<string>('Masker N95');
   const [customAid,setCustomAid]=useState('');
   const [donorName, setDonorName] = useState('');
@@ -76,7 +78,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
                   <HeartHandshake className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Salurkan Bantuan / Donasi</h3>
+                  <h3 className="text-sm font-bold text-slate-900">{t('Salurkan Bantuan / Donasi')}</h3>
                   <p className="text-[11px] text-slate-500">{disaster.name}</p>
                 </div>
               </div>
@@ -91,7 +93,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
             <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                  Pilih Jenis Bantuan
+                  {t('Pilih Jenis Bantuan')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {aidOptions.map((opt) => (
@@ -106,23 +108,23 @@ export const DonationModal: React.FC<DonationModalProps> = ({
                       }`}
                     >
                       {opt.icon}
-                      <span className="truncate">{opt.name}</span>
+                      <span className="truncate">{t(opt.name)}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {selectedAid==='Lainnya'&&<label className="block font-semibold text-slate-700 text-[11px]">Nama bantuan lainnya<input required maxLength={200} value={customAid} onChange={e=>setCustomAid(e.target.value)} placeholder="Contoh: pompa sedot, perahu karet, perlengkapan bayi" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"/></label>}
+              {selectedAid==='Lainnya'&&<label className="block font-semibold text-slate-700 text-[11px]">{t('Nama bantuan lainnya')}<input required maxLength={200} value={customAid} onChange={e=>setCustomAid(e.target.value)} placeholder={t('Contoh: pompa sedot, perahu karet, perlengkapan bayi')} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"/></label>}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                  Jumlah / Kuantitas Bantuan
+                  {t('Jumlah / Kuantitas Bantuan')}
                 </label>
                 <input
                   type="text"
                   required
                   value={amountOrQuantity}
                   onChange={(e) => setAmountOrQuantity(e.target.value)}
-                  placeholder="Contoh: 200 Box atau Rp 500.000"
+                  placeholder={t('Contoh: 200 Box atau Rp 500.000')}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-slate-900"
                 />
               </div>
@@ -130,20 +132,20 @@ export const DonationModal: React.FC<DonationModalProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                    Nama Donatur / Komunitas
+                    {t('Nama Donatur / Komunitas')}
                   </label>
                   <input
                     type="text"
                     required
                     value={donorName}
                     onChange={(e) => setDonorName(e.target.value)}
-                    placeholder="Nama Lengkap"
+                    placeholder={t('Nama Lengkap')}
                     className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
-                    No. WhatsApp / Kontak
+                    {t('No. WhatsApp / Kontak')}
                   </label>
                   <input
                     type="tel"
@@ -157,8 +159,8 @@ export const DonationModal: React.FC<DonationModalProps> = ({
               </div>
 
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-600">
-                <span className="font-bold text-slate-800 block mb-0.5">Posko Drop-off Terdekat:</span>
-                Gudang Satgas Terpadu BPBD — {disaster.route.checkpoints[0]?.title || 'Posko Komando Induk'}
+                <span className="font-bold text-slate-800 block mb-0.5">{t('Posko Drop-off Terdekat:')}</span>
+                {t('Gudang Satgas Terpadu BPBD')} — {disaster.route.checkpoints[0]?.title || t('Posko Komando Induk')}
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
@@ -167,13 +169,13 @@ export const DonationModal: React.FC<DonationModalProps> = ({
                   onClick={onClose}
                   className="px-4 py-2 rounded-xl text-slate-600 font-semibold hover:bg-slate-100 transition-colors cursor-pointer"
                 >
-                  Batal
+                  {t('Batal')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-md shadow-orange-500/25 transition-all cursor-pointer"
                 >
-                  Konfirmasi Bantuan
+                  {t('Konfirmasi Bantuan')}
                 </button>
               </div>
             </form>
@@ -183,12 +185,12 @@ export const DonationModal: React.FC<DonationModalProps> = ({
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center border-2 border-emerald-300 shadow-sm">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h4 className="text-base font-bold text-slate-900">Komitmen Bantuan Diterima!</h4>
+            <h4 className="text-base font-bold text-slate-900">{t('Komitmen Bantuan Diterima!')}</h4>
             <p className="text-xs text-slate-600 leading-relaxed max-w-xs">
-              Terima kasih <strong>{donorName}</strong>. Penyaluran bantuan <strong>{selectedAid==='Lainnya'?customAid:selectedAid}</strong> ({amountOrQuantity}) untuk <strong>{disaster.name}</strong> telah terdata di sistem logistik.
+              {t('Terima kasih')} <strong>{donorName}</strong>{t('. Penyaluran bantuan')} <strong>{selectedAid==='Lainnya'?customAid:t(selectedAid)}</strong>{' '}{t('({qty}) untuk', { qty: amountOrQuantity })} <strong>{disaster.name}</strong> {t('telah terdata di sistem logistik.')}
             </p>
             <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-left w-full text-[10px] text-slate-500">
-              Kode Konfirmasi: <strong className="text-slate-800">#DON-2026-{Math.floor(1000 + Math.random() * 9000)}</strong>
+              {t('Kode Konfirmasi:')} <strong className="text-slate-800">#DON-2026-{Math.floor(1000 + Math.random() * 9000)}</strong>
             </div>
             <button
               onClick={() => {
@@ -197,7 +199,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
               }}
               className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors cursor-pointer"
             >
-              Selesai & Tutup
+              {t('Selesai & Tutup')}
             </button>
           </div>
         )}

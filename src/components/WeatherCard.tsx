@@ -12,6 +12,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { fetchGoogleWeather, WeatherData } from '../services/weather/googleWeather';
+import { useI18n } from '../i18n';
 
 interface WeatherCardProps {
   lat: number;
@@ -28,6 +29,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
   disasterCategory,
   compact = false,
 }) => {
+  const { t } = useI18n();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -111,19 +113,19 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
           <h4 className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-tight truncate">
-            Cuaca Lapangan: {locationName}
+            {t('Cuaca Lapangan: {name}', { name: locationName })}
           </h4>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
             <Sparkles className="w-2.5 h-2.5" />
-            {weather.source === 'google' ? 'Google MetNet' : 'Simulasi'}
+            {weather.source === 'google' ? 'Google MetNet' : t('Simulasi')}
           </span>
           <button
             onClick={() => loadWeather(true)}
             disabled={isRefreshing}
             className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-all cursor-pointer"
-            title="Segarkan cuaca terkini"
+            title={t('Segarkan cuaca terkini')}
           >
             <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
@@ -149,7 +151,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
                 {weather.temperature}°C
               </span>
               <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                Terasa {weather.feelsLike}°C
+                {t('Terasa {temp}°C', { temp: weather.feelsLike })}
               </span>
             </div>
             <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-snug">
@@ -164,17 +166,17 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
             {isThunderstormRisk ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                 <CloudLightning className="w-3 h-3" />
-                Siaga Petir
+                {t('Siaga Petir')}
               </span>
             ) : isHighRainRisk ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30">
                 <CloudRain className="w-3 h-3" />
-                Hujan Tinggi
+                {t('Hujan Tinggi')}
               </span>
             ) : isHighWind ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">
                 <Wind className="w-3 h-3" />
-                Angin Kencang
+                {t('Angin Kencang')}
               </span>
             ) : null}
           </div>
@@ -186,7 +188,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
         <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-2 border border-slate-200/60 dark:border-slate-800/80">
           <div className="flex items-center justify-center gap-1 text-[10px] text-slate-400 font-medium mb-0.5">
             <CloudRain className="w-3 h-3 text-sky-500" />
-            <span>Hujan</span>
+            <span>{t('Hujan')}</span>
           </div>
           <span className="text-xs font-bold text-slate-900 dark:text-white">
             {weather.rainProbability}%
@@ -196,7 +198,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
         <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-2 border border-slate-200/60 dark:border-slate-800/80">
           <div className="flex items-center justify-center gap-1 text-[10px] text-slate-400 font-medium mb-0.5">
             <Wind className="w-3 h-3 text-teal-500" />
-            <span>Angin</span>
+            <span>{t('Angin')}</span>
           </div>
           <span className="text-xs font-bold text-slate-900 dark:text-white">
             {weather.windSpeed} <span className="text-[9px] font-normal text-slate-400">km/h</span>
@@ -206,7 +208,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
         <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-2 border border-slate-200/60 dark:border-slate-800/80">
           <div className="flex items-center justify-center gap-1 text-[10px] text-slate-400 font-medium mb-0.5">
             <Droplets className="w-3 h-3 text-blue-500" />
-            <span>Lembab</span>
+            <span>{t('Lembab')}</span>
           </div>
           <span className="text-xs font-bold text-slate-900 dark:text-white">
             {weather.humidity}%
@@ -231,7 +233,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
             onClick={() => setShowForecast(!showForecast)}
             className="w-full flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 py-1 cursor-pointer transition-colors"
           >
-            <span>Prakiraan 3 Hari (Google Earth AI)</span>
+            <span>{t('Prakiraan 3 Hari (Google Earth AI)')}</span>
             {showForecast ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
 

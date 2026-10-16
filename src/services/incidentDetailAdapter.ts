@@ -20,6 +20,7 @@ import { extractAidEvents, extractFromReport, extractPosko } from './incidentInt
 import type { DetailTimelineEvent } from '../components/detail/IncidentTimeline';
 import { nttArticlesSeed } from '../data/nttCase';
 import { buildNttTimeline, type NttCaseState } from './nttCaseStore';
+import { translate } from '../i18n';
 
 const DEMO_IDS = new Set(['padang', 'banjar', 'pekanbaru', 'cianjur', 'demak', 'palu', 'jayapura', 'lombok-2018-08-05']);
 
@@ -29,8 +30,8 @@ function officialParams(incidentId: string, ntt: NttCaseState | null): OfficialP
     const kase = ntt?.kase;
     if (!kase) return [];
     return kase.revisions.map((r) => ({
-      label: r.revision === 'initial' ? 'Parameter awal BMKG' : 'Parameter update BMKG',
-      value: `M${r.magnitude} · kedalaman ${r.depthKm} km · ${r.latitude}°LS ${r.longitude}°BT — ${r.locationText}. ${r.tsunamiAssessment}.`,
+      label: r.revision === 'initial' ? translate('Parameter awal BMKG') : translate('Parameter update BMKG'),
+      value: translate('M{magnitude} · kedalaman {depth} km · {latitude}°LS {longitude}°BT — {location}. {assessment}.', { magnitude: r.magnitude, depth: r.depthKm, latitude: r.latitude, longitude: r.longitude, location: r.locationText, assessment: r.tsunamiAssessment }),
       revision: r.revision,
       reportedAt: r.reportedAt,
       sourceUrl: r.sourceUrl,
@@ -40,8 +41,8 @@ function officialParams(incidentId: string, ntt: NttCaseState | null): OfficialP
   if (incidentId === 'lombok-2018-08-05') {
     return [
       {
-        label: 'Parameter BMKG (dimutakhirkan)',
-        value: 'M7,0 · kedalaman 15 km · 8,37°LS 116,48°BT — 18 km barat laut Lombok Timur. Sesar Naik Flores. Peringatan dini tsunami diaktivasi; terdeteksi 0,135 m di Carik dan 0,100 m di Badas; berakhir 20:25 WIB.',
+        label: translate('Parameter BMKG (dimutakhirkan)'),
+        value: translate('M7,0 · kedalaman 15 km · 8,37°LS 116,48°BT — 18 km barat laut Lombok Timur. Sesar Naik Flores. Peringatan dini tsunami diaktivasi; terdeteksi 0,135 m di Carik dan 0,100 m di Badas; berakhir 20:25 WIB.'),
         revision: 'update',
         reportedAt: '2018-08-05T18:46:37+07:00',
         sourceUrl: 'https://bnpb.go.id/berita/gempa-7-sr-guncang-lombok-utara-peringatan-dini-tsunami-diaktivasi',
@@ -281,18 +282,18 @@ export function buildIncidentDetail(
     timeline = buildNttTimeline(src as never).map((e) => ({ ...e }));
   } else if (disaster.id === 'lombok-2018-08-05') {
     timeline = [
-      { id: 'lb-main', kind: 'EVENT_OCCURRED', at: '2018-08-05T18:46:37+07:00', label: 'Gempa utama M7,0', detail: '18 km barat laut Lombok Timur, kedalaman 15 km (BMKG). Sesar Naik Flores.', sourceUrl: 'https://bnpb.go.id/berita/gempa-7-sr-guncang-lombok-utara-peringatan-dini-tsunami-diaktivasi' },
-      { id: 'lb-tsu', kind: 'SOURCE_PUBLISHED', at: '2018-08-05T18:48:00+07:00', label: 'Peringatan dini tsunami + deteksi', detail: 'Tsunami terdeteksi 0,135 m di Carik, 0,100 m di Badas; peringatan berakhir 20:25 WIB (BMKG).', sourceUrl: 'https://content.bmkg.go.id/wp-content/uploads/Ulasan_Guncangan_Gempa_Lombok_Timur_05082018_5_revisi_1.pdf' },
-      { id: 'lb-bnpb', kind: 'SOURCE_PUBLISHED', at: '2018-08-06T02:30:00+07:00', label: 'BNPB: 82 korban jiwa (pendataan sementara)', detail: 'Per 6 Agu 2018 02:30 WIB; angka final berbeda antar sumber — lihat catatan.', sourceUrl: 'https://bnpb.go.id/berita/gempa-7-sr-guncang-lombok-utara-peringatan-dini-tsunami-diaktivasi' },
+      { id: 'lb-main', kind: 'EVENT_OCCURRED', at: '2018-08-05T18:46:37+07:00', label: translate('Gempa utama M7,0'), detail: translate('18 km barat laut Lombok Timur, kedalaman 15 km (BMKG). Sesar Naik Flores.'), sourceUrl: 'https://bnpb.go.id/berita/gempa-7-sr-guncang-lombok-utara-peringatan-dini-tsunami-diaktivasi' },
+      { id: 'lb-tsu', kind: 'SOURCE_PUBLISHED', at: '2018-08-05T18:48:00+07:00', label: translate('Peringatan dini tsunami + deteksi'), detail: translate('Tsunami terdeteksi 0,135 m di Carik, 0,100 m di Badas; peringatan berakhir 20:25 WIB (BMKG).'), sourceUrl: 'https://content.bmkg.go.id/wp-content/uploads/Ulasan_Guncangan_Gempa_Lombok_Timur_05082018_5_revisi_1.pdf' },
+      { id: 'lb-bnpb', kind: 'SOURCE_PUBLISHED', at: '2018-08-06T02:30:00+07:00', label: translate('BNPB: 82 korban jiwa (pendataan sementara)'), detail: translate('Per 6 Agu 2018 02:30 WIB; angka final berbeda antar sumber — lihat catatan.'), sourceUrl: 'https://bnpb.go.id/berita/gempa-7-sr-guncang-lombok-utara-peringatan-dini-tsunami-diaktivasi' },
     ];
   } else {
     timeline = [
-      { id: `${disaster.id}-ev`, kind: 'EVENT_OCCURRED', at: null, label: 'Kejadian tercatat', detail: disaster.timestamp, sourceUrl: currentRecords.find(r => r.id === disaster.id)?.url ?? null },
+      { id: `${disaster.id}-ev`, kind: 'EVENT_OCCURRED', at: null, label: translate('Kejadian tercatat'), detail: disaster.timestamp, sourceUrl: currentRecords.find(r => r.id === disaster.id)?.url ?? null },
       ...disaster.reports.slice(0, 5).map((r, i) => ({
         id: `${disaster.id}-rep-${i}`,
         kind: 'SOURCE_PUBLISHED' as const,
         at: null,
-        label: `Laporan: ${r.location}`,
+        label: translate('Laporan: {location}', { location: r.location }),
         detail: r.desc.slice(0, 140),
         sourceUrl: r.sourceUrl ?? null,
       })),
@@ -308,8 +309,8 @@ export function buildIncidentDetail(
         id: `${doc.id}-${h.at}`,
         kind: 'SOURCE_PUBLISHED',
         at: h.at,
-        label: `Layanan ${doc.serviceType}: ${h.status}${doc.affectedArea ? ` — ${doc.affectedArea}` : ''}`,
-        detail: doc.impactDescription ?? `Perubahan status tercatat (${doc.verificationStatus}).`,
+        label: translate('Layanan {service}: {status}{area}', { service: doc.serviceType, status: h.status, area: doc.affectedArea ? ` — ${doc.affectedArea}` : '' }),
+        detail: doc.impactDescription ?? translate('Perubahan status tercatat ({status}).', { status: doc.verificationStatus }),
         sourceUrl: h.sourceUrl ?? doc.sourceUrl,
       });
     }

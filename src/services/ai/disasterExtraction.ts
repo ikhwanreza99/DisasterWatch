@@ -3,6 +3,7 @@ import type { AIExtraction } from '../../domain/intelligence';
 import { getGeminiModel } from '../../lib/firebase/ai';
 import { buildExtractionPrompt } from './prompts';
 import { safeParseJson, validateExtraction } from './schemas';
+import { translate } from '../../i18n';
 
 export interface ExtractionResult {
   extraction: AIExtraction;
@@ -73,7 +74,7 @@ export async function extractDisasterInfo(
         affectedPopulation: null, infrastructureDamage: [], needs: [], urgency: 'low', confidence: 0.2,
       },
       engine: 'heuristic',
-      note: 'Teks kosong — ekstraksi minimal.',
+      note: translate('Teks kosong — ekstraksi minimal.'),
     };
   }
   try {
@@ -82,7 +83,7 @@ export async function extractDisasterInfo(
       const prompt = buildExtractionPrompt(text, opts?.locationHint, opts?.categoryHint);
       const out = await model.generateContent(prompt);
       const parsed = validateExtraction(safeParseJson(out));
-      if (parsed) return { extraction: parsed, engine: 'gemini', note: 'Diekstrak oleh Gemini via Firebase AI Logic.' };
+      if (parsed) return { extraction: parsed, engine: 'gemini', note: translate('Diekstrak oleh Gemini via Firebase AI Logic.') };
     }
   } catch {
     // fall through to heuristic
@@ -90,6 +91,6 @@ export async function extractDisasterInfo(
   return {
     extraction: heuristicExtract(text, opts?.locationHint),
     engine: 'heuristic',
-    note: 'Gemini tidak tersedia — memakai ekstraksi heuristik lokal (jelas berlabel).',
+    note: translate('Gemini tidak tersedia — memakai ekstraksi heuristik lokal (jelas berlabel).'),
   };
 }

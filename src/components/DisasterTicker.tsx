@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pause, Play, Radio } from 'lucide-react';
 import type { DisasterIncident } from '../types';
+import { useI18n } from '../i18n';
 
 // The current incident feed uses Indonesian relative-time labels.
 export function incidentAge(timestamp: string): number {
@@ -17,6 +18,7 @@ interface DisasterTickerProps {
 }
 
 export function DisasterTicker({ disasters, onHighlight }: DisasterTickerProps) {
+  const { t } = useI18n();
   const items = useMemo(() => Object.values(disasters).sort((a, b) => {
     const age = incidentAge(a.timestamp) - incidentAge(b.timestamp);
     if (age) return age;
@@ -48,19 +50,19 @@ export function DisasterTicker({ disasters, onHighlight }: DisasterTickerProps) 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-slate-700"
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      aria-label="Berita bencana terbaru">
+      aria-label={t('Berita bencana terbaru')}>
       <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-bold tracking-wide text-orange-600">
-        <Radio className="h-3.5 w-3.5" aria-hidden="true" /> TERKINI
+        <Radio className="h-3.5 w-3.5" aria-hidden="true" /> {t('TERKINI')}
       </span>
       <div className="min-w-0 flex-1 overflow-hidden">
         <div key={item.id} className="disaster-news-track text-xs font-semibold"
           style={{ animationDuration: `${duration}s`, animationPlayState: stopped ? 'paused' : 'running' }}>
-          {item.fullName} — {item.name}, {item.province} • {item.timestamp} • {item.urgency}
+          {item.fullName} — {item.name}, {item.province} • {item.timestamp} • {t(item.urgency)}
         </div>
       </div>
       <button type="button" onClick={() => setPaused(value => !value)}
         className="shrink-0 rounded-full p-1 hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-orange-500"
-        aria-label={paused ? 'Lanjutkan berita berjalan' : 'Jeda berita berjalan'} aria-pressed={paused}>
+        aria-label={paused ? t('Lanjutkan berita berjalan') : t('Jeda berita berjalan')} aria-pressed={paused}>
         {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
       </button>
     </div>

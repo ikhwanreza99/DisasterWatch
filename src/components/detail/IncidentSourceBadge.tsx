@@ -1,5 +1,6 @@
 // Compact provenance pill: OFFICIAL / REPORTED / ESTIMATED / DEMO / UNAVAILABLE.
 import React from 'react';
+import { useI18n } from '../../i18n';
 import type { MetricProvenance } from '../../domain/incidentDetail';
 
 const STYLE: Record<MetricProvenance, { label: string; cls: string }> = {
@@ -11,10 +12,11 @@ const STYLE: Record<MetricProvenance, { label: string; cls: string }> = {
 };
 
 export const IncidentSourceBadge: React.FC<{ provenance: MetricProvenance; title?: string }> = ({ provenance, title }) => {
+  const { t } = useI18n();
   const s = STYLE[provenance];
   return (
     <span title={title ?? `Provenance: ${provenance}`} className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${s.cls}`}>
-      {s.label}
+      {t(s.label)}
     </span>
   );
 };

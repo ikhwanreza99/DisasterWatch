@@ -6,6 +6,7 @@ import { RefreshCw } from 'lucide-react';
 import { BMKG_FORECAST_INFO_URL } from '../services/bmkg/bmkgWeatherForecast';
 import { useBmkgWeatherForecast } from '../services/bmkg/useBmkgWeatherForecast';
 import type { BmkgForecast } from '../services/bmkg/bmkgWeatherForecast';
+import { useI18n, localeFor } from '../i18n';
 
 interface Props {
   adm4: string | null;
@@ -15,7 +16,7 @@ interface Props {
 function hourLabel(iso: string): string {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return '--:--';
-  return new Date(t).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return new Date(t).toLocaleString(localeFor(), { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function pickCurrent(f: BmkgForecast, nowMs: number): { day: number; slot: number } {
@@ -25,6 +26,7 @@ function pickCurrent(f: BmkgForecast, nowMs: number): { day: number; slot: numbe
 }
 
 export const BmkgForecastPanel: React.FC<Props> = ({ adm4, locationLabel }) => {
+  const { t } = useI18n();
   const { state, forecast, error, refresh, refreshing } = useBmkgWeatherForecast(adm4);
   const current = useMemo(
     () => (forecast ? pickCurrent(forecast, Date.now()) : null),
@@ -47,27 +49,27 @@ export const BmkgForecastPanel: React.FC<Props> = ({ adm4, locationLabel }) => {
           onClick={refresh}
           disabled={refreshing || !adm4}
           className="flex items-center gap-1 text-[10px] font-bold text-sky-700 dark:text-sky-300 cursor-pointer disabled:opacity-40"
-          title="Refresh prakiraan (manual)"
+          title={t('Refresh prakiraan (manual)')}
         >
           <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
 
-      {state === 'LOADING' && <p className="text-[11px] text-slate-500">Memuat prakiraan BMKG…</p>}
+      {state === 'LOADING' && <p className="text-[11px] text-slate-500">{t('Memuat prakiraan BMKG…')}</p>}
 
       {state === 'NO_LOCATION' && (
         <p className="text-[11px] text-slate-500 leading-relaxed">
-          Prakiraan BMKG belum tersedia untuk lokasi ini. <span className="text-slate-400">(Forecast location code not available)</span>
+          {t('Prakiraan BMKG belum tersedia untuk lokasi ini.')}{' '}<span className="text-slate-400">(Forecast location code not available)</span>
         </p>
       )}
 
       {(state === 'INVALID_LOCATION' || state === 'NETWORK_ERROR' || state === 'HTTP_ERROR' || state === 'PARSE_ERROR') && (
         <p className="text-[11px] text-slate-500 leading-relaxed">
           {state === 'INVALID_LOCATION'
-            ? 'Kode wilayah tidak ditemukan di BMKG.'
-            : 'Prakiraan BMKG sementara tidak dapat dimuat.'}{' '}
-          {error ? <span className="text-slate-400">{error}</span> : null}
+            ? t('Kode wilayah tidak ditemukan di BMKG.')
+            : t('Prakiraan BMKG sementara tidak dapat dimuat.')}{' '}
+          {error ? <span className="text-slate-400">{t(error)}</span> : null}
         </p>
       )}
 
@@ -106,7 +108,7 @@ export const BmkgForecastPanel: React.FC<Props> = ({ adm4, locationLabel }) => {
             <span>
               Source: BMKG ·{' '}
               <a href={BMKG_FORECAST_INFO_URL} target="_blank" rel="noopener noreferrer" className="underline hover:text-sky-600">
-                Prakiraan Cuaca
+                {t('Prakiraan Cuaca')}
               </a>
             </span>
             {forecast.days[0]?.slots[0]?.analysisDate ? <span>Updated: {forecast.days[0].slots[0].analysisDate}</span> : null}
