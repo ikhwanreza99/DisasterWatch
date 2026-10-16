@@ -60,7 +60,9 @@ test('news displays calendar dates without hours and searches additional publish
 test('Merauke news contains dated publisher articles, never BNPB table summaries or unrelated fires', () => {
   const articles = currentMedia.filter(a => a.incidentId === 'merauke-2026-10');
   assert.ok(currentArticles.every(a => inRecentWindow(a.publishedAt ?? a.eventDate)));
-  assert.ok(!currentArticles.some(a => a.publishedAt?.startsWith('2026-10-04')));
+  for (const article of currentMedia.filter(a => a.publishedAt?.startsWith('2026-10-04'))) {
+    assert.equal(currentArticles.some(a => a.url === article.url), inRecentWindow(article.publishedAt));
+  }
   assert.ok(articles.some(a => a.sourceName === 'RRI' && a.publishedAt?.startsWith('2026-10-04') && a.url.includes('/2786507/')));
   assert.ok(currentArticles.every(a => (a.publishedAt || a.eventDate) && !a.url.includes('/tabel/pencarian.php')));
   const unrelated = { ...articles[0], incidentId: null, title: 'Kebakaran pasar Merauke', summary: 'Korsleting mesin diesel membakar rumah.' };

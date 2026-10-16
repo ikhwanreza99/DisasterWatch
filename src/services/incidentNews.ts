@@ -1,4 +1,4 @@
-import { inRecentWindow } from './recentWindow';
+import { inRecentWindow, RECENT_WINDOW_DAYS } from './recentWindow';
 import { NTT_CASE_ID } from '../domain/nttCase';
 // Incident-specific news relevance (data-service level, not UI hiding).
 // STRICT, fail-closed rules:
@@ -44,10 +44,10 @@ export function classifyRelevance(article: IncidentArticle, d: IncidentDescripto
   const isArchivedNttSource = article.incidentId === NTT_CASE_ID && d.incidentId === NTT_CASE_ID;
   const reportingDate = article.publishedAt ?? (article.sourceType === 'OFFICIAL' ? article.eventDate : null);
   if (!isArchivedNttSource && reportingDate && !inRecentWindow(reportingDate, now)) {
-    return { status: 'REJECTED', score: 0, matchedAliases: [], matchedKeywords: [], reason: 'Di luar 7 hari terakhir (WIB) atau tanggal tidak valid.' };
+    return { status: 'REJECTED', score: 0, matchedAliases: [], matchedKeywords: [], reason: `Di luar ${RECENT_WINDOW_DAYS} hari terakhir (WIB) atau tanggal tidak valid.` };
   }
   if (!isArchivedNttSource && !reportingDate) {
-    return { status: 'REVIEW_REQUIRED', score: 0, matchedAliases: [], matchedKeywords: [], reason: 'Tanggal belum tersedia untuk membuktikan rentang 7 hari terakhir.' };
+    return { status: 'REVIEW_REQUIRED', score: 0, matchedAliases: [], matchedKeywords: [], reason: `Tanggal belum tersedia untuk membuktikan rentang ${RECENT_WINDOW_DAYS} hari terakhir.` };
   }
   // Explicit link from a trusted record decides immediately (per-incident).
   if (article.incidentId && article.incidentId === d.incidentId) {

@@ -20,3 +20,9 @@ Referensi: https://firebase.google.com/docs/auth/web/anonymous-auth
 Verifikasi lokal: lint/build dan 94 tes lulus; tombol homepage membuka form DisasterAI langsung, dan pengisian lokasi berlanjut ke pertanyaan jenis bencana tanpa login. Tidak dilakukan submit ke produksi. Error boundary peta mempertahankan halaman dan form ketika SDK Google Maps gagal; reuseMaps dihapus setelah error pada referrer localhost ditemukan.
 
 Tautan langsung: `/helpdesk` membuka DisasterAI layar penuh, `/lapor` membuka alur laporan tanpa Google login. Keduanya memakai komponen yang sama dengan tombol homepage.
+
+## Rilis rules — 17 Oktober 2026
+
+Rules laporan anonim berhasil divalidasi dan dirilis dari main melalui workflow https://github.com/ikhwanreza99/DisasterWatch/actions/runs/38973722975. Versi ini menerima provider anonymous atau google.com dengan UID yang cocok, isMock=false, batas payload, dan status awal belum terverifikasi. Hosting dan rules memakai workflow berbeda; push Hosting saja tidak menerbitkan rules.
+
+Di Firebase Console: Authentication → Sign-in method → Anonymous → Enable. Lalu Firestore Database → Rules menampilkan provider anonymous pada CREATE reports. Pengaturan Google provider tidak perlu diaktifkan untuk pelaporan anonim. Status pengiriman end-to-end harus diuji terpisah dari keberhasilan rilis rules.
