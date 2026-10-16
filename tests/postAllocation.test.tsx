@@ -15,14 +15,14 @@ test('post allocation uses the largest population divided by five, without addin
  const estimate=postAllocation(facts)!;
  assert.equal(estimate.population,753);
  assert.equal(estimate.postCount,5);
- assert.equal(estimate.perPost,150.6);
+ assert.equal(estimate.perPost,151);
  assert.equal(estimate.sources.length,2);
  assert.equal(postAllocation([fact(99,'KK')]),null);
  assert.equal(postAllocation([]),null);
 });
 test('estimated capacity clearly identifies the assumption and does not claim actual occupancy',()=>{
  const html=renderToStaticMarkup(<LanguageProvider><PostCapacityEstimate estimate={postAllocation([fact(753)])}/></LanguageProvider>);
- assert.match(html,/150,6 jiwa\/posko \(estimasi\)/);
+ assert.match(html,/151 jiwa\/posko \(estimasi\)/);
  assert.match(html,/753 jiwa ÷ 5 posko/);
  assert.match(html,/kapasitas lokasi belum diverifikasi/);
  assert.doesNotMatch(html,/% terisi|Tersedia|Penuh/);

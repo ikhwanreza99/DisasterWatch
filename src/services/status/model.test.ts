@@ -77,3 +77,15 @@ test('status text never leaks keys or tokens', () => {
   assert.ok(!note.includes(fakeKey));
   assert.ok(!note.includes(fakeJwt));
 });
+
+
+test('compliance reflects completed failures and disabled probes instead of claiming untested', async () => {
+  const { complianceEvidence } = await import('./complianceEvidence');
+  const base = { id: 'firebase-ai', name: 'Gemini', detail: '', checkedAt: '2026-10-17T00:00:00Z', scope: 'browser' as const };
+  assert.equal(complianceEvidence({ ...base, state: 'error' }), 'failed');
+  assert.equal(complianceEvidence({ ...base, state: 'disabled' }), 'disabled');
+  assert.equal(complianceEvidence({ ...base, state: 'checking' }), 'checking');
+  assert.equal(complianceEvidence({ ...base, state: 'ok' }), 'met');
+  assert.equal(complianceEvidence({ ...base, state: 'ok', checkedAt: null }), 'untested');
+  assert.equal(complianceEvidence(undefined), 'untested');
+});
