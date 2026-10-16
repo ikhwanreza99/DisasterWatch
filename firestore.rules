@@ -30,8 +30,16 @@ service cloud.firestore {
       allow read: if request.auth != null && (superuser() || resource.data.authUid == request.auth.uid);
       allow write: if false; // Provisioned Admin SDK only; clients cannot assign roles.
     }
+    // Evaluator account `admindemo`, whose username and password are printed on
+    // the public /admin login card so a judge can run the approval workflow
+    // without the primary account. The project owner asked for full parity with
+    // `admin`, and no CI service account holds Firebase Authentication Admin, so
+    // the custom claim cannot be set and the account is listed by uid instead.
+    // A client cannot choose its own uid, so unlike an email check this cannot be
+    // claimed by signing up. Remove this entry once the claim can be provisioned.
     function superuser() {
       return request.auth != null && (request.auth.token.get('superuser', false) == true ||
+        request.auth.uid == 'uHlTB6xYKJUw4Mv6uvnv1A9E5Nl2' ||
         (get(/databases/$(database)/documents/users/admin).data.authUid == request.auth.uid
           && get(/databases/$(database)/documents/users/admin).data.role == 'SUPERUSER'
           && get(/databases/$(database)/documents/users/admin).data.accountStatus == 'ACTIVE'));

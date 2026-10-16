@@ -29,8 +29,13 @@ async function superuser() {
   const user = auth.currentUser;
   if (!user) throw Object.assign(new Error(translate('Silakan login sebagai superuser.')), {status:401});
   if((await user.getIdTokenResult()).claims.superuser!==true) {
-    const profile=(await getDoc(doc(db,'users','admin'))).data();
-    if(profile?.authUid!==user.uid || profile?.role!=='SUPERUSER' || profile?.accountStatus!=='ACTIVE')throw Object.assign(new Error(translate('Profil superuser belum aktif atau belum terhubung dengan Firebase Auth.')),{status:401});
+    // The token claim is only one of the ways the rules grant a superuser: the
+    // evaluator account is listed by uid in firestore.rules, and no CI credential
+    // can set claims. Ask the rules instead of copying their logic, so the client
+    // cannot drift from them. reportReviews is readable by superusers only.
+    let allowed=false;
+    try { await getDocs(query(collection(db,'reportReviews'),limit(1))); allowed=true; } catch { allowed=false; }
+    if(!allowed)throw Object.assign(new Error(translate('Profil superuser belum aktif atau belum terhubung dengan Firebase Auth.')),{status:401});
   }
   return {auth, db, user};
 }

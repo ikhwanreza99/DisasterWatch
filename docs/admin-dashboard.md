@@ -57,27 +57,48 @@ Browser requests never receive the GitHub or backend API secrets.
 A second account, `admindemo` / Firebase Auth `admindemo@disasterwatch-61ed5.local`,
 exists for evaluation: its credentials are printed on the `/admin` login card so a
 judge can run the approval workflow without the primary account. The project owner
-chose full parity with `admin`, so it carries the same custom claim
-`superuser:true` and the same `users/<uid>` profile role `SUPERUSER`; no rule was
-loosened for it and `firestore.rules` is unchanged.
+chose full parity with `admin`.
 
 That parity is the whole risk: anyone who opens `/admin` can approve or reject the
-live incidents, not only judges. Treat the account as public:
+live incidents, not only judges. Treat the credential as public, and close it when
+the evaluation window ends (steps below).
 
-- Rotate it after the evaluation window, or set `DEMO_ADMIN_PASSWORD` to a fresh
-  value and re-run the workflow, then update the login card.
-- To revoke it, disable the user in Firebase Console → Authentication, or delete
-  `admindemo@disasterwatch-61ed5.local`; both take effect without a redeploy.
+### How parity is granted, and why it is a uid
 
-Provisioning runs in its own workflow, `Setup jury demo superuser`, which does
-exactly one thing and never re-provisions the primary account:
+Parity normally means the custom claim `superuser:true`, which only the Firebase
+Admin SDK can set. Neither service account available to CI holds Firebase
+Authentication Admin — both answer `auth/insufficient-permission` — so the claim
+cannot be provisioned from a workflow. The account is therefore listed by uid in the
+`superuser()` predicate of `firestore.rules`:
+
+```
+request.auth.uid == 'uHlTB6xYKJUw4Mv6uvnv1A9E5Nl2'
+```
+
+A uid is server-generated, so a client cannot choose one. That is why the account is
+not matched on its email: sign-up is enabled in this project, so an email check would
+hand superuser to whoever registered that address first.
+
+The client does not repeat that list. `superuser()` in `src/admin/firebaseApi.ts` no
+longer reads `users/admin`; when the token carries no claim it probes a superuser-only
+read (`reportReviews`, capped at one document), so success means the rules consider the
+account a superuser and the two can never drift. The same probe runs on `/login`, so a
+login that the rules would reject fails immediately instead of opening a dead session.
+
+### Moving to a claim, and removing the account
+
+To use the claim instead, grant the CI service account `roles/firebaseauth.admin`,
+run the `Setup jury demo superuser` workflow (it sets the claim and verifies the
+readback), then delete the uid line. The workflow does one thing only and never
+re-provisions the primary account:
 
 ```
 node --import tsx scripts/provisionDemoSuperuser.ts
 ```
 
-It enables Email/Password (Google OAuth untouched), creates or updates the account,
-sets the `superuser:true` claim, revokes its old sessions and writes the Firestore
-profile. The password is never logged. Running `Setup superuser and approval rules`
-instead would also reset the primary `admin` password and re-release the rules.
+To revoke the evaluator account: delete or disable
+`admindemo@disasterwatch-61ed5.local` in Firebase Console → Authentication, remove the
+uid line from `superuser()`, publish rules with the `Publish Firestore rules` workflow,
+and remove the evaluator card in `src/admin/AdminPage.tsx`.
+
 
