@@ -4,7 +4,7 @@ import { appCheckStatus, firebaseEnv, getFirebaseApp, firebaseStatus, hasAppChec
 import { getDb } from '../../lib/firebase/firestore';
 import { resolveGeminiCandidates, resolveGeminiModel } from '../../lib/firebase/geminiConfig';
 import { autocompletePlaces, getPlace, newSessionToken } from '../places/placeSearch';
-import { fallbackNote, hasValidGeminiCandidates, isNonEmptyModelText, redactStatusText, safeStatusError, type ServiceCheck } from './model';
+import { fallbackNote, isNonEmptyModelText, redactStatusText, safeStatusError, type ServiceCheck } from './model';
 
 export function initialChecks(): ServiceCheck[] {
   const env = firebaseEnv();
@@ -17,8 +17,9 @@ export function initialChecks(): ServiceCheck[] {
     ['auth', 'Firebase Auth · Google Login', firebase], ['firestore', 'Cloud Firestore · baca dari web', firebase],
     ['storage', 'Firebase Storage · lampiran laporan', !!env.storageBucket],
     ['appcheck', 'Firebase App Check · token', firebase && appCheckPresent],
-    ['firebase-ai', 'Firebase AI Logic · Gemini', firebase], ['gemini-direct', 'Gemini Developer API · fallback', !!import.meta.env.VITE_GEMINI_API_KEY],
-  ].map(([id, name, configured]) => ({ id: String(id), name: String(name), state: configured ? 'configured' : 'disabled', detail: configured ? 'Konfigurasi tersedia; belum ada bukti request berhasil dari halaman ini.' : 'Konfigurasi browser belum tersedia.', checkedAt: null, scope: 'browser' }));
+    ['firebase-ai', 'Firebase AI Logic · Gemini', firebase],
+    ['gemini-direct', 'Gemini Developer API · fallback', false],
+  ].map(([id, name, configured]) => ({ id: String(id), name: String(name), state: configured ? 'configured' : 'disabled', detail: configured ? 'Konfigurasi tersedia; belum ada bukti request berhasil dari halaman ini.' : id === 'gemini-direct' ? 'Dinonaktifkan: jalur ini membutuhkan API key rahasia yang tidak boleh digunakan di browser. Gunakan Firebase AI Logic.' : 'Konfigurasi browser belum tersedia.', checkedAt: null, scope: 'browser' }));
 }
 async function checkedJson(url: string, init?: RequestInit) {
   const response = await fetch(url, { ...init, signal: AbortSignal.timeout(20_000) });
@@ -74,32 +75,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       if (id === 'weather' ? !data.temperature : !Array.isArray(data.forecastDays) || !data.forecastDays.length) throw new Error('No weather payload');
       detail = 'Respons Weather API valid untuk Jakarta; tidak memakai cuaca simulasi.';
     } else if (id === 'gemini-direct') {
-      const candidates = resolveGeminiCandidates();
-      const primary = candidates[0]!;
-      let lastError: unknown = null;
-      let used = '';
-      for (const model of candidates) {
-        try {
-          // One retry for transient overload (HTTP 503/429) before moving on.
-          for (let attempt = 0; attempt < 2; attempt++) {
-            try {
-              const data = await checkedJson(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': import.meta.env.VITE_GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ parts: [{ text: 'Jawab satu kata: OK' }] }], generationConfig: { maxOutputTokens: 64 } }) });
-              if (!hasValidGeminiCandidates(data)) throw new Error('Empty model response');
-              recordTokenUsage(data.usageMetadata, model, 'Status · Gemini Direct');
-              used = model;
-              break;
-            } catch (e) {
-              lastError = e;
-              const transient = e instanceof Error && /HTTP (429|500|502|503|504)/.test(e.message);
-              if (!transient || attempt === 1) throw e;
-              await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
-            }
-          }
-          if (used) break;
-        } catch (e) { lastError = e; }
-      }
-      if (!used) throw lastError instanceof Error ? lastError : new Error('Gemini Direct gagal pada semua model kandidat');
-      detail = `GenerateContent berhasil ${fallbackNote(used, primary)}`;
+      return { ...base, state: 'disabled', checkedAt, detail: 'Dinonaktifkan: Gemini Developer API key tidak boleh digunakan langsung dari browser. Gunakan Firebase AI Logic sebagai jalur utama.' };
     } else if (id === 'appcheck') {
       const app = getFirebaseApp(); if (!app) throw new Error('No Firebase app');
       const status = appCheckStatus();

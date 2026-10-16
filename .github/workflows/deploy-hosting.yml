@@ -12,9 +12,8 @@
 #
 # Build config: Vite inlines VITE_* at build time, so values come from
 # GitHub Secrets (NOT committed files, NOT .env.local).
-# NOTE: VITE_GEMINI_API_KEY is browser-exposed after build — it is NOT a
-# server secret. Restrict the production key to Generative Language API
-# only + appropriate HTTP referrers. Never log or print its value.
+# SECURITY: VITE_GEMINI_API_KEY is no longer used. Gemini browser access
+# goes through Firebase AI Logic only (no separate Gemini key in bundle).
 name: Deploy to Firebase Hosting (production)
 
 on:
@@ -140,7 +139,6 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
           VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_SITE_KEY }}
           VITE_GEMINI_MODEL: ${{ secrets.VITE_GEMINI_MODEL }}
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}

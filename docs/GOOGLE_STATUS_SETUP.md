@@ -17,11 +17,11 @@ Jangan mengganti `VITE_FIREBASE_API_KEY` dengan key Google Search backend. Fireb
 
 Referensi: https://firebase.google.com/docs/ai-logic/app-check dan https://firebase.google.com/docs/ai-logic/error-codes
 
-## Gemini Developer API fallback: HTTP 503
+## Firebase AI Logic kandidat model: HTTP 503 / 429
 
-503 berarti layanan/model sementara tidak tersedia; kode ini belum membuktikan masalah permission. Sejak Okt 2026, model Flash utama (`gemini-3.8-flash`, `3.7`, `3.6`) sering 503 karena overload global, sementara `gemini-3.5-flash-lite` menjawab 200. Karena itu kode sekarang mencoba kandidat model berurutan (`resolveGeminiCandidates()` di `src/lib/firebase/geminiConfig.ts`): primer dulu, lalu `gemini-3.5-flash-lite`, masing-masing dengan 1x retry untuk error transient (429/5xx). Pemeriksaan `/status` dan fitur AI aplikasi (`getGeminiModel()`) sama-sama memakai rantai ini — hasil "Berhasil" akan menyebut model mana yang menjawab dan apakah itu fallback.
+503 berarti layanan/model sementara tidak tersedia; kode ini belum membuktikan masalah permission. Sejak Okt 2026, model Flash utama (`gemini-3.8-flash`, `3.7`, `3.6`) sering 503 karena overload global, sementara `gemini-3.5-flash-lite` menjawab 200. Karena itu kode sekarang mencoba kandidat model berurutan (`resolveGeminiCandidates()` di `src/lib/firebase/geminiConfig.ts`): primer dulu, lalu `gemini-3.5-flash-lite`. Pemeriksaan `/status` dan fitur AI aplikasi (`getGeminiModel()`) sama-sama memakai rantai ini melalui Firebase AI Logic — hasil "Berhasil" akan menyebut model mana yang menjawab dan apakah itu fallback.
 
-Fallback browser memakai secret GitHub `VITE_GEMINI_API_KEY`, bukan `DISASTERWATCH_GEMINI_SEARCH_KEY`. Perubahan secret browser memerlukan workflow hosting/build baru. `VITE_*` masuk ke bundle browser: gunakan key khusus dengan pembatasan yang sesuai, bukan key server crawler. Model fallback dapat diatur lewat secret `VITE_GEMINI_MODEL`; ini berbeda dari variable backend `DISASTERWATCH_GOOGLE_SEARCH_MODEL`.
+SECURITY: jalur fallback langsung Gemini Developer API dari browser DINONAKTIFKAN. Browser tidak boleh memakai Gemini API key rahasia (`VITE_GEMINI_API_KEY` dihapus; jangan dibuat lagi). Model utama dapat diatur lewat secret `VITE_GEMINI_MODEL`; ini berbeda dari variable backend `DISASTERWATCH_GOOGLE_SEARCH_MODEL` yang dipakai skrip server/CI.
 
 Referensi: https://ai.google.dev/gemini-api/docs/troubleshooting
 
