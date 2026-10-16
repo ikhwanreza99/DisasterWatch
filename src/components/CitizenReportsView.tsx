@@ -14,6 +14,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
+import { useI18n } from '../i18n';
 
 interface CitizenReportsViewProps {
   disaster: DisasterIncident;
@@ -34,6 +35,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
   onViewRoute,
   isDarkMode = false,
 }) => {
+  const { t } = useI18n();
   const [filter, setFilter] = useState<ReportFilter>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -45,7 +47,14 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
   });
 
   const handleShareReport = (rep: any) => {
-    const text = `[LAPORAN WARGA TERVERIFIKASI - ${disaster.name}]\nLokasi: ${rep.location}\nJudul: ${rep.title}\nInfo: ${rep.desc}\nStatus: ${rep.tag} (${rep.time})`;
+    const text = t('[LAPORAN WARGA TERVERIFIKASI - {name}]\nLokasi: {location}\nJudul: {title}\nInfo: {desc}\nStatus: {tag} ({time})', {
+      name: disaster.name,
+      location: rep.location,
+      title: rep.title,
+      desc: rep.desc,
+      tag: rep.tag,
+      time: rep.time,
+    });
     if (navigator.share) {
       navigator.share({ title: rep.title, text }).catch(() => {});
     } else {
@@ -70,10 +79,10 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
             </div>
             <div>
               <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                Laporan Warga Terverifikasi
+                {t('Laporan Warga Terverifikasi')}
               </h3>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                {disaster.name} • Divalidasi Posko TRC & BPBD
+                {t('{name} • Divalidasi Posko TRC & BPBD', { name: disaster.name })}
               </p>
             </div>
           </div>
@@ -81,15 +90,15 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-600/30 px-2.5 py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              {disaster.reports.length} Laporan Aktif
+              {t('{count} Laporan Aktif', { count: disaster.reports.length })}
             </span>
 
             {/* Standalone Close Button */}
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-all cursor-pointer border border-transparent hover:border-rose-200 dark:hover:border-rose-800"
-              title="Tutup & Kembali ke Peta"
-              aria-label="Tutup Halaman Laporan Warga"
+              title={t('Tutup & Kembali ke Peta')}
+              aria-label={t('Tutup Halaman Laporan Warga')}
             >
               <X className="w-4 h-4" />
             </button>
@@ -103,7 +112,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
             className="w-full py-2.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm shadow-emerald-600/20 transition-all cursor-pointer"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>Kirim Laporan Kejadian Lapangan Baru</span>
+            <span>{t('Kirim Laporan Kejadian Lapangan Baru')}</span>
           </button>
 
           {/* Filter Pills */}
@@ -116,7 +125,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
                   : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
               }`}
             >
-              Semua ({disaster.reports.length})
+              {t('Semua ({count})', { count: disaster.reports.length })}
             </button>
             <button
               onClick={() => setFilter('verified')}
@@ -126,7 +135,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
                   : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
               }`}
             >
-              Validasi TRC
+              {t('Validasi TRC')}
             </button>
             <button
               onClick={() => setFilter('logistics')}
@@ -136,7 +145,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
                   : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
               }`}
             >
-              Logistik
+              {t('Logistik')}
             </button>
             <button
               onClick={() => setFilter('access')}
@@ -146,7 +155,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
                   : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
               }`}
             >
-              Jalur & Akses
+              {t('Jalur & Akses')}
             </button>
           </div>
         </div>
@@ -155,7 +164,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
         <div className="space-y-3">
           {filteredReports.length === 0 ? (
             <div className="p-6 text-center text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs">
-              Tidak ada laporan pada kategori ini.
+              {t('Tidak ada laporan pada kategori ini.')}
             </div>
           ) : (
             filteredReports.map((rep) => (
@@ -201,10 +210,10 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
                   <button
                     onClick={() => handleShareReport(rep)}
                     className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
-                    title="Bagikan / Salin Laporan"
+                    title={t('Bagikan / Salin Laporan')}
                   >
                     <Share2 className="w-3 h-3" />
-                    <span>{copiedId === rep.id ? 'Tersalin!' : 'Bagikan'}</span>
+                    <span>{copiedId === rep.id ? t('Tersalin!') : t('Bagikan')}</span>
                   </button>
                 </div>
               </article>
@@ -221,7 +230,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
             className="flex-1 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Zap className="w-3.5 h-3.5 text-orange-500" />
-            <span>Detail Bencana</span>
+            <span>{t('Detail Bencana')}</span>
           </button>
         )}
         {onViewRoute && (
@@ -230,7 +239,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
             className="flex-1 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Compass className="w-3.5 h-3.5 text-blue-500" />
-            <span>Rute Distribusi</span>
+            <span>{t('Rute Distribusi')}</span>
           </button>
         )}
       </div>

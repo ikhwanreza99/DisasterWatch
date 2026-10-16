@@ -55,13 +55,15 @@ export function classifyEnvExampleLine(line: string): string[] {
 }
 
 /**
- * Classify built-JS text. Only flags remnants of the removed direct transport.
- * Generic 'x-goog-api-key' / endpoint strings are intentionally NOT flagged:
- * the official Firebase AI Logic SDK legitimately contains them.
+ * Classify built-JS text. Flags the inlined variable name (Vite only inlines
+ * vars that code actually reads). Generic 'x-goog-api-key' / endpoint strings
+ * are intentionally NOT flagged: the official Firebase AI Logic SDK
+ * legitimately contains them. The 'Gemini Direct' transport label is also NOT
+ * flagged: it now names the authenticated same-origin server proxy
+ * (server/aiProxy.ts), which ships no key in the bundle.
  */
 export function classifyBundleText(text: string): string[] {
   const out: string[] = [];
-  if (text.includes('Gemini Direct')) out.push('BUNDLE_CONTAINS_REMOVED_DIRECT_TRANSPORT');
   if (text.includes('VITE_GEMINI_API_KEY')) out.push('BUNDLE_CONTAINS_GEMINI_KEY_VAR');
   return out;
 }

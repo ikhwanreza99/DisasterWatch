@@ -1,8 +1,11 @@
+import { AutomaticImpact } from './AutomaticImpact';
+import { NarrativeImpact } from './NarrativeImpact';
 import { BnpbImpactCard } from './BnpbImpactCard';
 // Shared incident overview card (header hierarchy, status badge, impact/recovery, photo, posko action).
 // Same layout for every incident — only data changes.
 import React from 'react';
 import { Compass, Share2, Flame, Waves, Activity, Newspaper, TriangleAlert } from 'lucide-react';
+import { useI18n } from '../../i18n';
 import type { DisasterIncident } from '../../types';
 import type { IncidentDetailData } from '../../domain/incidentDetail';
 
@@ -27,16 +30,17 @@ interface Props {
 }
 
 export const IncidentOverviewCard: React.FC<Props> = ({ disaster, detail, onOpenRoute, onOpenBrief }) => {
+  const { t } = useI18n();
   const share = () => {
     if (navigator.share) {
       navigator.share({
         title: `DisasterWatch: ${disaster.name}`,
-        text: `Status ${disaster.urgency}: ${disaster.fullTitleDisplay} di ${disaster.name}.`,
+        text: t('Status {urgency}: {title} di {name}.', { urgency: t(disaster.urgency), title: t(disaster.fullTitleDisplay), name: disaster.name }),
         url: window.location.href,
       }).catch(() => {});
     } else {
       navigator.clipboard.writeText(window.location.href);
-      alert('Tautan pantauan bencana berhasil disalin ke clipboard!');
+      alert(t('Tautan pantauan bencana berhasil disalin ke clipboard!'));
     }
   };
   return (
@@ -45,7 +49,7 @@ export const IncidentOverviewCard: React.FC<Props> = ({ disaster, detail, onOpen
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-600 border border-rose-200">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-            STATUS {disaster.urgency.toUpperCase()}
+            STATUS {t(disaster.urgency).toUpperCase()}
           </span>
 
         </div>
@@ -53,7 +57,7 @@ export const IncidentOverviewCard: React.FC<Props> = ({ disaster, detail, onOpen
           <button
             onClick={onOpenBrief}
             className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-500 flex items-center justify-center transition-all text-xs shrink-0"
-            title="Detail Teknis Satgas"
+            title={t('Detail Teknis Satgas')}
           >
             i
           </button>
@@ -72,6 +76,8 @@ export const IncidentOverviewCard: React.FC<Props> = ({ disaster, detail, onOpen
         </div>
       </div>
 
+      <div className="mb-3 rounded-xl bg-slate-50 p-3 text-xs"><span className="text-slate-400">{t('Estimasi Dampak')}</span><AutomaticImpact incidentId={disaster.id} fallback={disaster.cost}/></div>
+      <NarrativeImpact incidentId={disaster.id}/>
       <BnpbImpactCard incidentId={disaster.id} />
 
       {disaster.photoUrl ? (
@@ -79,21 +85,21 @@ export const IncidentOverviewCard: React.FC<Props> = ({ disaster, detail, onOpen
           <img src={disaster.photoUrl} alt={disaster.photoAlt} className="w-full h-36 object-cover transform hover:scale-105 transition-transform duration-500" />
           <div className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] text-white flex items-center gap-1.5 border border-white/10">
             <Newspaper className="w-3 h-3 text-amber-400" />
-            <span>Sumber: {disaster.photoSource}</span>
+            <span>{t('Sumber: {name}', { name: disaster.photoSource })}</span>
           </div>
         </div>
       ) : (
         <div className="mb-4 rounded-xl border border-dashed border-slate-200 p-3 text-[11px] text-slate-400">
-          Belum ada foto lapangan terverifikasi. {disaster.photoSource ? `Atribusi: ${disaster.photoSource}.` : ''}
+          {t('Belum ada foto lapangan terverifikasi.')} {disaster.photoSource ? t('Atribusi: {name}.', { name: disaster.photoSource }) : ''}
         </div>
       )}
 
       <div className="flex items-center gap-2">
         <button onClick={onOpenRoute} className="flex-1 min-h-11 py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
           <Compass className="w-4 h-4 text-white" aria-hidden="true" />
-          <span>Lihat Posko Evakuasi</span>
+          <span>{t('Lihat Posko Evakuasi')}</span>
         </button>
-        <button onClick={share} className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 flex items-center justify-center border border-slate-200/80 transition-all shrink-0" title="Bagikan Titik Lokasi">
+        <button onClick={share} className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 flex items-center justify-center border border-slate-200/80 transition-all shrink-0" title={t('Bagikan Titik Lokasi')}>
           <Share2 className="w-4 h-4" />
         </button>
       </div>

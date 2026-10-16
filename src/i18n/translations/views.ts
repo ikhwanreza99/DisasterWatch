@@ -1,0 +1,124 @@
+/** English translations — views slice. Keys are the Indonesian source strings. */
+const views: Record<string, string> = {
+  // ArchitectureBadge
+  'ekstraksi + asisten': 'extraction + assistant',
+  'provider peta': 'map provider',
+  'cuaca MetNet AI riil-time': 'real-time MetNet AI weather',
+  'HEURISTIK lokal': 'LOCAL HEURISTIC',
+  'BELUM DEPLOY': 'NOT DEPLOYED',
+
+  // BmkgSignalCard
+  'Memuat data resmi BMKG…': 'Loading official BMKG data…',
+  'Refresh data BMKG (manual)': 'Refresh BMKG data (manual)',
+  'Memuat…': 'Loading…',
+
+  // BmkgSignalsControl
+  'Prakiraan BMKG belum tersedia untuk lokasi ini.':
+    'BMKG forecast is not yet available for this location.',
+  'Memuat prakiraan BMKG…': 'Loading BMKG forecast…',
+  'Prakiraan BMKG sementara tidak dapat dimuat.': 'BMKG forecast temporarily unavailable.',
+  'Prakiraan Cuaca': 'Weather Forecast',
+  'Data tersedia di BMKG, tetapi endpoint resmi tidak dapat diakses langsung dari browser.':
+    'Data is available at BMKG, but the official endpoint cannot be accessed directly from the browser.',
+  'Memuat peringatan dini cuaca BMKG…': 'Loading BMKG weather early warnings…',
+
+  // DisasterNewsCard
+  'Update Berita Terkini': 'Latest News Update',
+  Ringkas: 'Collapse',
+  'Lihat Semua ({count})': 'View All ({count})',
+  'Bencana Indonesia · Diperbarui setiap 5 hari': 'Indonesian Disasters · Updated every 5 days',
+  '{count} dari maksimal 15 berita terbaru tersedia':
+    '{count} of the latest 15 news items available',
+  'Diperbarui {date}': 'Updated {date}',
+  'Data belum diperbarui': 'Data not yet updated',
+  'Berita belum dapat diperbarui.': 'News cannot be refreshed yet.',
+  'Menampilkan data terakhir.': 'Showing the latest available data.',
+  'Silakan coba lagi nanti.': 'Please try again later.',
+  'Memuat berita…': 'Loading news…',
+  'Belum ada berita terbaru yang tersedia.': 'No recent news available yet.',
+  'Sumber: {source}': 'Source: {source}',
+
+  // AidGapCard
+  'Kebutuhan sesuai jenis bencana': 'Needs by disaster type',
+  'Drainase & pengendalian banjir': 'Drainage & flood control',
+  'Air aman': 'Safe water',
+  Makanan: 'Food',
+  'Tempat tinggal': 'Shelter',
+  'Higiene & sanitasi': 'Hygiene & sanitation',
+  Kesehatan: 'Health',
+  'Pakaian & selimut': 'Clothing & blankets',
+  'Evakuasi & distribusi': 'Evacuation & distribution',
+  'Pencarian & penyelamatan': 'Search & rescue',
+  'Material perbaikan': 'Repair materials',
+  'Pemulihan akses': 'Access restoration',
+  'Alat berat': 'Heavy equipment',
+  'Perlindungan pernapasan': 'Respiratory protection',
+  'Kebutuhan ternak': 'Livestock needs',
+  'Dapur umum & logistik': 'Field kitchen & logistics',
+  'Indikasi kebutuhan': 'Needs indicated',
+  Potensial: 'Potential',
+  'Butuh {qty} {unit}': 'Needed {qty} {unit}',
+  'Butuh: belum tersedia': 'Needed: not yet available',
+  'Terima: belum tersedia': 'Received: not yet available',
+  'Terima {qty} {unit}': 'Received {qty} {unit}',
+  'Pemenuhan {label}': 'Fulfilment {label}',
+  'Pemenuhan & sisa: belum dapat dihitung': 'Fulfilment & remaining: cannot be calculated yet',
+  '{pct}% terpenuhi': '{pct}% fulfilled',
+  '{pct}% belum · kurang {qty} {unit}': '{pct}% outstanding · short by {qty} {unit}',
+  'Jenis barang / layanan': 'Item / service types',
+  'Kandidat kebutuhan; sesuaikan asesmen lapangan.':
+    'Candidate needs; adjust to the field assessment.',
+  'Lihat rincian bantuan & sumber': 'View aid details & sources',
+  'Kapasitas sarana': 'Facility capacity',
+  'Kebutuhan dilaporkan': 'Reported need',
+  'Bantuan historis': 'Historical aid',
+  'Potensial berasal dari template bencana, bukan kekurangan terkonfirmasi. Bantuan historis dan kapasitas sarana bukan stok siap pakai. Persentase membandingkan kebutuhan eksplisit dan penyaluran tercatat pada insiden, tanggal, dan satuan yang sama; bukan perkiraan stok esok hari.':
+    'Potential needs come from disaster templates, not confirmed shortfalls. Historical aid and facility capacity are not ready-to-use stock. The percentage compares explicit needs and recorded deliveries for the same incident, date, and unit; it is not a forecast of tomorrow\u2019s stock.',
+
+  // AidGapCard — item labels from needItems()
+  'Air minum': 'Drinking water',
+  Jeriken: 'Jerrycans',
+  'Tangki air': 'Water tanks',
+  'Makanan siap saji': 'Ready-to-eat meals',
+  Beras: 'Rice',
+  'Dapur umum': 'Field kitchen',
+  Tenda: 'Tents',
+  Terpal: 'Tarpaulins',
+  Matras: 'Mats',
+  'Hygiene kit': 'Hygiene kit',
+  'Toilet portabel': 'Portable toilets',
+  'Pembalut & popok': 'Sanitary pads & diapers',
+  P3K: 'First-aid kit',
+  'Layanan medis': 'Medical services',
+  'Oksigen medis (sesuai asesmen tenaga kesehatan)':
+    'Medical oxygen (per health-worker assessment)',
+  Selimut: 'Blankets',
+  'Pakaian layak pakai': 'Wearable clothing',
+  'Masker partikulat yang sesuai': 'Appropriate particulate masks',
+  'Pelindung mata': 'Eye protection',
+  'Kendaraan evakuasi': 'Evacuation vehicles',
+  Pelampung: 'Life jackets',
+  'Peralatan SAR': 'SAR equipment',
+  'Tim pencarian': 'Search teams',
+  'Pembersihan jalan': 'Road clearing',
+  'Jembatan darurat': 'Emergency bridges',
+  'Bahan bangunan': 'Building materials',
+  'Peralatan perbaikan': 'Repair tools',
+  Ekskavator: 'Excavators',
+  'Alat pembuka akses': 'Access-opening equipment',
+  'Peralatan dapur': 'Kitchen equipment',
+  'Logistik petugas': 'Personnel logistics',
+  Pakan: 'Animal feed',
+  'Tempat evakuasi ternak': 'Livestock evacuation sites',
+  'Perahu karet': 'Rubber boats',
+  'Pompa sedot': 'Suction pumps',
+  'Selang pembuangan': 'Discharge hoses',
+  'Kantong pasir': 'Sandbags',
+  'Asesmen kebutuhan setempat': 'Local needs assessment',
+
+  // ArchitectureBadge — Google Air Quality Platform
+  'AQI kota besar (UAQI)': 'Large-city AQI (UAQI)',
+  'TANPA BADGE AQI': 'NO AQI BADGE',
+};
+
+export default views;

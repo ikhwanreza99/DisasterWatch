@@ -67,9 +67,10 @@ test('build-time env guard trips only when the secret var is set', () => {
   assert.equal(isGeminiKeySetInEnv({ VITE_GEMINI_API_KEY: 'synthetic-placeholder' }), true);
 });
 
-test('bundle markers flag the removed transport without touching vendor SDK strings', () => {
-  assert.deepEqual(classifyBundleText('foo Gemini Direct bar'), ['BUNDLE_CONTAINS_REMOVED_DIRECT_TRANSPORT']);
+test('bundle check flags the inlined key var without touching proxy/SDK strings', () => {
   assert.deepEqual(classifyBundleText('foo VITE_GEMINI_API_KEY bar'), ['BUNDLE_CONTAINS_GEMINI_KEY_VAR']);
+  // The proxy transport label ships no key — must not false-positive.
+  assert.deepEqual(classifyBundleText("recordTokenUsage(u, m, 'Status · Gemini Direct (proxy)')"), []);
   // Vendor Firebase SDK internals must not false-positive.
   assert.deepEqual(classifyBundleText('fetch("https://generativelanguage.googleapis.com/v1beta")'), []);
   assert.deepEqual(classifyBundleText('headers:{"x-goog-api-key":k}'), []);

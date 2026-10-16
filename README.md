@@ -17,7 +17,7 @@ Live: https://disasterwatch-61ed5.web.app
 | Toggle | Data | Source |
 |---|---|---|
 | 🌐 BMKG | Latest earthquakes | [BMKG](https://data.bmkg.go.id/gempabumi/) |
-| ⛈ CUACA | BMKG weather warnings + current weather for 21 major cities + weather sidebar | BMKG nowcast, Google Weather API |
+| ⛈ CUACA | BMKG weather warnings + current weather and air quality (UAQI) for 21 major cities + weather sidebar | BMKG nowcast, Google Weather API, Google Air Quality API |
 | 🔥 FIRMS | Satellite fire hotspots, follows the header date range (Today / 24 h / 7 d / 30 d) | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) (VIIRS, MODIS) |
 | 🌋 MAGMA | Volcano activity levels (I–IV) and landslide reports, with a legend | [MAGMA Indonesia](https://magma.esdm.go.id/) (PVMBG) |
 | 🌫 ABU VULKANIK | Volcanic ash clouds (observed + 6/12/18 h forecast) | [Darwin VAAC](https://www.bom.gov.au/aviation/warnings/volcanic-ash/) (BOM) |
@@ -44,11 +44,11 @@ Without any keys the app still runs: it uses demo data, Leaflet/OSM and local fa
 
 | Variable | Used for |
 |---|---|
-| `VITE_GOOGLE_MAPS_API_KEY` | Google Maps + Google Weather. Restrict it by HTTP referrer. |
+| `VITE_GOOGLE_MAPS_API_KEY` | Google Maps + Google Weather + Google Air Quality. Restrict it by HTTP referrer. |
 | `VITE_FIREBASE_*` | Firestore, Auth and App Check (optional; demo data is used when empty) |
-| `VITE_GEMINI_MODEL` | Gemini model name for Firebase AI Logic (optional; default in `src/lib/firebase/geminiConfig.ts`) |
-| `NASA_FIRMS_MAP_KEY` | FIRMS in local dev. Server-side only, injected by the Vite proxy. |
-| `VITE_NASA_FIRMS_MAP_KEY` | FIRMS in production (built into the browser bundle) |
+| `VITE_GEMINI_MODEL` | Gemini model name only (optional). No API key is bundled. |
+| `GEMINI_API_KEY` | Server-side only: Gemini proxy (`/api/ai/generate`). Never `VITE_`-prefixed. |
+| `NASA_FIRMS_MAP_KEY` | Server-side only: FIRMS proxy and the build-time snapshot. Never `VITE_`-prefixed. |
 
 A free FIRMS key is available at https://firms.modaps.eosdis.nasa.gov/api/map_key/.
 
@@ -76,6 +76,7 @@ src/
     magma/           MAGMA Indonesia volcanoes + landslides
     vaac/            Darwin VAAC volcanic ash advisories
     weather/         Google Weather (incident + major cities)
+    airquality/      Google Air Quality (UAQI, merged into the CUACA chip)
     ai/, intelligence/, pipeline/, store/
   lib/firebase/      Firebase setup
 scripts/             Seeding and parser tests

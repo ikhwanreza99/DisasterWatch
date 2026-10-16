@@ -5,6 +5,7 @@ import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
 import { estimateImpact } from '../services/intelligence/impactEngine';
 import { summarizeGaps } from '../services/intelligence/aidGapEngine';
 import { rankDisasters } from '../services/intelligence/priorityEngine';
+import { useI18n } from '../i18n';
 
 interface Props {
   disasters: Record<string, DisasterIncident>;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export const IntelligenceSummaryBar: React.FC<Props> = ({ disasters, reports, aid }) => {
+  const { t, locale } = useI18n();
   const stats = useMemo(() => {
     const list = Object.values(disasters);
     const ranking = rankDisasters(disasters, reports, aid);
@@ -43,11 +45,11 @@ export const IntelligenceSummaryBar: React.FC<Props> = ({ disasters, reports, ai
   }, [disasters, reports, aid]);
 
   const items = [
-    { label: 'Insiden Aktif', value: String(stats.active), accent: false },
-    { label: 'Terdampak', value: stats.affected > 0 ? stats.affected.toLocaleString('id-ID') : '—', accent: false },
-    { label: 'Prioritas', value: `${stats.criticalName.split(',')[0]} · ${stats.critical?.score ?? 0}`, accent: true },
-    { label: 'Gap', value: stats.gapItems.toLocaleString('id-ID'), accent: false },
-    { label: 'Perlu Verifikasi', value: String(stats.unverified), accent: false },
+    { label: t('Insiden Aktif'), value: String(stats.active), accent: false },
+    { label: t('Terdampak'), value: stats.affected > 0 ? stats.affected.toLocaleString(locale) : '—', accent: false },
+    { label: t('Prioritas'), value: `${stats.criticalName.split(',')[0]} · ${stats.critical?.score ?? 0}`, accent: true },
+    { label: t('Gap'), value: stats.gapItems.toLocaleString(locale), accent: false },
+    { label: t('Perlu Verifikasi'), value: String(stats.unverified), accent: false },
   ];
 
   return (
@@ -65,10 +67,10 @@ export const IntelligenceSummaryBar: React.FC<Props> = ({ disasters, reports, ai
         </div>
       ))}
       <span
-        title="MOCK + AI-PROCESSED — bukan feed resmi BNPB/BMKG"
+        title={t('MOCK + AI-PROCESSED — bukan feed resmi BNPB/BMKG')}
         className="inline-flex items-center gap-1 h-9 px-2.5 rounded-full border border-dashed border-slate-300 dark:border-slate-700 text-[9px] font-bold uppercase tracking-wider text-slate-400 shrink-0"
       >
-        Demo data · AI-processed · Not official BNPB/BMKG
+        {t('Demo data · AI-processed · Not official BNPB/BMKG')}
       </span>
     </div>
   );

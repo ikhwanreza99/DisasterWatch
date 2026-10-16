@@ -4,6 +4,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Loader2, MapPin, Search, X } from 'lucide-react';
+import { useI18n } from '../../i18n';
 import {
   autocompletePlaces,
   getPlace,
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export const MapSearch: React.FC<Props> = ({ onSelect }) => {
+  const { t: tr } = useI18n();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const [query, setQuery] = useState('');
@@ -48,10 +50,10 @@ export const MapSearch: React.FC<Props> = ({ onSelect }) => {
         .then((list) => {
           setItems(list);
           setActive(0);
-          setError(list.length ? null : 'Tidak ada hasil');
+          setError(list.length ? null : tr('Tidak ada hasil'));
         })
         .catch((e: unknown) => {
-          if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : 'Pencarian gagal');
+          if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : tr('Pencarian gagal'));
         })
         .finally(() => {
           if (!ctrl.signal.aborted) setLoading(false);
@@ -90,7 +92,7 @@ export const MapSearch: React.FC<Props> = ({ onSelect }) => {
       setQuery(place.name || s.primary);
       setItems([]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal memuat lokasi');
+      setError(e instanceof Error ? e.message : tr('Gagal memuat lokasi'));
     } finally {
       setLoading(false);
     }
@@ -104,7 +106,7 @@ export const MapSearch: React.FC<Props> = ({ onSelect }) => {
         aria-expanded={open}
         aria-haspopup="dialog"
         data-purpose="map-search-button"
-        title="Cari area / lokasi di peta"
+        title={tr('Cari area / lokasi di peta')}
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border shadow-md cursor-pointer transition-all active:scale-95 ${
           open
             ? 'bg-slate-900 text-white border-slate-800 dark:bg-cyan-500 dark:text-slate-950 dark:border-cyan-400'
@@ -112,7 +114,7 @@ export const MapSearch: React.FC<Props> = ({ onSelect }) => {
         }`}
       >
         <Search className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Cari area</span>
+        <span className="hidden sm:inline">{tr('Cari area')}</span>
       </button>
       {open &&
         host &&
@@ -120,13 +122,13 @@ export const MapSearch: React.FC<Props> = ({ onSelect }) => {
           <>
             <button
               type="button"
-              aria-label="Tutup pencarian"
+              aria-label={tr('Tutup pencarian')}
               className="fixed inset-0 z-40 cursor-default bg-transparent"
               onClick={() => setOpen(false)}
             />
             <div
               role="dialog"
-              aria-label="Cari area"
+              aria-label={tr('Cari area')}
               data-purpose="map-search-panel"
               style={pos ? { top: pos.top, left: pos.left } : undefined}
               className="fixed z-50 w-[calc(100vw-1.5rem)] sm:w-[340px] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0b1329] shadow-2xl p-2 animate-fadeIn"
@@ -155,18 +157,18 @@ export const MapSearch: React.FC<Props> = ({ onSelect }) => {
                       setOpen(false);
                     }
                   }}
-                  placeholder="Cari kota, kecamatan, tempat…"
-                  aria-label="Cari area"
+                  placeholder={tr('Cari kota, kecamatan, tempat…')}
+                  aria-label={tr('Cari area')}
                   aria-autocomplete="list"
                   aria-controls="map-search-results"
                   className="flex-1 min-w-0 bg-transparent text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none"
                 />
                 {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-400 shrink-0" aria-label="Memuat" />
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-400 shrink-0" aria-label={tr('Memuat')} />
                 ) : query ? (
                   <button
                     type="button"
-                    aria-label="Hapus"
+                    aria-label={tr('Hapus')}
                     onClick={() => {
                       setQuery('');
                       inputRef.current?.focus();

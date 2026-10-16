@@ -1,6 +1,7 @@
 // Shared recovery-status cards (same visual language as the Cianjur screen).
 import React from 'react';
 import { Droplets, Zap, Navigation, Radio } from 'lucide-react';
+import { useI18n } from '../../i18n';
 import type { DisasterIncident } from '../../types';
 
 const CONFIG = {
@@ -20,10 +21,11 @@ function badge(status: string): string {
 }
 
 export const RecoveryStatusCards: React.FC<{ services: DisasterIncident['recoveryServices'] }> = ({ services }) => {
+  const { t } = useI18n();
   if (!services || services.length === 0) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-3.5 text-[11px] text-slate-500" data-testid="recovery-empty">
-        Belum ada data status pemulihan layanan dari sumber yang tersedia.
+        {t('Belum ada data status pemulihan layanan dari sumber yang tersedia.')}
       </div>
     );
   }
@@ -41,14 +43,14 @@ export const RecoveryStatusCards: React.FC<{ services: DisasterIncident['recover
               <span className="text-lg font-black text-slate-900 leading-none">{service.recovery}%</span>
             </div>
             <div className="min-w-0 mb-2.5">
-              <span className="text-[14px] font-bold text-slate-900 block break-words">{config.label}</span>
-              <span className="text-[9px] text-slate-400 font-medium">Status Recovery</span>
+              <span className="text-[14px] font-bold text-slate-900 block break-words">{t(config.label)}</span>
+              <span className="text-[9px] text-slate-400 font-medium">{t('Status Recovery')}</span>
             </div>
             <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden mb-2.5">
               <div className={`h-full rounded-full ${config.progress} transition-all duration-500`} style={{ width: `${service.recovery}%` }} />
             </div>
             <span className={`inline-flex items-center text-[9px] font-bold px-2 py-1 rounded-md border ${badge(service.status)}`}>
-              {service.status}
+              {t(service.status)}
             </span>
           </div>
         );

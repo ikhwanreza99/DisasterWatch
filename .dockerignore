@@ -1,0 +1,26 @@
+# Never copy secrets, build output or local state into the image.
+node_modules
+dist
+dist-ssr
+.git
+.github
+.worktrees
+
+# Secrets / credentials — must never be baked into a layer.
+.env
+.env.*
+*.local
+service-account*.json
+*-service-account.json
+gcp-credentials*.json
+.firebase
+
+# Not needed at runtime.
+public
+scripts
+tests
+docs
+*.md
+*.pdf
+*.log
+.DS_Store

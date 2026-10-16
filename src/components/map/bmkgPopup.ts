@@ -1,6 +1,7 @@
 // Shared BMKG popup content (Google + Leaflet use the same copy).
 // Required attribution: "Source: BMKG" + link to official BMKG endpoints.
 import { BMKG_SOURCE_URL, uniqueAreaNames, type EarthquakeEvent, type BmkgWeatherWarning } from '../../services/bmkg';
+import { translate, localeFor } from '../../i18n';
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -13,7 +14,7 @@ export const BMKG_SHAKEMAP_BASE = 'https://data.bmkg.go.id/DataMKG/TEWS/';
 export function formatQuakeTime(iso: string): string {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return iso;
-  return new Date(t).toLocaleString('id-ID', {
+  return new Date(t).toLocaleString(localeFor(), {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -24,19 +25,19 @@ export function formatQuakeTime(iso: string): string {
 }
 
 export function buildBmkgPopupHtml(e: EarthquakeEvent): string {
-  const potential = e.potential ? `<div>Potensi: <b>${esc(e.potential)}</b></div>` : '';
-  const felt = e.feltArea ? `<div>Dirasakan: <b>${esc(e.feltArea)}</b></div>` : '';
+  const potential = e.potential ? `<div>${translate('Potensi')}: <b>${esc(e.potential)}</b></div>` : '';
+  const felt = e.feltArea ? `<div>${translate('Dirasakan')}: <b>${esc(e.feltArea)}</b></div>` : '';
   const shakemap = e.mmi
-    ? `<div><a href="${BMKG_SHAKEMAP_BASE}${esc(encodeURIComponent(e.mmi))}" target="_blank" rel="noopener noreferrer">Lihat shakemap</a></div>`
+    ? `<div><a href="${BMKG_SHAKEMAP_BASE}${esc(encodeURIComponent(e.mmi))}" target="_blank" rel="noopener noreferrer">${translate('Lihat shakemap')}</a></div>`
     : '';
   return (
     `<div style="min-width:220px;max-width:280px;font-size:12px;line-height:1.5">` +
-    `<div style="font-weight:800;letter-spacing:.04em">GEMPA BUMI · BMKG</div>` +
-    `<div>Magnitudo: <b>M${esc(e.magnitude.toFixed(1))}</b></div>` +
-    `<div>Kedalaman: <b>${esc(String(e.depthKm))} km</b></div>` +
-    `<div>Wilayah: <b>${esc(e.region)}</b></div>` +
-    `<div>Waktu: <b>${esc(formatQuakeTime(e.eventTime))}</b></div>` +
-    `<div>Koordinat: <b>${e.latitude.toFixed(2)}, ${e.longitude.toFixed(2)}</b></div>` +
+    `<div style="font-weight:800;letter-spacing:.04em">${translate('GEMPA BUMI · BMKG')}</div>` +
+    `<div>${translate('Magnitudo')}: <b>M${esc(e.magnitude.toFixed(1))}</b></div>` +
+    `<div>${translate('Kedalaman')}: <b>${esc(String(e.depthKm))} km</b></div>` +
+    `<div>${translate('Wilayah')}: <b>${esc(e.region)}</b></div>` +
+    `<div>${translate('Waktu')}: <b>${esc(formatQuakeTime(e.eventTime))}</b></div>` +
+    `<div>${translate('Koordinat')}: <b>${e.latitude.toFixed(2)}, ${e.longitude.toFixed(2)}</b></div>` +
     potential +
     felt +
     shakemap +

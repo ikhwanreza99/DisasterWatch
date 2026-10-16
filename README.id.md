@@ -17,7 +17,7 @@ Live: https://disasterwatch-61ed5.web.app
 | Toggle | Data | Sumber |
 |---|---|---|
 | 🌐 BMKG | Gempa bumi terkini | [BMKG](https://data.bmkg.go.id/gempabumi/) |
-| ⛈ CUACA | Peringatan cuaca BMKG + cuaca terkini 21 kota besar + sidebar cuaca | BMKG nowcast, Google Weather API |
+| ⛈ CUACA | Peringatan cuaca BMKG + cuaca terkini dan kualitas udara (UAQI) 21 kota besar + sidebar cuaca | BMKG nowcast, Google Weather API, Google Air Quality API |
 | 🔥 FIRMS | Titik panas dari satelit, mengikuti rentang tanggal di header (Hari ini / 24 jam / 7 hari / 30 hari) | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) (VIIRS, MODIS) |
 | 🌋 MAGMA | Tingkat aktivitas gunung api (Level I–IV) dan laporan gerakan tanah, lengkap dengan legenda | [MAGMA Indonesia](https://magma.esdm.go.id/) (PVMBG) |
 | 🌫 ABU VULKANIK | Awan abu vulkanik (teramati + prakiraan 6/12/18 jam) | [Darwin VAAC](https://www.bom.gov.au/aviation/warnings/volcanic-ash/) (BOM) |
@@ -44,11 +44,11 @@ Tanpa key pun aplikasi tetap jalan, dengan data demo, Leaflet/OSM, dan fallback 
 
 | Variable | Kegunaan |
 |---|---|
-| `VITE_GOOGLE_MAPS_API_KEY` | Google Maps + Google Weather. Batasi dengan HTTP referrer. |
+| `VITE_GOOGLE_MAPS_API_KEY` | Google Maps + Google Weather + Google Air Quality. Batasi dengan HTTP referrer. |
 | `VITE_FIREBASE_*` | Firestore, Auth, dan App Check (opsional; kalau kosong, pakai data demo) |
-| `VITE_GEMINI_MODEL` | Nama model Gemini untuk Firebase AI Logic (opsional; default di `src/lib/firebase/geminiConfig.ts`) |
-| `NASA_FIRMS_MAP_KEY` | FIRMS saat dev lokal. Hanya di server, disisipkan oleh proxy Vite. |
-| `VITE_NASA_FIRMS_MAP_KEY` | FIRMS di production (masuk ke bundle browser) |
+| `VITE_GEMINI_MODEL` | Nama model Gemini saja (opsional). Tidak ada API key yang ikut ke bundle. |
+| `GEMINI_API_KEY` | Hanya di server: proxy Gemini (`/api/ai/generate`). Jangan pakai awalan `VITE_`. |
+| `NASA_FIRMS_MAP_KEY` | Hanya di server: proxy FIRMS dan snapshot saat build. Jangan pakai awalan `VITE_`. |
 
 Key FIRMS gratis bisa diminta di https://firms.modaps.eosdis.nasa.gov/api/map_key/.
 
@@ -76,6 +76,7 @@ src/
     magma/           Gunung api + gerakan tanah MAGMA Indonesia
     vaac/            Advisory abu vulkanik Darwin VAAC
     weather/         Google Weather (insiden + kota besar)
+    airquality/      Google Air Quality (UAQI, digabung ke chip CUACA)
     ai/, intelligence/, pipeline/, store/
   lib/firebase/      Setup Firebase
 scripts/             Seeding dan tes parser

@@ -3,8 +3,10 @@ import React, { useState } from 'react';
 import { aiBackendStatus } from '../lib/firebase/ai';
 import { firebaseStatus } from '../lib/firebase/config';
 import { resolveMapProvider } from './map/mapTypes';
+import { useI18n } from '../i18n';
 
 export const ArchitectureBadge: React.FC<{ notice?: React.ReactNode }> = ({ notice }) => {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const fb = firebaseStatus();
   const ai = aiBackendStatus();
@@ -17,10 +19,11 @@ export const ArchitectureBadge: React.FC<{ notice?: React.ReactNode }> = ({ noti
   const rows: Array<[string, string, boolean, string, string]> = [
     ['Cloud Firestore', 'reports / aid / disasters', fb.configured, 'LIVE', 'MOCK fallback'],
     ['Firebase Auth', 'anonymous session', fb.configured, 'LIVE', 'MOCK user'],
-    ['Firebase AI Logic + Gemini', 'ekstraksi + asisten', ai.available, 'GEMINI', 'HEURISTIK lokal'],
-    ['Google Maps Platform', 'provider peta', map === 'google', 'GOOGLE', 'LEAFLET/OSM'],
-    ['Google Weather Platform', 'cuaca MetNet AI riil-time', map === 'google', 'GOOGLE LIVE', 'MOCK fallback'],
-    ['Firebase Hosting', 'deploy target (standard Hosting, Spark)', true, 'LIVE', 'BELUM DEPLOY'],
+    ['Firebase AI Logic + Gemini', t('ekstraksi + asisten'), ai.available, 'GEMINI', t('HEURISTIK lokal')],
+    ['Google Maps Platform', t('provider peta'), map === 'google', 'GOOGLE', 'LEAFLET/OSM'],
+    ['Google Weather Platform', t('cuaca MetNet AI riil-time'), map === 'google', 'GOOGLE LIVE', 'MOCK fallback'],
+    ['Google Air Quality Platform', t('AQI kota besar (UAQI)'), map === 'google', 'GOOGLE LIVE', t('TANPA BADGE AQI')],
+    ['Firebase Hosting', 'deploy target (standard Hosting, Spark)', true, 'LIVE', t('BELUM DEPLOY')],
   ];
   const liveCount = rows.filter(([, , live]) => live).length;
   return (

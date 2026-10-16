@@ -3,22 +3,24 @@
 // no data → no fabricated block).
 import React from 'react';
 import { ExternalLink } from 'lucide-react';
+import { translate, useI18n } from '../../i18n';
 import type { OfficialParam } from '../../domain/incidentDetail';
 
-function fmt(iso: string | null): string {
-  if (!iso) return 'Waktu tidak tersedia';
+function fmt(iso: string | null, locale: string): string {
+  if (!iso) return translate('Waktu tidak tersedia');
   const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return 'Waktu tidak tersedia';
-  return new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
+  if (!Number.isFinite(t)) return translate('Waktu tidak tersedia');
+  return new Date(t).toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
 }
 
 export const IncidentOfficialParams: React.FC<{ params: OfficialParam[] }> = ({ params }) => {
+  const { t, locale } = useI18n();
   if (params.length === 0) return null;
   return (
-    <section className="rounded-[20px] border border-slate-200 bg-white p-4 min-w-0" aria-label="Parameter resmi" data-testid="official-params">
+    <section className="rounded-[20px] border border-slate-200 bg-white p-4 min-w-0" aria-label={t('Parameter resmi')} data-testid="official-params">
       <div className="border-b border-slate-100 pb-3">
-        <h4 className="text-sm font-bold text-slate-900">Parameter Resmi</h4>
-        <p className="mt-1 text-[11px] text-slate-500">Revisi resmi dipertahankan terpisah — tidak digabung menjadi satu angka.</p>
+        <h4 className="text-sm font-bold text-slate-900">{t('Parameter Resmi')}</h4>
+        <p className="mt-1 text-[11px] text-slate-500">{t('Revisi resmi dipertahankan terpisah — tidak digabung menjadi satu angka.')}</p>
       </div>
       <div className="mt-3 space-y-2">
         {params.map((p, i) => (
@@ -31,10 +33,10 @@ export const IncidentOfficialParams: React.FC<{ params: OfficialParam[] }> = ({ 
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-700">{p.value}</p>
             <p className="mt-1 text-[10px] text-slate-500">
-              {p.sourceName ?? 'Sumber resmi'} · {fmt(p.reportedAt)}
+              {p.sourceName ?? t('Sumber resmi')} · {fmt(p.reportedAt, locale)}
               {p.sourceUrl && (
                 <a href={p.sourceUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 hover:underline">
-                  Buka sumber <ExternalLink className="inline h-3 w-3" aria-hidden="true" />
+                  {t('Buka sumber')} <ExternalLink className="inline h-3 w-3" aria-hidden="true" />
                 </a>
               )}
             </p>

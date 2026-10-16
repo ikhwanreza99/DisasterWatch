@@ -26,6 +26,7 @@ import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intel
 import { demoAid, demoReports } from './data/seedDemo';
 import { ensureUser, watchUser, canReport, consumeRedirectResult, signOutUser } from './lib/firebase/auth';
 import { mockUser } from './lib/firebase/auth';
+import { useI18n, translate } from './i18n';
 
 type LoginReason = 'report' | 'account';
 const LOGIN_INTENT_KEY = 'dw:postLoginIntent';
@@ -53,6 +54,7 @@ import { nttIncident } from './data/nttIncident';
 
 
 export default function App() {
+  const { t } = useI18n();
   // Follow the visible viewport when the on-screen keyboard opens on phones.
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -101,7 +103,7 @@ export default function App() {
         if (controller.signal.aborted || !data.photos) return;
         setDisasters(previous => Object.fromEntries(Object.entries(previous).map(([id, incident]) => {
           const photo = data.photos![id];
-          return [id, validDisasterPhoto(photo, id) ? { ...incident, photoUrl: photo.imageUrl, photoAlt: `Dokumentasi ${incident.name}`, photoSource: photo.sourceName, photoSourceUrl: photo.sourceUrl, photoReportDate: photo.reportDate } : incident];
+          return [id, validDisasterPhoto(photo, id) ? { ...incident, photoUrl: photo.imageUrl, photoAlt: translate('Dokumentasi {name}', { name: incident.name }), photoSource: photo.sourceName, photoSourceUrl: photo.sourceUrl, photoReportDate: photo.reportDate } : incident];
         })));
       }).catch(() => { /* Keep explicit unavailable placeholder. */ });
     return () => controller.abort();
@@ -366,14 +368,16 @@ export default function App() {
   const handleOpenDisasterBrief = () => {
     if (!activeDisaster) return;
     alert(
-      `[DATA TEKNIS SATGAS BNPB & BMKG]\n` +
-        `Wilayah: ${activeDisaster.name}, ${activeDisaster.province}\n` +
-        `Bencana: ${activeDisaster.fullTitleDisplay}\n` +
-        `Status: ${activeDisaster.urgency}\n` +
-        `Estimasi Kerugian: ${activeDisaster.cost}\n` +
-        `Gap Pemulihan: ${activeDisaster.gapRecovery}\n` +
-        `Jumlah Hotspot/Titik: ${activeDisaster.stats.hotspots}\n` +
-        `Personel Siaga: ${activeDisaster.stats.personnel}`
+      [
+        t('[DATA TEKNIS SATGAS BNPB & BMKG]'),
+        t('Wilayah: {region}', { region: `${activeDisaster.name}, ${activeDisaster.province}` }),
+        t('Bencana: {disaster}', { disaster: activeDisaster.fullTitleDisplay }),
+        t('Status: {status}', { status: activeDisaster.urgency }),
+        t('Estimasi Kerugian: {cost}', { cost: activeDisaster.cost }),
+        t('Gap Pemulihan: {recovery}', { recovery: activeDisaster.gapRecovery }),
+        t('Jumlah Hotspot/Titik: {hotspots}', { hotspots: activeDisaster.stats.hotspots }),
+        t('Personel Siaga: {personnel}', { personnel: activeDisaster.stats.personnel }),
+      ].join('\n')
     );
   };
 
@@ -423,13 +427,13 @@ export default function App() {
     // Legacy path (ReportModal lama / AIHelpdesk lama): keep UI feed working.
     const newReportItem = {
       id: `rep-${Date.now()}`,
-      location: newReportData.location || activeDisaster?.name || 'Lokasi belum tersedia',
-      title: 'Laporan Warga Baru',
-      desc: newReportData.description || newReportData.desc || 'Laporan baru diterima dari lapangan.',
-      time: 'Baru saja',
-      author: 'Oleh: Warga Pelapor Terverifikasi',
+      location: newReportData.location || activeDisaster?.name || t('Lokasi belum tersedia'),
+      title: t('Laporan Warga Baru'),
+      desc: newReportData.description || newReportData.desc || t('Laporan baru diterima dari lapangan.'),
+      time: t('Baru saja'),
+      author: t('Oleh: Warga Pelapor Terverifikasi'),
       sourceType: 'citizen' as const,
-      tag: 'Menunggu Verifikasi TRC',
+      tag: t('Menunggu Verifikasi TRC'),
       tagClass: 'bg-amber-50 text-amber-700 border-amber-200',
     };
 
@@ -466,11 +470,11 @@ export default function App() {
             sourceName: rep.sourceName,
             sourceUrl: rep.sourceUrl,
             location: rep.location.name,
-            title: e ? `${e.disasterType.toUpperCase()} • AI ${(Math.round((rep.aiConfidence ?? 0) * 100))}%` : 'Laporan AI',
+            title: e ? `${e.disasterType.toUpperCase()} • AI ${(Math.round((rep.aiConfidence ?? 0) * 100))}%` : t('Laporan AI'),
             desc: rep.rawText.slice(0, 220),
-            time: 'Baru saja',
-            author: `Oleh: ${rep.sourceName}`,
-            tag: rep.verificationStatus === 'VERIFIED' ? 'Terverifikasi Posko TRC' : rep.verificationStatus === 'CONFLICTING' ? 'Konflik — Perlu Verifikasi' : 'AI Review — Menunggu TRC',
+            time: t('Baru saja'),
+            author: t('Oleh: {source}', { source: rep.sourceName }),
+            tag: rep.verificationStatus === 'VERIFIED' ? t('Terverifikasi Posko TRC') : rep.verificationStatus === 'CONFLICTING' ? t('Konflik — Perlu Verifikasi') : t('AI Review — Menunggu TRC'),
             tagClass:
               rep.verificationStatus === 'VERIFIED'
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -516,6 +520,7 @@ export default function App() {
         <main className="relative flex-1 grid grid-cols-12 overflow-hidden min-h-0 md:min-h-[60vh]">
           {/* Left Category Filter Dock */}
           <CategoryFilterBar
+            availableCategories={moderationLoaded ? Object.values(disasters).map(d => d.category) : []}
             activeCategory={activeCategory}
             onSelectCategory={handleSelectCategory}
             isDarkMode={isDarkMode}
@@ -527,17 +532,17 @@ export default function App() {
             <button
               type="button"
               onClick={handleOpenNttIncident}
-              title="Buka detail gempa Sumba Barat Daya 4 Okt 2026 (tampilan standar yang sama)"
+              title={t('Buka detail gempa Sumba Barat Daya 4 Okt 2026 (tampilan standar yang sama)')}
               data-purpose="ntt-case-launcher"
               className="min-h-11 w-full min-w-0 flex items-center gap-2 rounded-full border border-rose-200 bg-white/95 px-3 py-2 text-xs font-bold text-rose-700 shadow-lg backdrop-blur hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-rose-500"
             >
               <span aria-hidden="true">🌋</span>
-              <span className="min-w-0 truncate">Kasus NTT · M6,1 Sumba Barat Daya</span>
-              {ntt && <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px]">{ntt.articles.length} berita</span>}
+              <span className="min-w-0 truncate">{t('Kasus NTT · M6,1 Sumba Barat Daya')}</span>
+              {ntt && <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px]">{t('{count} berita', { count: ntt.articles.length })}</span>}
             </button>
             ) : null}
             onHighlightDisaster={setHighlightedDisasterKey}
-            mobileFilterSlot={<CategoryFilterBar mobile activeCategory={activeCategory} onSelectCategory={handleSelectCategory} isDarkMode={isDarkMode} />}
+            mobileFilterSlot={<CategoryFilterBar availableCategories={moderationLoaded ? Object.values(disasters).map(d => d.category) : []} mobile activeCategory={activeCategory} onSelectCategory={handleSelectCategory} isDarkMode={isDarkMode} />}
             onStartAIChat={isAIOpen ? undefined : (message, file) => {
               handleOpenAI(false);
               setAiDraft({ message, file });

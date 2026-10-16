@@ -1,6 +1,7 @@
 // Area search via Google Places API (New): Autocomplete → Place Details (location + viewport).
 // Uses the same browser key as Maps (VITE_GOOGLE_MAPS_API_KEY, referrer-restricted).
 // A session token groups autocomplete + details into one billing session.
+import { translate } from '../../i18n';
 
 const API = 'https://places.googleapis.com/v1';
 
@@ -32,7 +33,7 @@ export function newSessionToken(): string {
 
 async function call<T>(url: string, init: RequestInit, fieldMask: string, signal?: AbortSignal): Promise<T> {
   const key = apiKey();
-  if (!key) throw new Error('Google Maps API key belum diisi');
+  if (!key) throw new Error(translate('Google Maps API key belum diisi'));
   const res = await fetch(url, {
     ...init,
     signal,
@@ -44,7 +45,7 @@ async function call<T>(url: string, init: RequestInit, fieldMask: string, signal
     },
   });
   const json = (await res.json().catch(() => ({}))) as { error?: { message?: string } } & T;
-  if (!res.ok) throw new Error(json.error?.message?.slice(0, 140) || `Places HTTP ${res.status}`);
+  if (!res.ok) throw new Error(json.error?.message?.slice(0, 140) || translate('Places HTTP {status}', { status: res.status }));
   return json;
 }
 
@@ -106,7 +107,7 @@ export async function getPlace(placeId: string, sessionToken: string, signal?: A
     'id,displayName,formattedAddress,location,viewport',
     signal,
   );
-  if (!json.location) throw new Error('Lokasi tempat tidak ditemukan');
+  if (!json.location) throw new Error(translate('Lokasi tempat tidak ditemukan'));
   const span =
     json.viewport?.high && json.viewport?.low ? json.viewport.high.latitude - json.viewport.low.latitude : NaN;
   return {

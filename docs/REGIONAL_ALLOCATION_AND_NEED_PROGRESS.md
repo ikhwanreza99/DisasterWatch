@@ -1,0 +1,9 @@
+# Regional allocation and needs progress
+
+Sumatera Barat pilot: daily/deployment public BNPB summary snapshot for the latest seven WIB calendar dates. Candidate points must match province and event period. Weight is the latest reported damaged-house count; missing/nonpositive counts use an explicit minimum weight of one. Weight is a proxy for relative reported impact, not an engineered severity rating. All categories currently share this proxy, including the combined suffering/displaced count; that count is not treated as displaced people for demand calculations.
+
+Allocation uses largest remainder so rounded child counts conserve the parent total. Outputs remain `scenario_estimate`, with source URL, as-of, date window, method version and weight basis. Coverage is limited to known DisasterWatch points. No original incident count is overwritten, no new disaster marker created, and no estimated allocation is added to original incident facts. Null parent totals stay null. Snapshot older than two days is hidden. Other provinces are not yet ingested by this pilot.
+
+Needs use hazard taxonomy union source-indicated categories. Each category has a compact card and a single green/orange fulfillment/remainder bar. Calculation requires exactly one explicit quantified need with unit, exact incident ID and a delivery record with the same category/unit/date and mock status. Duplicate delivery IDs count once. This is a reported daily demand/delivery comparison, not future available inventory. Unknown deliveries remain null rather than zero. Historical media packaging counts and tanker capacity remain source details and are not converted into usable supply. Existing data lacks finer area identifiers; displayed percentages apply only to incident/day record scope, not a verified neighborhood stock assessment.
+
+Run `node --import tsx --test tests/proportionalAllocation.test.ts` and `node --import tsx scripts/fetchBnpbRegional.ts`.

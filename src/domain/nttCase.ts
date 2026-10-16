@@ -1,6 +1,7 @@
 // NTT Sumba Barat Daya earthquake case — domain model.
 // Additive layer: does not change existing DisasterIncident / IntelligenceReport types.
 // Rule: nullable when source doesn't provide it; never invent authors/timestamps/content.
+import { t, localeFor } from '../i18n';
 
 export const NTT_CASE_ID = 'ntt-sumba-barat-daya-2026-10-04';
 
@@ -172,5 +173,5 @@ export function upsertArticles(existing: CaseArticle[], incoming: CaseArticle[])
 
 /** "Belum tersedia" for unknown — never render unknown casualty/damage as zero. */
 export function formatUnknown(value: number | null | undefined): string {
-  return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('id-ID') : 'Belum tersedia';
+  return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString(localeFor()) : t('Belum tersedia');
 }

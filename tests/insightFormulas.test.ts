@@ -1,0 +1,6 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {damage,economicLoss,totalLoss,gap,gapPercent,utilityRecovery,forecast,priority,type Measure} from '../src/services/insights/formulas';
+const m=(value:number,unit='asset'):Measure=>({value,unit,area:'test',period:'2026-10-16',factIds:['f1']});
+test('methodology golden loss and financial/physical examples',()=>{assert.equal(totalLoss(damage(m(5),150e6,.5),economicLoss(m(100e6,'IDR/day'),m(0,'IDR/day'),3)).value,675e6);assert.equal(gap(m(500e6,'IDR'),m(120e6,'IDR')).value,380e6);assert.equal(gapPercent(m(5),m(1)).value,80);});
+test('unknown, mismatched scopes, zero denominators never imply recovery',()=>{assert.equal(gap(m(1),null).value,null);assert.equal(utilityRecovery(m(0),m(0)).value,null);assert.equal(utilityRecovery(m(5),m(6)).value,null);assert.equal(gap(m(5),{...m(1),area:'other'}).value,null);assert.equal(damage(m(5,'households'),150e6,.5).value,null);assert.equal(forecast(672,3,3,null,null,null),null);assert.equal(priority(1,null,1,1,1),null);});
+test('scenario forecast requires explicit stock and backlog; utilities keep denominators',()=>{assert.equal(forecast(672,3,3,0,0,0),6048);assert.equal(utilityRecovery(m(300),m(225)).value,75);assert.equal(priority(1,1,1,1,1),100);});

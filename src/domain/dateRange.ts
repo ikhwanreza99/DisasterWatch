@@ -4,6 +4,7 @@
 //   custom:  'custom:YYYY-MM-DD:YYYY-MM-DD' (inclusive, local calendar days)
 // FIRMS and MAGMA each have their own selection (the header toggles which one is being edited),
 // because their sources reach back very differently.
+import { t, localeFor } from '../i18n';
 
 export const DATE_PRESETS = ['Hari ini (24 Jam)', '7 Hari Terakhir', '30 Hari Terakhir'] as const;
 
@@ -81,24 +82,24 @@ export function isCustomSelection(sel: string): boolean {
 }
 
 function shortDay(d: Date, withYear: boolean): string {
-  return d.toLocaleDateString('id-ID', withYear ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(localeFor(), withYear ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' });
 }
 
-/** Validate a custom range; returns an error message (Indonesian) or null. */
+/** Validate a custom range; returns a localized error message, or null. */
 export function validateCustomRange(from: string, to: string, limits: RangeLimits, now = new Date()): string | null {
   const a = parseIsoDay(from);
   const b = parseIsoDay(to);
-  if (!a || !b) return 'Isi tanggal mulai dan selesai.';
-  if (a > b) return 'Tanggal mulai harus sebelum tanggal selesai.';
-  if (b > startOfDay(now)) return 'Tanggal selesai tidak boleh melewati hari ini.';
+  if (!a || !b) return t('Isi tanggal mulai dan selesai.');
+  if (a > b) return t('Tanggal mulai harus sebelum tanggal selesai.');
+  if (b > startOfDay(now)) return t('Tanggal selesai tidak boleh melewati hari ini.');
   const min = parseIsoDay(minSelectableDay(limits, now))!;
   if (a < min) {
     return limits.minDay
-      ? `Data paling awal: ${shortDay(min, true)}.`
-      : `Data hanya tersedia ${limits.lookbackDays} hari terakhir.`;
+      ? t('Data paling awal: {date}.', { date: shortDay(min, true) })
+      : t('Data hanya tersedia {days} hari terakhir.', { days: limits.lookbackDays ?? 0 });
   }
   if (Math.round((b.getTime() - a.getTime()) / DAY_MS) + 1 > limits.maxSpanDays) {
-    return `Rentang maksimal ${limits.maxSpanDays} hari.`;
+    return t('Rentang maksimal {days} hari.', { days: limits.maxSpanDays });
   }
   return null;
 }
@@ -123,19 +124,19 @@ export function resolveDateRange(sel: string, limits: RangeLimits = RANGE_LIMITS
   }
   const s = sel.toLowerCase();
   if (s.startsWith('30')) {
-    return { key: '30d', id: '30d', start: new Date(today.getTime() - 29 * DAY_MS), end: now, days: 30, label: '30 hari' };
+    return { key: '30d', id: '30d', start: new Date(today.getTime() - 29 * DAY_MS), end: now, days: 30, label: t('30 hari') };
   }
   if (s.startsWith('7')) {
-    return { key: '7d', id: '7d', start: new Date(today.getTime() - 6 * DAY_MS), end: now, days: 7, label: '7 hari' };
+    return { key: '7d', id: '7d', start: new Date(today.getTime() - 6 * DAY_MS), end: now, days: 7, label: t('7 hari') };
   }
   if (s.includes('24')) {
-    return { key: '24h', id: '24h', start: new Date(now.getTime() - DAY_MS), end: now, days: 2, label: '24 jam' };
+    return { key: '24h', id: '24h', start: new Date(now.getTime() - DAY_MS), end: now, days: 2, label: t('24 jam') };
   }
-  return { key: 'today', id: 'today', start: today, end: now, days: 1, label: 'hari ini' };
+  return { key: 'today', id: 'today', start: today, end: now, days: 1, label: t('hari ini') };
 }
 
 /** Short label for a selection, e.g. "Today", "7 hari", "1 Jun–30 Jun 2022". */
 export function selectionLabel(sel: string, limits: RangeLimits): string {
-  if (sel === 'Today') return 'Today';
+  if (sel === 'Today') return t('Hari ini');
   return resolveDateRange(sel, limits).label;
 }

@@ -38,3 +38,16 @@ Publish the complete firestore.rules for rejection writes. The manual workflow
 Publish Firestore rules validates/releases rules without changing admin accounts.
 If IAM returns 403, publish through Firebase Console or grant Firebase Rules Admin
 to the service account shown in the workflow log. No credential secrets are logged.
+
+## Review form update
+
+Approve/Reject buttons are clickable before the form is completed; click validation
+shows missing requirements. Approve requires 1–3 checked source articles, with no
+manual URL input. The optional note defaults to a statement recording the selected
+evidence count. Province uses the recognized 38-province list. Reject opens its
+own modal with reason and required fact-check note. DEMO data still cannot change
+the existence of real incidents; clicking explains this restriction.
+
+Google Search refresh reloads the published server status snapshot only. A nearby
+workflow link runs a fresh backend probe with check_google_search enabled.
+Browser requests never receive the GitHub or backend API secrets.

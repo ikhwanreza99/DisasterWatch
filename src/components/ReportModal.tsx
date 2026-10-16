@@ -3,6 +3,7 @@ import { X, Upload, ThumbsUp, Plus } from 'lucide-react';
 import { DisasterIncident } from '../types';
 import type { IntelligenceReport } from '../domain/intelligence';
 import { submitReportPipeline, type PipelineResult } from '../services/pipeline/reportPipeline';
+import { useI18n } from '../i18n';
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   onReportSuccess,
   onIntelReport,
 }) => {
+  const { t } = useI18n();
   const [category, setCategory] = useState(activeDisaster.category);
   const [location, setLocation] = useState(`${activeDisaster.name}, ${activeDisaster.province}`);
   const [urgency, setUrgency] = useState('Darurat Tinggi');
@@ -61,7 +63,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         fileName: file?.name,
       });
     } catch (err) {
-      setSubmitError(`Gagal memproses laporan: ${String(err)}`);
+      setSubmitError(t('Gagal memproses laporan: {error}', { error: String(err) }));
     } finally {
       setIsSubmitting(false);
     }
@@ -86,8 +88,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   <Plus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Buat Laporan Darurat Bencana</h3>
-                  <p className="text-xs text-slate-500">Laporkan kejadian darurat atau ajukan penyaluran bantuan</p>
+                  <h3 className="text-base font-bold text-slate-900">{t('Buat Laporan Darurat Bencana')}</h3>
+                  <p className="text-xs text-slate-500">{t('Laporkan kejadian darurat atau ajukan penyaluran bantuan')}</p>
                 </div>
               </div>
               <button
@@ -101,52 +103,52 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             {/* Modal Form */}
             <form onSubmit={handleSubmit} className="mt-5 space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Jenis Bencana</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('Jenis Bencana')}</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as any)}
                   className="w-full rounded-xl border border-slate-300 text-slate-800 text-xs py-2.5 px-3 focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
                   required
                 >
-                  <option value="fire">Kebakaran Hutan & Lahan (Karhutla)</option>
-                  <option value="flood">Banjir Bandang / Genangan</option>
-                  <option value="earthquake">Gempa Bumi / Tanah Longsor</option>
+                  <option value="fire">{t('Kebakaran Hutan & Lahan (Karhutla)')}</option>
+                  <option value="flood">{t('Banjir Bandang / Genangan')}</option>
+                  <option value="earthquake">{t('Gempa Bumi / Tanah Longsor')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Lokasi Wilayah / Titik Acuan</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('Lokasi Wilayah / Titik Acuan')}</label>
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 text-slate-800 text-xs py-2.5 px-3 focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
-                  placeholder="Contoh: Jl. Ahmad Yani Km 14, Kab. Banjar"
+                  placeholder={t('Contoh: Jl. Ahmad Yani Km 14, Kab. Banjar')}
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Tingkat Urgensi</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t('Tingkat Urgensi')}</label>
                   <select
                     value={urgency}
                     onChange={(e) => setUrgency(e.target.value)}
                     className="w-full rounded-xl border border-slate-300 text-slate-800 text-xs py-2.5 px-3 focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
                   >
-                    <option value="Darurat Tinggi">Darurat Tinggi</option>
-                    <option value="Siaga Penuh">Siaga Penuh</option>
-                    <option value="Waspada">Waspada</option>
+                    <option value="Darurat Tinggi">{t('Darurat Tinggi')}</option>
+                    <option value="Siaga Penuh">{t('Siaga Penuh')}</option>
+                    <option value="Waspada">{t('Waspada')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Kebutuhan Mendesak</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{t('Kebutuhan Mendesak')}</label>
                   <input
                     type="text"
                     value={urgentNeeds}
                     onChange={(e) => setUrgentNeeds(e.target.value)}
                     className="w-full rounded-xl border border-slate-300 text-slate-800 text-xs py-2.5 px-3 focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
-                    placeholder="Contoh: Masker & Perahu Karet"
+                    placeholder={t('Contoh: Masker & Perahu Karet')}
                   />
                 </div>
               </div>
@@ -154,7 +156,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               {/* Upload Bukti */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Upload Bukti Kejadian (Foto / Video)
+                  {t('Upload Bukti Kejadian (Foto / Video)')}
                 </label>
                 <input
                   ref={fileInputRef}
@@ -176,18 +178,18 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   </div>
                   <span className="font-semibold text-slate-800 text-xs mt-1">
                     {file ? (
-                      <span className="text-emerald-600 font-bold">✓ Terpilih: {file.name}</span>
+                      <span className="text-emerald-600 font-bold">{t('✓ Terpilih: {name}', { name: file.name })}</span>
                     ) : (
-                      'Upload Foto / Video Bukti Kejadian'
+                      t('Upload Foto / Video Bukti Kejadian')
                     )}
                   </span>
-                  <span className="text-[11px] text-slate-400">Format PNG, JPG, MP4 maksimal 15MB</span>
+                  <span className="text-[11px] text-slate-400">{t('Format PNG, JPG, MP4 maksimal 15MB')}</span>
                 </div>
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Keterangan Situasi & Dampak
+                  {t('Keterangan Situasi & Dampak')}
                 </label>
                 <textarea
                   rows={2}
@@ -195,7 +197,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 text-slate-800 text-xs py-2 px-3 focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
-                  placeholder="Jelaskan kondisi akses jalan, korban terdampak, atau titik api..."
+                  placeholder={t('Jelaskan kondisi akses jalan, korban terdampak, atau titik api...')}
                 />
               </div>
 
@@ -208,14 +210,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   onClick={onClose}
                   className="px-5 py-2.5 rounded-full border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
                 >
-                  Batal
+                  {t('Batal')}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="px-6 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-semibold active:scale-95 transition-all shadow-md cursor-pointer"
                 >
-                  {isSubmitting ? 'Menganalisis AI…' : 'Kirimkan Laporan'}
+                  {isSubmitting ? t('Menganalisis AI…') : t('Kirimkan Laporan')}
                 </button>
               </div>
             </form>
@@ -228,37 +230,37 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             </div>
 
             <div className="space-y-1 max-w-sm">
-              <h4 className="text-lg font-bold text-slate-900">Laporan Berhasil Terkirim!</h4>
+              <h4 className="text-lg font-bold text-slate-900">{t('Laporan Berhasil Terkirim!')}</h4>
               <p className="text-sm font-medium text-slate-600 leading-relaxed">
-                Terima kasih. Laporanmu sudah diterima dan akan segera diverifikasi oleh tim penanggulangan darurat TRC & BPBD.
+                {t('Terima kasih. Laporanmu sudah diterima dan akan segera diverifikasi oleh tim penanggulangan darurat TRC & BPBD.')}
               </p>
             </div>
 
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-left w-full text-[11px] text-slate-600 space-y-1">
               <div className="flex justify-between">
-                <span className="text-slate-400">ID Laporan:</span>
+                <span className="text-slate-400">{t('ID Laporan:')}</span>
                 <span className="font-mono font-bold text-slate-800">{pipeline?.report.id ?? '#REP-pending'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Lokasi:</span>
+                <span className="text-slate-400">{t('Lokasi:')}</span>
                 <span className="font-semibold text-slate-800">{location}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Status Validasi:</span>
-                <span className="font-semibold text-amber-600">{pipeline?.report.verificationStatus ?? 'Menunggu Validasi TRC'}</span>
+                <span className="text-slate-400">{t('Status Validasi:')}</span>
+                <span className="font-semibold text-amber-600">{pipeline?.report.verificationStatus ?? t('Menunggu Validasi TRC')}</span>
               </div>
               {pipeline && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Engine AI:</span>
-                    <span className="font-semibold text-slate-800">{pipeline.engine === 'gemini' ? 'Gemini (Firebase AI Logic)' : 'Heuristik lokal'}</span>
+                    <span className="text-slate-400">{t('Engine AI:')}</span>
+                    <span className="font-semibold text-slate-800">{pipeline.engine === 'gemini' ? t('Gemini (Firebase AI Logic)') : t('Heuristik lokal')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">AI confidence:</span>
-                    <span className="font-semibold text-slate-800">{Math.round((pipeline.report.aiConfidence ?? 0) * 100)}% (indikator AI)</span>
+                    <span className="font-semibold text-slate-800">{t('{pct}% (indikator AI)', { pct: Math.round((pipeline.report.aiConfidence ?? 0) * 100) })}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Ekstraksi:</span>
+                    <span className="text-slate-400">{t('Ekstraksi:')}</span>
                     <span className="font-semibold text-slate-800 text-right max-w-[260px]">
                       {pipeline.report.extractedData?.disasterType} • {pipeline.report.extractedData?.needs.map((n) => n.category).join(', ') || '—'}
                     </span>
@@ -273,13 +275,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 onClick={handleReset}
                 className="flex-1 px-5 py-2.5 rounded-full border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
               >
-                Buat Laporan Baru
+                {t('Buat Laporan Baru')}
               </button>
               <button
                 onClick={onClose}
                 className="flex-1 px-6 py-2.5 rounded-full bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 active:scale-95 transition-all shadow-md cursor-pointer"
               >
-                Selesai & Tutup
+                {t('Selesai & Tutup')}
               </button>
             </div>
           </div>

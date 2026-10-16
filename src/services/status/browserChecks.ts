@@ -1,10 +1,12 @@
+import { translate } from '../../i18n';
 import { recordTokenUsage } from '../../admin/tokenUsage';
 import { createCheckRunner } from './automaticChecks';
 import { appCheckStatus, firebaseEnv, getFirebaseApp, firebaseStatus, hasAppCheckSiteKey, probeAppCheckToken } from '../../lib/firebase/config';
 import { getDb } from '../../lib/firebase/firestore';
 import { resolveGeminiCandidates, resolveGeminiModel } from '../../lib/firebase/geminiConfig';
+import { parseAirQuality } from '../airquality/googleAirQuality';
 import { autocompletePlaces, getPlace, newSessionToken } from '../places/placeSearch';
-import { fallbackNote, isNonEmptyModelText, redactStatusText, safeStatusError, type ServiceCheck } from './model';
+import { fallbackNote, hasValidGeminiCandidates, isNonEmptyModelText, redactStatusText, safeStatusError, type ServiceCheck } from './model';
 
 export function initialChecks(): ServiceCheck[] {
   const env = firebaseEnv();
@@ -14,12 +16,12 @@ export function initialChecks(): ServiceCheck[] {
   return [
     ['maps', 'Google Maps JavaScript', maps], ['places', 'Google Places · Autocomplete & Details', maps],
     ['weather', 'Google Weather · Kondisi sekarang', maps], ['forecast', 'Google Weather · Prakiraan', maps],
+    ['airquality', 'Google Air Quality · UAQI kota', maps],
     ['auth', 'Firebase Auth · Google Login', firebase], ['firestore', 'Cloud Firestore · baca dari web', firebase],
     ['storage', 'Firebase Storage · lampiran laporan', !!env.storageBucket],
     ['appcheck', 'Firebase App Check · token', firebase && appCheckPresent],
-    ['firebase-ai', 'Firebase AI Logic · Gemini', firebase],
-    ['gemini-direct', 'Gemini Developer API · fallback', false],
-  ].map(([id, name, configured]) => ({ id: String(id), name: String(name), state: configured ? 'configured' : 'disabled', detail: configured ? 'Konfigurasi tersedia; belum ada bukti request berhasil dari halaman ini.' : id === 'gemini-direct' ? 'Dinonaktifkan: jalur ini membutuhkan API key rahasia yang tidak boleh digunakan di browser. Gunakan Firebase AI Logic.' : 'Konfigurasi browser belum tersedia.', checkedAt: null, scope: 'browser' }));
+    ['firebase-ai', 'Firebase AI Logic · Gemini', firebase], ['gemini-direct', 'Gemini Developer API · fallback', true],
+  ].map(([id, name, configured]) => ({ id: String(id), name: String(name), state: configured ? 'configured' : 'disabled', detail: configured ? 'Konfigurasi tersedia; belum ada bukti request berhasil dari halaman ini.' : 'Konfigurasi browser belum tersedia.', checkedAt: null, scope: 'browser' }));
 }
 async function checkedJson(url: string, init?: RequestInit) {
   const response = await fetch(url, { ...init, signal: AbortSignal.timeout(20_000) });
@@ -54,11 +56,11 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       const { getAuthInstance } = await import('../../lib/firebase/auth');
       const auth = getAuthInstance();
       if (auth) await auth.authStateReady();
-      firestoreSession = auth?.currentUser ? 'Sesi login dipulihkan' : 'Tidak ada sesi login';
+      firestoreSession = auth?.currentUser ? translate('Sesi login dipulihkan') : translate('Tidak ada sesi login');
       const { getDocsFromServer, query, collection, limit } = await import('firebase/firestore');
       const db = getDb(); if (!db) throw new Error('No database');
       const snap = await getDocsFromServer(query(collection(db, 'incidentArticles'), limit(1)));
-      detail = `Baca Firestore dari server berhasil; sampel ${snap.size} artikel.`;
+      detail = translate('Baca Firestore dari server berhasil; sampel {count} artikel.', { count: snap.size });
     } else if (id === 'auth') {
       const data = await checkedJson(`https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${encodeURIComponent(env.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'google.com', continueUri: window.location.origin }) });
       if (!data.authUri) throw new Error('No OAuth URL');
@@ -68,14 +70,66 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       const places = await autocompletePlaces('Jakarta', token, AbortSignal.timeout(20_000));
       if (!places.length) return { ...base, checkedAt, state: 'empty', detail: 'Autocomplete berhasil; tidak ada saran lokasi.' };
       await getPlace(places[0].placeId, token, AbortSignal.timeout(20_000));
-      detail = `Autocomplete dan Place Details berhasil; ${places.length} saran.`;
+      detail = translate('Autocomplete dan Place Details berhasil; {count} saran.', { count: places.length });
     } else if (id === 'weather' || id === 'forecast') {
       const endpoint = id === 'weather' ? 'currentConditions:lookup' : 'forecast/days:lookup';
       const data = await checkedJson(`https://weather.googleapis.com/v1/${endpoint}?key=${encodeURIComponent(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)}&location.latitude=-6.2&location.longitude=106.8&languageCode=id`);
       if (id === 'weather' ? !data.temperature : !Array.isArray(data.forecastDays) || !data.forecastDays.length) throw new Error('No weather payload');
       detail = 'Respons Weather API valid untuk Jakarta; tidak memakai cuaca simulasi.';
+    } else if (id === 'airquality') {
+      const data = await checkedJson(`https://airquality.googleapis.com/v1/currentConditions:lookup?key=${encodeURIComponent(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location: { latitude: -6.2, longitude: 106.8 }, languageCode: 'id' }),
+      });
+      const aq = parseAirQuality(data);
+      if (!aq) throw new Error('No AQI payload');
+      detail = translate('Respons Air Quality API valid untuk Jakarta; UAQI {aqi} ({category}).', { aqi: aq.aqiDisplay, category: aq.category || '-' });
     } else if (id === 'gemini-direct') {
-      return { ...base, state: 'disabled', checkedAt, detail: 'Dinonaktifkan: Gemini Developer API key tidak boleh digunakan langsung dari browser. Gunakan Firebase AI Logic sebagai jalur utama.' };
+      const candidates = resolveGeminiCandidates();
+      const primary = candidates[0]!;
+      let lastError: unknown = null;
+      let used = '';
+      for (const model of candidates) {
+        try {
+          // One retry for transient overload (HTTP 503/429) before moving on.
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              // The API key lives server-side; probe the same-origin proxy instead.
+              const {getAuth}=await import('firebase/auth');const app=getFirebaseApp();const user=app?getAuth(app).currentUser:null;
+              if(!user||user.isAnonymous)return {...base,checkedAt,state:'disabled',detail:translate('Login Google diperlukan untuk menguji proxy AI server.')};
+              const token=await user.getIdToken();
+              const response = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json',Authorization:`Bearer ${token}` },
+                body: JSON.stringify({ model, prompt: 'Jawab satu kata: OK' }),
+                signal: AbortSignal.timeout(20_000),
+              });
+              const contentType = response.headers.get('content-type') || '';
+              if (!contentType.includes('application/json')) {
+                return { ...base, checkedAt, state: 'disabled', detail: translate('Proxy Gemini server tidak tersedia di origin ini — kunci tidak lagi disertakan di bundle browser.') };
+              }
+              const data = await response.json();
+              if (response.status === 503) {
+                return { ...base, checkedAt, state: 'disabled', detail: translate('Proxy Gemini server tidak dikonfigurasi (tanpa GEMINI_API_KEY) — kunci tidak lagi disertakan di bundle browser.') };
+              }
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              if (!hasValidGeminiCandidates(data)) throw new Error('Empty model response');
+              recordTokenUsage(data.usageMetadata, model, 'Status · Gemini Direct (proxy)');
+              used = model;
+              break;
+            } catch (e) {
+              lastError = e;
+              const transient = e instanceof Error && /HTTP (429|500|502|503|504)/.test(e.message);
+              if (!transient || attempt === 1) throw e;
+              await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+            }
+          }
+          if (used) break;
+        } catch (e) { lastError = e; }
+      }
+      if (!used) throw lastError instanceof Error ? lastError : new Error('Gemini Direct gagal pada semua model kandidat');
+      detail = translate('GenerateContent berhasil {note}', { note: fallbackNote(used, primary) });
     } else if (id === 'appcheck') {
       const app = getFirebaseApp(); if (!app) throw new Error('No Firebase app');
       const status = appCheckStatus();
@@ -83,7 +137,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       if (!status.initialized) throw new Error(status.error ?? status.skippedReason ?? 'App Check belum terinisialisasi.');
       const probe = await probeAppCheckToken();
       if (!probe.ok) throw new Error(probe.detail);
-      detail = `${probe.detail} Init: terinisialisasi.`;
+      detail = translate('{detail} Init: terinisialisasi.', { detail: translate(probe.detail) });
     } else if (id === 'firebase-ai') {
       const { getAI, getGenerativeModel, GoogleAIBackend } = await import('firebase/ai');
       const app = getFirebaseApp(); if (!app) throw new Error('No Firebase app');
@@ -91,8 +145,8 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       // Uses the same default Firebase app that configureAppCheck() initialized.
       const appCheck = appCheckStatus();
       const appCheckNote = appCheck.initialized
-        ? 'App Check: terinisialisasi.'
-        : `App Check: ${appCheck.error ?? appCheck.skippedReason ?? 'tidak terinisialisasi'}.`;
+        ? translate('App Check: terinisialisasi.')
+        : translate('App Check: {reason}.', { reason: translate(appCheck.error ?? appCheck.skippedReason ?? 'tidak terinisialisasi') });
       const candidates = resolveGeminiCandidates();
       const primary = candidates[0]!;
       let lastError: unknown = null;
@@ -111,7 +165,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
         const cause = safeStatusError(lastError instanceof Error ? lastError : new Error('Firebase AI Logic gagal pada semua model kandidat'));
         throw new Error(`${cause} · ${appCheckNote}`);
       }
-      detail = `Firebase AI Logic berhasil ${fallbackNote(used, primary)} ${appCheckNote}`;
+      detail = translate('Firebase AI Logic berhasil {note} {appCheck}', { note: fallbackNote(used, primary), appCheck: appCheckNote });
     } else if (id === 'storage') {
       return { ...base, detail: 'Bucket terkonfigurasi. Upload/download membutuhkan pengguna login dan lampiran; tidak mengunggah file uji otomatis.' };
     } else if (id === 'maps') {

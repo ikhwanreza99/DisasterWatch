@@ -17,11 +17,11 @@ Jangan mengganti `VITE_FIREBASE_API_KEY` dengan key Google Search backend. Fireb
 
 Referensi: https://firebase.google.com/docs/ai-logic/app-check dan https://firebase.google.com/docs/ai-logic/error-codes
 
-## Firebase AI Logic kandidat model: HTTP 503 / 429
+## Gemini Developer API fallback: HTTP 503
 
-503 berarti layanan/model sementara tidak tersedia; kode ini belum membuktikan masalah permission. Sejak Okt 2026, model Flash utama (`gemini-3.8-flash`, `3.7`, `3.6`) sering 503 karena overload global, sementara `gemini-3.5-flash-lite` menjawab 200. Karena itu kode sekarang mencoba kandidat model berurutan (`resolveGeminiCandidates()` di `src/lib/firebase/geminiConfig.ts`): primer dulu, lalu `gemini-3.5-flash-lite`. Pemeriksaan `/status` dan fitur AI aplikasi (`getGeminiModel()`) sama-sama memakai rantai ini melalui Firebase AI Logic — hasil "Berhasil" akan menyebut model mana yang menjawab dan apakah itu fallback.
+503 berarti layanan/model sementara tidak tersedia; kode ini belum membuktikan masalah permission. Sejak Okt 2026, model Flash utama (`gemini-3.8-flash`, `3.7`, `3.6`) sering 503 karena overload global, sementara `gemini-3.5-flash-lite` menjawab 200. Karena itu kode sekarang mencoba kandidat model berurutan (`resolveGeminiCandidates()` di `src/lib/firebase/geminiConfig.ts`): primer dulu, lalu `gemini-3.5-flash-lite`, masing-masing dengan 1x retry untuk error transient (429/5xx). Pemeriksaan `/status` dan fitur AI aplikasi (`getGeminiModel()`) sama-sama memakai rantai ini — hasil "Berhasil" akan menyebut model mana yang menjawab dan apakah itu fallback.
 
-SECURITY: jalur fallback langsung Gemini Developer API dari browser DINONAKTIFKAN. Browser tidak boleh memakai Gemini API key rahasia (`VITE_GEMINI_API_KEY` dihapus; jangan dibuat lagi). Model utama dapat diatur lewat secret `VITE_GEMINI_MODEL`; ini berbeda dari variable backend `DISASTERWATCH_GOOGLE_SEARCH_MODEL` yang dipakai skrip server/CI.
+Fallback Gemini Developer API kini berjalan **lewat proxy server** (`POST /api/ai/generate`, lihat `server/aiProxy.ts`) dan tidak memakai key di browser. Key hidup hanya sebagai `GEMINI_API_KEY` (server-side) dan **tidak boleh** diberi awalan `VITE_`, karena semua `VITE_*` ikut masuk ke bundle browser. Model fallback dapat diatur lewat `VITE_GEMINI_MODEL` (nama model saja, bukan key); ini berbeda dari variable backend `DISASTERWATCH_GOOGLE_SEARCH_MODEL`. Bila proxy belum tersedia, kode otomatis memakai Firebase AI Logic (jalur utama) lalu fallback deterministik — tidak pernah memuat key di browser.
 
 Referensi: https://ai.google.dev/gemini-api/docs/troubleshooting
 
@@ -34,3 +34,17 @@ Ini bukan hasil gagal. Halaman status belum melakukan upload lampiran. Aktifkan 
 Crawler kejadian menjadi due 24 jam setelah SUCCESS/SUCCESS_EMPTY terakhir. Workflow memeriksanya setiap hari pukul 05.00 UTC (12.00 WIB). Bila pemeriksaan jadwal terjadi sebelum batas 24 jam, crawl menunggu pemeriksaan berikutnya. Workflow dapat dijalankan manual setelah jatuh tempo.
 
 Snapshot berita nasional terpisah masih memakai interval 5 hari. Mengubah interval crawler tidak menghapus kebutuhan klasifikasi/review artikel Gemini tanpa tanggal publikasi.
+
+## Panel "Keamanan kunci API"
+
+Panel ini hanya menampilkan ringkasan kebijakan berbasis bukti build (`/data/security.json` yang diterbitkan `npm run check:bundle-secrets`): jumlah file bundel yang dipindai dan status guard. Panel tidak pernah menampilkan nilai kunci, nama secret, atau URL layanan. Guard kini juga mencocokkan *pola* kredensial (`AIza…`, `AQ.…`, blok PEM) sehingga kunci bocor tetap tertangkap walau CI tidak pernah melihat nilainya; hanya dua kunci publik (Maps, Firebase web) yang di-allowlist berdasarkan nilai persis.
+
+## Panel "Kesesuaian teknis · AI Builder Cup 2026"
+
+Checklist kepatuhan aturan teknis (bagian B & C) yang dihitung dari bukti nyata halaman: hasil pemeriksaan langsung (Firebase AI Logic, Firestore, proxy `/api/ai`), laporan guard build, dan origin yang melayani halaman. Tiga status dipakai secara jujur:
+
+- `Terpenuhi` — ada bukti pada sesi ini.
+- `Perlu tindakan` — belum ada infrastruktur/bukti (mis. Cloud Run belum ter-deploy, origin bukan domain bawaan Firebase).
+- `Belum diuji` — butuh login Google untuk menguji (mis. `generateContent`).
+
+Bagian "Nilai plus" memuat solusi teknis nyata yang bisa ditonjolkan saat penjurian (pemindahan kunci ke proxy server, guard anti-bocor, rate limit + allowlist origin, transport AI bertingkat, snapshot statis/cache, antarmuka dua bahasa). Tidak ada klaim yang tidak dapat diverifikasi di halaman ini.

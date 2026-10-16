@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { fetchGoogleWeather, WeatherData } from '../services/weather/googleWeather';
 import { DisasterIncident } from '../types';
+import { useI18n } from '../i18n';
 
 interface WeatherDetailSidebarProps {
   location: {
@@ -46,6 +47,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
   onFocusMap,
   isDarkMode = false,
 }) => {
+  const { t } = useI18n();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -80,18 +82,24 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
   };
 
   const handleShareWeather = () => {
-    const text = `Pantauan Cuaca Lapangan di ${location.name} (${location.lat.toFixed(4)}°, ${location.lng.toFixed(4)}°): ${weather?.temperature ?? '-'}°C, ${weather?.conditionText ?? '-'}.`;
+    const text = t('Pantauan Cuaca Lapangan di {name} ({lat}°, {lng}°): {temp}°C, {condition}.', {
+      name: location.name,
+      lat: location.lat.toFixed(4),
+      lng: location.lng.toFixed(4),
+      temp: weather?.temperature ?? '-',
+      condition: weather?.conditionText ?? '-',
+    });
     if (navigator.share) {
       navigator
         .share({
-          title: `DisasterWatch: Cuaca Lapangan ${location.name}`,
+          title: t('DisasterWatch: Cuaca Lapangan {name}', { name: location.name }),
           text,
           url: window.location.href,
         })
         .catch(() => {});
     } else {
       navigator.clipboard.writeText(text);
-      alert('Informasi cuaca berhasil disalin ke clipboard!');
+      alert(t('Informasi cuaca berhasil disalin ke clipboard!'));
     }
   };
 
@@ -103,8 +111,8 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
     if (weather.rainProbability >= 60 || weather.conditionType.includes('RAIN')) {
       tips.push({
         icon: '🌊',
-        title: 'Waspada Curah Hujan Tinggi',
-        desc: 'Potensi kenaikan debit air sungai & aliran lahar dingin. Pastikan pompa submersible di posko pengungsian aktif dan jalur tanggul dipantau 24 jam.',
+        title: t('Waspada Curah Hujan Tinggi'),
+        desc: t('Potensi kenaikan debit air sungai & aliran lahar dingin. Pastikan pompa submersible di posko pengungsian aktif dan jalur tanggul dipantau 24 jam.'),
         type: 'warning',
       });
     }
@@ -112,8 +120,8 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
     if ((weather.thunderstormProbability ?? 0) >= 40 || weather.conditionType.includes('THUNDERSTORM')) {
       tips.push({
         icon: '⚡',
-        title: 'Siaga Bahaya Petir Aktif',
-        desc: 'Tunda sementara evakuasi perahu karet di perairan terbuka dan amankan antena radio komunikasi satgas di bukit terbuka.',
+        title: t('Siaga Bahaya Petir Aktif'),
+        desc: t('Tunda sementara evakuasi perahu karet di perairan terbuka dan amankan antena radio komunikasi satgas di bukit terbuka.'),
         type: 'alert',
       });
     }
@@ -121,8 +129,11 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
     if (weather.windSpeed >= 20 || (weather.windGust && weather.windGust >= 30)) {
       tips.push({
         icon: '💨',
-        title: 'Angin Kencang Lapangan',
-        desc: `Kecepatan angin ${weather.windSpeed} km/h (hembusan ${weather.windGust ?? weather.windSpeed + 10} km/h). Risiko perambatan cepat karhutla dan batasi operasional drone pemantau TRC.`,
+        title: t('Angin Kencang Lapangan'),
+        desc: t('Kecepatan angin {speed} km/h (hembusan {gust} km/h). Risiko perambatan cepat karhutla dan batasi operasional drone pemantau TRC.', {
+          speed: weather.windSpeed,
+          gust: weather.windGust ?? weather.windSpeed + 10,
+        }),
         type: 'alert',
       });
     }
@@ -130,8 +141,8 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
     if (weather.uvIndex >= 8) {
       tips.push({
         icon: '☀️',
-        title: 'Radiasi Panas & UV Ekstrem',
-        desc: 'Suhu terasa tinggi. Pastikan kecukupan logistik cairan rehidrasi oralit untuk relawan lapangan dan warga rentan di posko evakuasi.',
+        title: t('Radiasi Panas & UV Ekstrem'),
+        desc: t('Suhu terasa tinggi. Pastikan kecukupan logistik cairan rehidrasi oralit untuk relawan lapangan dan warga rentan di posko evakuasi.'),
         type: 'info',
       });
     }
@@ -139,8 +150,8 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
     if (tips.length === 0) {
       tips.push({
         icon: '🛡️',
-        title: 'Kondisi Cuaca Lapangan Kondusif',
-        desc: 'Parameter meteorologi stabil untuk kelancaran pendistribusian logistik darat dan penerbangan helikopter pemantau.',
+        title: t('Kondisi Cuaca Lapangan Kondusif'),
+        desc: t('Parameter meteorologi stabil untuk kelancaran pendistribusian logistik darat dan penerbangan helikopter pemantau.'),
         type: 'info',
       });
     }
@@ -166,7 +177,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
               <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse shrink-0"></span>
                 <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight truncate">
-                  Pantauan Cuaca Lapangan
+                  {t('Pantauan Cuaca Lapangan')}
                 </h3>
               </div>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">
@@ -179,15 +190,15 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
             <button
               onClick={handleShareWeather}
               className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-all cursor-pointer"
-              title="Bagikan Data Cuaca"
+              title={t('Bagikan Data Cuaca')}
             >
               <Share2 className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-all cursor-pointer border border-transparent hover:border-rose-200 dark:hover:border-rose-800"
-              title="Tutup & Kembali ke Peta"
-              aria-label="Tutup Info Cuaca"
+              title={t('Tutup & Kembali ke Peta')}
+              aria-label={t('Tutup Info Cuaca')}
             >
               <X className="w-4 h-4" />
             </button>
@@ -213,17 +224,17 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
                   <button
                     onClick={handleCopyCoordinates}
                     className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-medium cursor-pointer"
-                    title="Salin Koordinat GPS"
+                    title={t('Salin Koordinat GPS')}
                   >
                     {copiedCoords ? (
                       <>
                         <Check className="w-3 h-3 text-emerald-500" />
-                        <span className="text-emerald-500">Tersalin</span>
+                        <span className="text-emerald-500">{t('Tersalin')}</span>
                       </>
                     ) : (
                       <>
                         <Copy className="w-3 h-3" />
-                        <span>Salin</span>
+                        <span>{t('Salin')}</span>
                       </>
                     )}
                   </button>
@@ -234,10 +245,10 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
             <button
               onClick={() => onFocusMap({ lat: location.lat, lng: location.lng })}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer shrink-0 active:scale-95"
-              title="Arahkan kamera peta ke koordinat titik cuaca ini"
+              title={t('Arahkan kamera peta ke koordinat titik cuaca ini')}
             >
               <Navigation2 className="w-3.5 h-3.5" />
-              <span>Fokus Peta</span>
+              <span>{t('Fokus Peta')}</span>
             </button>
           </div>
         </div>
@@ -246,7 +257,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
         {loading && !weather ? (
           <div className="bg-slate-50 dark:bg-slate-900/60 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 animate-pulse text-center">
             <RefreshCw className="w-6 h-6 animate-spin mx-auto text-cyan-500 mb-2" />
-            <p className="text-xs text-slate-500">Mengambil data cuaca Google Maps Platform...</p>
+            <p className="text-xs text-slate-500">{t('Mengambil data cuaca Google Maps Platform...')}</p>
           </div>
         ) : weather ? (
           <>
@@ -256,7 +267,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
                 <div className="flex items-center gap-1.5">
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
                     <Sparkles className="w-2.5 h-2.5" />
-                    {weather.source === 'google' ? 'Google MetNet LIVE' : 'Mode Offline / Simulasi'}
+                    {weather.source === 'google' ? 'Google MetNet LIVE' : t('Mode Offline / Simulasi')}
                   </span>
                   {weather.timeZone && (
                     <span className="text-[10px] text-slate-400 font-mono">
@@ -268,7 +279,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
                   onClick={() => loadWeatherData(true)}
                   disabled={isRefreshing}
                   className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                  title="Perbarui cuaca"
+                  title={t('Perbarui cuaca')}
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </button>
@@ -281,14 +292,14 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
                       {weather.temperature}°C
                     </span>
                     <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      Terasa {weather.feelsLike}°C
+                      {t('Terasa {temp}°C', { temp: weather.feelsLike })}
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1 capitalize">
                     {weather.conditionText}
                   </h4>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Data satelit dan stasiun meteorologi terdekat
+                    {t('Data satelit dan stasiun meteorologi terdekat')}
                   </p>
                 </div>
 
@@ -311,7 +322,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
               <div className="bg-white dark:bg-slate-900/70 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 text-center">
                 <div className="flex items-center justify-center gap-1 text-[10px] text-slate-400 font-semibold mb-1">
                   <CloudRain className="w-3.5 h-3.5 text-sky-500" />
-                  <span>Potensi Hujan</span>
+                  <span>{t('Potensi Hujan')}</span>
                 </div>
                 <div className="text-base font-black text-slate-900 dark:text-white">
                   {weather.rainProbability}%
@@ -325,7 +336,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
                       : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-300'
                   }`}
                 >
-                  {weather.rainProbability >= 60 ? 'Tinggi' : weather.rainProbability >= 30 ? 'Sedang' : 'Rendah'}
+                  {weather.rainProbability >= 60 ? t('Tinggi') : weather.rainProbability >= 30 ? t('Sedang') : t('Rendah')}
                 </span>
               </div>
 
@@ -333,13 +344,13 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
               <div className="bg-white dark:bg-slate-900/70 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 text-center">
                 <div className="flex items-center justify-center gap-1 text-[10px] text-slate-400 font-semibold mb-1">
                   <Wind className="w-3.5 h-3.5 text-teal-500" />
-                  <span>Kec. Angin</span>
+                  <span>{t('Kec. Angin')}</span>
                 </div>
                 <div className="text-base font-black text-slate-900 dark:text-white">
                   {weather.windSpeed} <span className="text-[10px] font-normal text-slate-400">km/h</span>
                 </div>
                 <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium block mt-1 truncate">
-                  Arah: {weather.windDirection}
+                  {t('Arah: {dir}', { dir: weather.windDirection })}
                 </span>
               </div>
 
@@ -347,7 +358,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
               <div className="bg-white dark:bg-slate-900/70 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 text-center">
                 <div className="flex items-center justify-center gap-1 text-[10px] text-slate-400 font-semibold mb-1">
                   <CloudLightning className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Potensi Petir</span>
+                  <span>{t('Potensi Petir')}</span>
                 </div>
                 <div className="text-base font-black text-slate-900 dark:text-white">
                   {weather.thunderstormProbability ?? 0}%
@@ -359,7 +370,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
                       : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-300'
                   }`}
                 >
-                  {(weather.thunderstormProbability ?? 0) >= 40 ? 'Waspada' : 'Aman'}
+                  {(weather.thunderstormProbability ?? 0) >= 40 ? t('Waspada') : t('Aman')}
                 </span>
               </div>
 
@@ -367,13 +378,13 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
               <div className="bg-white dark:bg-slate-900/70 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 text-center">
                 <div className="flex items-center justify-center gap-1 text-[10px] text-slate-400 font-semibold mb-1">
                   <Droplets className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Kelembaban</span>
+                  <span>{t('Kelembaban')}</span>
                 </div>
                 <div className="text-base font-black text-slate-900 dark:text-white">
                   {weather.humidity}%
                 </div>
                 <span className="text-[9px] text-slate-400 font-medium block mt-1">
-                  Udara Permukaan
+                  {t('Udara Permukaan')}
                 </span>
               </div>
 
@@ -381,13 +392,13 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
               <div className="bg-white dark:bg-slate-900/70 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 text-center">
                 <div className="flex items-center justify-center gap-1 text-[10px] text-slate-400 font-semibold mb-1">
                   <Sun className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Indeks UV</span>
+                  <span>{t('Indeks UV')}</span>
                 </div>
                 <div className="text-base font-black text-slate-900 dark:text-white">
                   {weather.uvIndex} <span className="text-[10px] font-normal text-slate-400">/ 11</span>
                 </div>
                 <span className="text-[9px] text-slate-400 font-medium block mt-1">
-                  {weather.uvIndex >= 8 ? 'Sangat Tinggi' : weather.uvIndex >= 6 ? 'Tinggi' : 'Sedang'}
+                  {weather.uvIndex >= 8 ? t('Sangat Tinggi') : weather.uvIndex >= 6 ? t('Tinggi') : t('Sedang')}
                 </span>
               </div>
 
@@ -395,13 +406,13 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
               <div className="bg-white dark:bg-slate-900/70 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 text-center">
                 <div className="flex items-center justify-center gap-1 text-[10px] text-slate-400 font-semibold mb-1">
                   <Gauge className="w-3.5 h-3.5 text-purple-500" />
-                  <span>Tekanan</span>
+                  <span>{t('Tekanan')}</span>
                 </div>
                 <div className="text-base font-black text-slate-900 dark:text-white">
                   {weather.airPressure ?? 1010} <span className="text-[10px] font-normal text-slate-400">hPa</span>
                 </div>
                 <span className="text-[9px] text-slate-400 font-medium block mt-1">
-                  Barometrik
+                  {t('Barometrik')}
                 </span>
               </div>
             </div>
@@ -411,7 +422,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
               <div className="flex items-center gap-2 pb-2 mb-3 border-b border-slate-100 dark:border-slate-800">
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
                 <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                  Rekomendasi Operasional Tanggap Darurat (TRC)
+                  {t('Rekomendasi Operasional Tanggap Darurat (TRC)')}
                 </h4>
               </div>
 
@@ -444,10 +455,10 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-cyan-500" />
                     <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                      Prakiraan Cuaca 3 Hari (Google Earth AI)
+                      {t('Prakiraan Cuaca 3 Hari (Google Earth AI)')}
                     </h4>
                   </div>
-                  <span className="text-[10px] text-slate-400">Pembaruan berkala</span>
+                  <span className="text-[10px] text-slate-400">{t('Pembaruan berkala')}</span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
@@ -487,7 +498,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
       {/* Footer Attribution */}
       <div className="pt-3 mt-4 border-t border-slate-100 dark:border-slate-800 text-center">
         <p className="text-[10px] text-slate-400 flex items-center justify-center gap-1.5">
-          <span>Didukung oleh</span>
+          <span>{t('Didukung oleh')}</span>
           <span className="font-bold text-slate-600 dark:text-slate-300">Google Maps Platform Weather API</span>
           <span>•</span>
           <span className="text-cyan-600 dark:text-cyan-400 font-semibold">MetNet Model</span>

@@ -1,3 +1,5 @@
+import { AutomaticImpact } from './detail/AutomaticImpact';
+import { NarrativeImpact } from './detail/NarrativeImpact';
 import { BnpbImpactCard } from './detail/BnpbImpactCard';
 import { useMemo } from 'react';
 import { useMobileLayout } from './useMobileLayout';
@@ -22,6 +24,7 @@ import type { AidRecord, IntelligenceReport } from '../domain/intelligence';
 import type { NttCaseState } from '../services/nttCaseStore';
 import { ExpandedDetailContent } from './ExpandedDetailContent';
 import { WeatherCard } from './WeatherCard';
+import { useI18n } from '../i18n';
 
 
 interface SlimSidebarProps {
@@ -60,6 +63,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
   nttCase,
   onOpenNttIntelligence,
 }) => {
+  const { t, locale } = useI18n();
   const [failedPhotoUrl, setFailedPhotoUrl] = React.useState<string | null>(null);
   const showPhoto = !!disaster.photoUrl && disaster.photoUrl !== failedPhotoUrl;
   const mobile = useMobileLayout();
@@ -173,11 +177,11 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${disaster.urgencyClass}`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-              {disaster.urgency.toUpperCase()}
+              {t(disaster.urgency).toUpperCase()}
             </span>
 
             <span className="text-[11px] text-slate-400">
-              Update 3m lalu
+              {t('Update 3m lalu')}
             </span>
           </div>
 
@@ -192,7 +196,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
               hover:bg-slate-100
               transition-colors
             "
-            aria-label="Minimize sidebar"
+            aria-label={t('Minimize sidebar')}
           >
             <PanelRightClose className="w-4 h-4" />
           </button>
@@ -232,18 +236,19 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 
           <div className="grid grid-cols-2 gap-3 mt-3 mb-3">
             <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
-              <p className="text-[11px] font-medium text-slate-400">Estimasi Dampak</p>
-              <p className="mt-1 text-[18px] font-bold text-slate-900">{disaster.cost || 'Belum tersedia'}</p>
-              <p className="mt-2 text-[11px] font-medium text-slate-400">{disaster.impact}</p>
+              <p className="text-[11px] font-medium text-slate-400">{t('Estimasi Dampak')}</p>
+              <div className="mt-1 text-[18px] font-bold text-slate-900"><AutomaticImpact incidentId={disaster.id} fallback={disaster.cost}/></div>
+              <p className="mt-2 text-[11px] font-medium text-slate-400">{t(disaster.impact)}</p>
             </div>
             <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
-              <p className="text-[11px] font-medium text-slate-400">Gap Recovery</p>
-              <p className="mt-1 text-[18px] font-bold text-slate-900">{disaster.gapRecovery || 'Belum tersedia'}</p>
+              <p className="text-[11px] font-medium text-slate-400">{t('Gap Recovery')}</p>
+              <p className="mt-1 text-[18px] font-bold text-slate-900">{disaster.gapRecovery ? t(disaster.gapRecovery) : t('Belum tersedia')}</p>
               <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-amber-500" style={{width: `${disaster.recoveryPct}%`}} /></div>
             </div>
           </div>
+          <NarrativeImpact incidentId={disaster.id}/>
           {!showPhoto && <div className="mt-3 mb-3 h-32 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-2 text-slate-400">
-            <span className="text-xs font-semibold">Dokumentasi kejadian</span><span className="text-[11px]">Belum tersedia</span>
+            <span className="text-xs font-semibold">{t('Dokumentasi kejadian')}</span><span className="text-[11px]">{t('Belum tersedia')}</span>
           </div>}
           {/* Disaster Field Photo */}
           {showPhoto && <div className="mt-3 mb-3 relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group">
@@ -257,11 +262,11 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
             />
             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 flex items-center justify-between text-white">
               <div className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide">
-                <span>Dokumentasi kejadian</span>
+                <span>{t('Dokumentasi kejadian')}</span>
               </div>
               <div className="text-[9px] text-white/80 truncate max-w-[170px]">
                 {disaster.photoSourceUrl ? <a href={disaster.photoSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">{disaster.photoSource}</a> : disaster.photoSource}
-                {disaster.photoReportDate && <div>Laporan {new Date(disaster.photoReportDate).toLocaleDateString('id-ID', {day:'numeric', month:'short', timeZone:'Asia/Jakarta'})}</div>}
+                {disaster.photoReportDate && <div>{t('Laporan {date}', { date: new Date(disaster.photoReportDate).toLocaleDateString(locale, {day:'numeric', month:'short', timeZone:'Asia/Jakarta'}) })}</div>}
               </div>
             </div>
           </div>}
@@ -276,7 +281,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
               }}
               className="min-w-0 py-2.5 px-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
             >
-              <span>Detail Bencana</span>
+              <span>{t('Detail Bencana')}</span>
             </button>
             <button
               type="button"
@@ -287,7 +292,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
               className="min-w-0 py-2.5 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
             >
               <Compass className="w-4 h-4 shrink-0 text-orange-400" aria-hidden="true" />
-              <span>Posko Evakuasi</span>
+              <span>{t('Posko Evakuasi')}</span>
             </button>
           </div>
         </div>
@@ -424,7 +429,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 
         {/* Cuaca lapangan (Google Weather) — below Update Berita Terkini */}
         <div className="rounded-[20px] border border-slate-200 bg-white p-4" data-purpose="mini-weather">
-          <h4 className="text-[14px] font-bold text-slate-900 mb-3">Cuaca Lapangan</h4>
+          <h4 className="text-[14px] font-bold text-slate-900 mb-3">{t('Cuaca Lapangan')}</h4>
           <WeatherCard
             lat={disaster.coords.lat}
             lng={disaster.coords.lng}
@@ -443,7 +448,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
           className="flex w-full shrink-0 items-center justify-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 hover:brightness-110 text-white rounded-full text-xs font-bold shadow-md shadow-violet-500/25 transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
         >
           <MessageCircle className="w-4 h-4" aria-hidden="true" />
-          <span>Tanya DisasterAI</span>
+          <span>{t('Tanya DisasterAI')}</span>
         </button>
       </div>
       </>

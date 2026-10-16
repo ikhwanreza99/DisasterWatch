@@ -1110,3 +1110,5 @@
 .admin-badge.rejected{background:#fff1f2;color:#b91c1c;}
 
 .admin-review footer{flex-wrap:wrap;}
+
+.admin-evidence{margin:18px 0;border:1px solid #e2e8f0;border-radius:14px;padding:14px;min-width:0}.admin-evidence legend{font-weight:700;padding:0 6px}.admin-review .admin-evidence-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9}.admin-evidence-row input[type=checkbox]{width:18px;height:18px;flex-shrink:0;margin-top:3px}.admin-evidence-row span{min-width:0;overflow-wrap:anywhere}.admin-evidence-row a{display:block;font-size:12px;margin-top:6px;color:#2563eb}.admin-reject-dialog{max-width:560px}.admin-review select{max-width:100%}

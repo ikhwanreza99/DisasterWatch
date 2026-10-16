@@ -1,118 +1,26 @@
-import React, { useState } from 'react';
-import { Flame, Waves, Activity, LayoutGrid, ListFilter, X, Mountain, TriangleAlert } from 'lucide-react';
-import { CategoryFilter, DisasterCategory } from '../types';
-
-interface CategoryFilterBarProps {
-  mobile?: boolean;
-  activeCategory: CategoryFilter;
-  onSelectCategory: (cat: CategoryFilter) => void;
-  isDarkMode: boolean;
-}
-
-export const CategoryFilterBar: React.FC<CategoryFilterBarProps> = ({
-  mobile = false,
-  activeCategory,
-  onSelectCategory,
-  isDarkMode,
-}) => {
-  const [open, setOpen] = useState(false);
-  if (mobile) {
-    const choices = [
-      { id: 'all', label: 'Semua', Icon: LayoutGrid },
-      { id: 'fire', label: 'Api', Icon: Flame },
-      { id: 'flood', label: 'Banjir', Icon: Waves },
-      { id: 'earthquake', label: 'Gempa', Icon: Activity },
-      { id: 'landslide', label: 'Longsor', Icon: Mountain },
-      { id: 'other', label: 'Lainnya', Icon: TriangleAlert },
-    ] as const;
-    return <div className="mobile-filter-menu sm:hidden">
-      {open && <div id="mobile-disaster-options" className="mobile-filter-options" role="group" aria-label="Jenis bencana">
-        {choices.map(({ id, label, Icon }) => <button key={id} type="button" aria-pressed={activeCategory === id}
-          onClick={() => { onSelectCategory(id); setOpen(false); }} className={activeCategory === id ? 'selected' : ''}>
-          <Icon size={17} aria-hidden="true" /><span>{label}</span>
-        </button>)}
-      </div>}
-      <button type="button" className="mobile-filter-toggle" aria-label={open ? 'Tutup filter bencana' : 'Buka filter bencana'}
-        aria-expanded={open} aria-controls="mobile-disaster-options" onClick={() => setOpen(value => !value)}>
-        {open ? <X size={20} /> : <ListFilter size={20} />}
-      </button>
-    </div>;
-  }
-  return (
-    <div
-      className={`${mobile ? 'mobile-category-dock sm:hidden' : 'hidden sm:flex'} absolute left-3 sm:left-6 top-[3.75rem] sm:top-16 z-30 flex flex-row sm:flex-col [@media(max-height:560px)]:flex-row gap-1.5 sm:gap-2.5 p-1.5 sm:p-2 bg-white/95 dark:bg-[#0b1329]/90 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-700/70 shadow-xl pointer-events-auto select-none transition-colors duration-300`}
-      data-purpose="category-filter-bar"
-    >
-      {/* All */}
-      <button
-        onClick={() => onSelectCategory('all')}
-        aria-pressed={activeCategory === 'all'}
-        className={`cat-filter-btn group relative w-11 h-11 rounded-xl flex flex-col sm:flex-row items-center justify-center transition-all active:scale-95 shadow-xs ${
-          activeCategory === 'all'
-            ? 'bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950 font-bold shadow-md'
-            : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/50'
-        }`}
-        title="Tampilkan semua bencana"
-      >
-        <LayoutGrid className="w-5 h-5 transition-transform group-hover:scale-110" />
-        <span className="text-[9px] leading-tight sm:absolute sm:left-16 sm:px-2.5 sm:py-1 sm:rounded-md sm:bg-slate-900 sm:text-white sm:text-[11px] font-medium whitespace-nowrap sm:opacity-0 pointer-events-none sm:group-hover:opacity-100 transition-opacity sm:shadow-md z-30">
-          <span className="sm:hidden">Semua</span><span className="hidden sm:inline">Semua Bencana</span>
-        </span>
-      </button>
-
-      {/* Fire */}
-      <button
-        onClick={() => onSelectCategory('fire')}
-        className={`cat-filter-btn group relative w-11 h-11 rounded-xl flex flex-col sm:flex-row items-center justify-center transition-all active:scale-95 shadow-xs ${
-          activeCategory === 'fire'
-            ? 'bg-amber-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-amber-400'
-            : 'bg-slate-50 hover:bg-orange-50 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 hover:text-orange-500 dark:text-slate-300 dark:hover:text-amber-400 border border-slate-200/80 dark:border-slate-700/50'
-        }`}
-        title="Kebakaran Hutan & Lahan"
-      >
-        <Flame className="w-5 h-5 transition-transform group-hover:scale-110" />
-        <span className="text-[9px] leading-tight sm:absolute sm:left-16 sm:px-2.5 sm:py-1 sm:rounded-md sm:bg-slate-900 sm:text-white sm:text-[11px] font-medium whitespace-nowrap sm:opacity-0 pointer-events-none sm:group-hover:opacity-100 transition-opacity sm:shadow-md z-30">
-          <span className="sm:hidden">Api</span><span className="hidden sm:inline">Kebakaran Hutan & Lahan</span>
-        </span>
-      </button>
-
-      {/* Flood */}
-      <button
-        onClick={() => onSelectCategory('flood')}
-        className={`cat-filter-btn group relative w-11 h-11 rounded-xl flex flex-col sm:flex-row items-center justify-center transition-all active:scale-95 shadow-xs ${
-          activeCategory === 'flood'
-            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-400'
-            : 'bg-slate-50 hover:bg-blue-50 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 hover:text-blue-500 dark:text-slate-300 dark:hover:text-blue-400 border border-slate-200/80 dark:border-slate-700/50'
-        }`}
-        title="Banjir & Genangan"
-      >
-        <Waves className="w-5 h-5 transition-transform group-hover:scale-110" />
-        <span className="text-[9px] leading-tight sm:absolute sm:left-16 sm:px-2.5 sm:py-1 sm:rounded-md sm:bg-slate-900 sm:text-white sm:text-[11px] font-medium whitespace-nowrap sm:opacity-0 pointer-events-none sm:group-hover:opacity-100 transition-opacity sm:shadow-md z-30">
-          <span className="sm:hidden">Banjir</span><span className="hidden sm:inline">Banjir & Cuaca Ekstrem</span>
-        </span>
-      </button>
-
-      {/* Earthquake */}
-      <button
-        onClick={() => onSelectCategory('earthquake')}
-        className={`cat-filter-btn group relative w-11 h-11 rounded-xl flex flex-col sm:flex-row items-center justify-center transition-all active:scale-95 shadow-xs ${
-          activeCategory === 'earthquake'
-            ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/30 ring-2 ring-rose-400'
-            : 'bg-slate-50 hover:bg-rose-50 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 hover:text-rose-500 dark:text-slate-300 dark:hover:text-rose-400 border border-slate-200/80 dark:border-slate-700/50'
-        }`}
-        title="Gempa Bumi & Geologi"
-      >
-        <Activity className="w-5 h-5 transition-transform group-hover:scale-110" />
-        <span className="text-[9px] leading-tight sm:absolute sm:left-16 sm:px-2.5 sm:py-1 sm:rounded-md sm:bg-slate-900 sm:text-white sm:text-[11px] font-medium whitespace-nowrap sm:opacity-0 pointer-events-none sm:group-hover:opacity-100 transition-opacity sm:shadow-md z-30">
-          <span className="sm:hidden">Gempa</span><span className="hidden sm:inline">Gempa Bumi & Keretakan</span>
-        </span>
-      </button>
-      {([{ id: 'landslide', name: 'Longsor', Icon: Mountain }, { id: 'other', name: 'Bencana lainnya', Icon: TriangleAlert }] as const).map(({id, name, Icon}) => (
-        <button key={id} type="button" title={name} aria-label={name} aria-pressed={activeCategory === id}
-          onClick={() => onSelectCategory(id)} className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center border ${activeCategory === id ? 'bg-slate-700 text-white' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-          <Icon className="w-5 h-5" />
-        </button>
-      ))}
-    </div>
-  );
+import React,{useEffect,useState} from 'react';
+import {Flame,Waves,Activity,LayoutGrid,ListFilter,X,Mountain,TriangleAlert} from 'lucide-react';
+import type {CategoryFilter,DisasterCategory} from '../types';
+import {useI18n} from '../i18n';
+interface Props {mobile?:boolean;activeCategory:CategoryFilter;onSelectCategory:(category:CategoryFilter)=>void;isDarkMode:boolean;availableCategories?:DisasterCategory[]}
+const choices=[{id:'all',label:'Semua bencana',Icon:LayoutGrid},{id:'fire',label:'Kebakaran',Icon:Flame},{id:'flood',label:'Banjir',Icon:Waves},{id:'earthquake',label:'Gempa',Icon:Activity},{id:'landslide',label:'Longsor',Icon:Mountain},{id:'other',label:'Bencana lainnya',Icon:TriangleAlert}] as const;
+export const CategoryFilterBar:React.FC<Props>=({mobile=false,activeCategory,onSelectCategory,availableCategories=[]})=>{
+ const {t}=useI18n();
+ const [desktop,setDesktop]=useState(false);
+ const [open,setOpen]=useState(false);
+ useEffect(()=>{const media=window.matchMedia('(min-width:1024px) and (min-height:561px)');const update=()=>{setDesktop(!mobile&&media.matches);setOpen(!mobile&&media.matches);};update();media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[mobile]);
+ const visible=choices.filter(c=>!['landslide','other'].includes(c.id)||availableCategories.includes(c.id as DisasterCategory));
+ useEffect(()=>{if((activeCategory==='landslide'||activeCategory==='other')&&!availableCategories.includes(activeCategory))onSelectCategory('all');},[activeCategory,availableCategories,onSelectCategory]);
+ if(desktop)return <div role="group" aria-label={t('Jenis bencana')} data-purpose="category-filter-bar" className="absolute left-6 top-16 z-30 flex flex-col gap-2.5 rounded-2xl border border-slate-200/90 bg-white/95 p-2 shadow-xl backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95 pointer-events-auto">
+ {visible.map(({id:category,label,Icon})=><button key={category} type="button" title={t(label)} aria-label={t(label)} aria-pressed={activeCategory===category} onClick={()=>onSelectCategory(category)} className={`group relative flex h-11 w-11 items-center justify-center rounded-xl border transition-colors ${activeCategory===category?(category==='fire'?'bg-amber-500 border-amber-400 text-white':category==='flood'?'bg-blue-600 border-blue-400 text-white':category==='earthquake'?'bg-rose-600 border-rose-400 text-white':'bg-slate-900 border-slate-900 text-white'):'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}>
+ <Icon size={20}/><span className="pointer-events-none absolute left-16 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-[11px] text-white opacity-0 shadow-md group-hover:opacity-100 group-focus-visible:opacity-100">{t(label)}</span></button>)}
+ </div>;
+ const id=mobile?'mobile-disaster-options':'desktop-disaster-options';
+ return <div className={mobile?'relative sm:hidden pointer-events-auto':'hidden sm:block absolute left-[140px] top-4 z-40 pointer-events-auto'} data-purpose={mobile?'mobile-category-filter':'category-filter-bar'}>
+ <button type="button" aria-expanded={open} aria-controls={id} aria-label={open?t('Minimalkan jenis bencana'):t('Buka jenis bencana')} onClick={()=>setOpen(!open)} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-lg dark:bg-slate-900 dark:text-slate-100">
+ {open?<X size={18}/>:<ListFilter size={18}/>}<span className="hidden sm:inline">{activeCategory==='all'?t('Jenis bencana'):t(choices.find(c=>c.id===activeCategory)?.label??'')}</span></button>
+ {open&&<div id={id} role="group" aria-label={t('Jenis bencana')} className={`absolute top-[52px] ${mobile?'right-0':'left-0'} grid grid-cols-2 gap-1 w-[244px] max-w-[calc(100vw-96px)] rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:bg-slate-900`}>
+ {visible.map(({id:category,label,Icon})=><button key={category} type="button" aria-pressed={activeCategory===category} onClick={()=>{onSelectCategory(category);if(!desktop)setOpen(false);}} className={`flex min-h-11 items-center gap-2 rounded-xl px-2 text-left text-[11px] ${activeCategory===category?'bg-slate-900 text-white dark:bg-cyan-700':'text-slate-600 hover:bg-slate-100 dark:text-slate-200'}`}><Icon size={18} className="shrink-0"/><span>{t(label)}</span></button>)}
+ </div>}
+ </div>;
 };

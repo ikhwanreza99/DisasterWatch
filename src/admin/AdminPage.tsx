@@ -1,3 +1,6 @@
+import { PROVINCE_BOUNDS } from '../services/locationValidation';
+import { currentArticles, currentRecords } from '../data/currentIncidents';
+import { newsSourceUrl } from '../services/newsSourceUrl';
 import {
   lazy,
   Suspense,
@@ -35,7 +38,10 @@ import type { IntelligenceReport } from "../domain/intelligence";
 import { needLabel } from "../domain/intelligence";
 import { adminApi, AdminError, type Page } from "./api";
 import type { TokenSample } from "./tokenUsage";
+import { isFinalReviewStatus } from "./reviewPolicy";
 import "./admin.css";
+import { useI18n, translate, localeFor } from "../i18n";
+import { LanguageToggle } from "../i18n/LanguageToggle";
 
 const GoogleStatusPage = lazy(() => import("../components/GoogleStatusPage"));
 
@@ -84,7 +90,7 @@ const labels: Record<string, string> = {
 };
 const date = (value?: string) =>
   value && Number.isFinite(Date.parse(value))
-    ? new Date(value).toLocaleString("id-ID", {
+    ? new Date(value).toLocaleString(localeFor(), {
         dateStyle: "medium",
         timeStyle: "short",
         timeZone: "Asia/Jakarta",
@@ -95,10 +101,11 @@ const date = (value?: string) =>
 const errorText = (error: unknown) =>
   error instanceof Error
     ? error.message
-    : "Terjadi kesalahan. Silakan coba lagi.";
+    : translate("Terjadi kesalahan. Silakan coba lagi.");
 function Brand() {
+  const { t } = useI18n();
   return (
-    <a href="/" className="admin-brand" aria-label="DisasterWatch beranda">
+    <a href="/" className="admin-brand" aria-label={t("DisasterWatch beranda")}>
       <span className="admin-logo">
         <Radio size={19} />
       </span>
@@ -107,9 +114,10 @@ function Brand() {
   );
 }
 function Badge({ status }: { status: string }) {
+  const { t } = useI18n();
   return (
     <span className={`admin-badge ${status.toLowerCase()}`}>
-      {labels[status] || status}
+      {t(labels[status] || status)}
     </span>
   );
 }
@@ -145,6 +153,7 @@ function tabFromLocation(): Tab {
 }
 
 export default function AdminPage() {
+  const { t } = useI18n();
   const [session, setSession] = useState<{
     username: string;
     demo: boolean;
@@ -182,13 +191,13 @@ export default function AdminPage() {
   }, []);
   useEffect(() => {
     document.title = session
-      ? `${menus.find((m) => m.id === tab)!.name} · DisasterWatch`
-      : "Login Admin · DisasterWatch";
-  }, [tab, session]);
+      ? `${t(menus.find((m) => m.id === tab)!.name)} · DisasterWatch`
+      : t("Login Admin · DisasterWatch");
+  }, [tab, session, t]);
   const expire = useCallback((e: unknown) => {
     if (e instanceof AdminError && e.status === 401) {
       setSession(null);
-      setError("Sesi berakhir. Silakan login kembali.");
+      setError(translate("Sesi berakhir. Silakan login kembali."));
     }
   }, []);
   async function login(event: FormEvent<HTMLFormElement>) {
@@ -227,7 +236,7 @@ export default function AdminPage() {
   if (checking)
     return (
       <div className="admin-app admin-loading" role="status">
-        Memeriksa sesi admin…
+        {t("Memeriksa sesi admin…")}
       </div>
     );
   if (!session)
@@ -235,59 +244,58 @@ export default function AdminPage() {
       <div className="admin-app admin-login">
         <header>
           <Brand />
-          <span>Portal Verificator</span>
+          <span>{t("Portal Verificator")}</span>
         </header>
         <main>
           <div className="admin-login-intro">
             <span className="admin-eyebrow">DISASTERWATCH · ADMIN</span>
             <h1>
-              Informasi terpercaya.
+              {t("Informasi terpercaya.")}
               <br />
-              <em>Respons lebih tepat.</em>
+              <em>{t("Respons lebih tepat.")}</em>
             </h1>
             <p>
-              Ruang kerja tim verificator untuk meninjau laporan dan menjaga
-              kualitas informasi bencana.
+              {t("Ruang kerja tim verificator untuk meninjau laporan dan menjaga kualitas informasi bencana.")}
             </p>
             <div className="admin-login-points">
               <ShieldCheck />
-              <span>Verifikasi manusia untuk setiap laporan.</span>
+              <span>{t("Verifikasi manusia untuk setiap laporan.")}</span>
             </div>
             <div className="admin-login-points">
               <Activity />
-              <span>Pantau data dan layanan dalam satu tempat.</span>
+              <span>{t("Pantau data dan layanan dalam satu tempat.")}</span>
             </div>
           </div>
           <section className="admin-login-card">
             <div className="admin-lock">
               <LockKeyhole size={24} />
             </div>
-            <h2>Selamat datang kembali</h2>
-            <p>Masuk untuk mengakses dashboard admin.</p>
+            <h2>{t("Selamat datang kembali")}</h2>
+            <p>{t("Masuk untuk mengakses dashboard admin.")}</p>
             <form onSubmit={login}>
-              <label htmlFor="username">Username</label>
+              <label htmlFor="username">{t("Username")}</label>
               <input
                 id="username"
                 name="username"
                 autoComplete="username"
-                placeholder="Masukkan username"
+                placeholder={t("Masukkan username")}
                 required
                 autoFocus
               />
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">{t("Password")}</label>
               <div className="admin-password">
                 <input
                   id="password"
                   name="password"
                   type={visible ? "text" : "password"}
                   autoComplete="current-password"
-                  placeholder="Masukkan password"
+                  placeholder={t("Masukkan password")}
                   required
                 />
                 <button
                   type="button"
                   aria-label={
-                    visible ? "Sembunyikan password" : "Tampilkan password"
+                    visible ? t("Sembunyikan password") : t("Tampilkan password")
                   }
                   aria-pressed={visible}
                   onClick={() => setVisible(!visible)}
@@ -301,42 +309,42 @@ export default function AdminPage() {
                 </div>
               )}
               <button className="admin-primary" disabled={busy}>
-                {busy ? "Memproses…" : "Masuk ke dashboard"}
+                {busy ? t("Memproses…") : t("Masuk ke dashboard")}
                 <ArrowRight size={18} />
               </button>
             </form>
             <div className="admin-login-note">
-              <ShieldCheck size={16} /> Akses khusus tim verificator
-              DisasterWatch
+              <ShieldCheck size={16} /> {t("Akses khusus tim verificator DisasterWatch")}
             </div>
           </section>
         </main>
-        <footer>DisasterWatch · Bersama, lebih siap menghadapi bencana.</footer>
+        <footer>{t("DisasterWatch · Bersama, lebih siap menghadapi bencana.")}</footer>
       </div>
     );
   return (
     <div className="admin-app">
       <a className="admin-skip" href="#admin-content">
-        Lewati ke konten
+        {t("Lewati ke konten")}
       </a>
       <header className="admin-header">
         <Brand />
         <div className="admin-account">
-          <span className="admin-avatar" aria-label="Pengguna Admin">
+          <LanguageToggle />
+          <span className="admin-avatar" aria-label={t("Pengguna Admin")}>
             <UserRound size={19} />
           </span>
           <span className="admin-account-name">
             <strong>admin · superuser</strong>
-            <small>Verificator</small>
+            <small>{t("Verificator")}</small>
           </span>
           <button
             onClick={logout}
             disabled={busy}
-            aria-label="Logout"
+            aria-label={t("Logout")}
             className="admin-logout"
           >
             <LogOut size={17} />
-            <span>Logout</span>
+            <span>{t("Logout")}</span>
           </button>
         </div>
       </header>
@@ -348,11 +356,11 @@ export default function AdminPage() {
             aria-expanded={menuOpen}
             aria-controls="admin-navigation"
           >
-            <Menu size={20} /> Menu dashboard <ChevronRight size={16} />
+            <Menu size={20} /> {t("Menu dashboard")} <ChevronRight size={16} />
           </button>
           <div id="admin-navigation" className="admin-navigation">
-            <div className="admin-eyebrow">RUANG KERJA</div>
-            <nav aria-label="Menu admin">
+            <div className="admin-eyebrow">{t("RUANG KERJA")}</div>
+            <nav aria-label={t("Menu admin")}>
               {menus.map((m) => (
                 <a
                   key={m.id}
@@ -364,41 +372,40 @@ export default function AdminPage() {
                   }}
                 >
                   <m.icon size={19} />
-                  <span>{m.name}</span>
+                  <span>{t(m.name)}</span>
                   {tab === m.id && <ChevronRight size={16} />}
                 </a>
               ))}
             </nav>
             <div className="admin-sidebar-note">
               <ShieldCheck size={22} />
-              <strong>Setiap laporan berarti.</strong>
-              <p>Periksa sumber dan detail sebelum memberikan persetujuan.</p>
+              <strong>{t("Setiap laporan berarti.")}</strong>
+              <p>{t("Periksa sumber dan detail sebelum memberikan persetujuan.")}</p>
             </div>
             <a className="admin-back" href="/">
-              <ArrowLeft size={16} /> Kembali ke halaman publik
+              <ArrowLeft size={16} /> {t("Kembali ke halaman publik")}
             </a>
           </div>
         </aside>
         <main id="admin-content" className="admin-content">
           <div className="admin-breadcrumb">
-            Dashboard <ChevronRight size={13} />
-            <span>{current.name}</span>
+            {t("Dashboard")} <ChevronRight size={13} />
+            <span>{t(current.name)}</span>
           </div>
           <div className="admin-page-heading">
             <div>
-              <h1>{current.name}</h1>
-              <p>{current.description}</p>
+              <h1>{t(current.name)}</h1>
+              <p>{t(current.description)}</p>
             </div>
             <span className="admin-role">
-              <ShieldCheck size={15} /> Verificator
+              <ShieldCheck size={15} /> {t("Verificator")}
             </span>
           </div>
           {session.demo && tab !== "services" && (
             <div className="admin-notice">
-              <strong>Mode demo lokal</strong>
+              <strong>{t("Mode demo lokal")}</strong>
               <span>
-                Data simulasi. Persetujuan hanya berlaku sampai server dimulai
-                ulang.
+                {t("Data simulasi. Persetujuan hanya berlaku sampai server dimulai ulang.")}
               </span>
             </div>
           )}
@@ -412,7 +419,7 @@ export default function AdminPage() {
           ) : tab === "disasters" ? (
             <Records key="disasters" kind="disasters" onError={expire} />
           ) : tab === "services" ? (
-            <Suspense fallback={<div className="admin-empty" role="status">Memuat status layanan…</div>}>
+            <Suspense fallback={<div className="admin-empty" role="status">{t("Memuat status layanan…")}</div>}>
               <GoogleStatusPage embedded />
             </Suspense>
           ) : (
@@ -431,6 +438,7 @@ function Records({
   kind: "reports" | "disasters";
   onError: (e: unknown) => void;
 }) {
+  const { t } = useI18n();
   const [collection, setCollection] = useState<string>(kind);
   const [filter, setFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -440,6 +448,7 @@ function Records({
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [selected, setSelected] = useState<Report | null>(null);
+  const [selectedDisaster, setSelectedDisaster] = useState<any | null>(null);
   const [message, setMessage] = useState("");
   const cursor = cursors[cursors.length - 1];
   useEffect(() => {
@@ -488,20 +497,20 @@ function Records({
         <Stat
           label={
             kind === "reports"
-              ? "Laporan sesuai filter"
-              : "Total catatan dalam koleksi"
+              ? t("Laporan sesuai filter")
+              : t("Total catatan dalam koleksi")
           }
           value={page?.total ?? "—"}
           icon={kind === "reports" ? <FileText /> : <Database />}
         />
         <Stat
-          label="Ditampilkan di halaman ini"
+          label={t("Ditampilkan di halaman ini")}
           value={loading ? "—" : rows.length}
           icon={<Eye />}
         />
         <Stat
           label={
-            kind === "reports" ? "Terverifikasi di halaman ini" : "Sumber data"
+            kind === "reports" ? t("Terverifikasi di halaman ini") : t("Sumber data")
           }
           value={
             kind === "reports"
@@ -511,7 +520,7 @@ function Records({
                 : "—"
               : page
                 ? page.demo
-                  ? "Demo"
+                  ? t("Demo")
                   : "Firestore"
                 : "—"
           }
@@ -521,11 +530,11 @@ function Records({
       <section className="admin-panel">
         <div className="admin-panel-heading">
           <div>
-            <h2>{kind === "reports" ? "Daftar laporan" : "Daftar bencana"}</h2>
+            <h2>{kind === "reports" ? t("Daftar laporan") : t("Daftar bencana")}</h2>
             <p>
               {kind === "reports"
-                ? "Buka detail untuk memeriksa dan menyetujui laporan."
-                : "Pilih koleksi untuk melihat data bencana yang tersedia."}
+                ? t("Buka detail untuk memeriksa dan menyetujui laporan.")
+                : t("Pilih koleksi untuk melihat data bencana yang tersedia.")}
             </p>
           </div>
           <button
@@ -533,46 +542,46 @@ function Records({
             onClick={() => setRefresh((v) => v + 1)}
             disabled={loading}
           >
-            <RefreshCw size={15} /> Muat ulang
+            <RefreshCw size={15} /> {t("Muat ulang")}
           </button>
         </div>
         <div className="admin-toolbar">
           <label className="admin-search">
             <Search size={18} />
             <input
-              aria-label="Cari pada halaman ini"
+              aria-label={t("Cari pada halaman ini")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari pada halaman ini…"
+              placeholder={t("Cari pada halaman ini…")}
             />
           </label>
           {kind === "reports" ? (
             <select
-              aria-label="Filter status laporan"
+              aria-label={t("Filter status laporan")}
               value={filter}
               onChange={(e) => {
                 setFilter(e.target.value);
                 setCursors([""]);
               }}
             >
-              <option value="">Semua status</option>
+              <option value="">{t("Semua status")}</option>
               {Object.entries(labels).map(([key, label]) => (
                 <option key={key} value={key}>
-                  {label}
+                  {t(label)}
                 </option>
               ))}
             </select>
           ) : (
             <select
-              aria-label="Koleksi bencana"
+              aria-label={t("Koleksi bencana")}
               value={collection}
               onChange={(e) => {
                 setCollection(e.target.value);
                 setCursors([""]);
               }}
             >
-              <option value="disasters">Bencana dashboard</option>
-              <option value="incidents">Insiden pipeline</option>
+              <option value="disasters">{t("Bencana dashboard")}</option>
+              <option value="incidents">{t("Insiden pipeline")}</option>
             </select>
           )}
         </div>
@@ -584,20 +593,20 @@ function Records({
         )}
         {loading ? (
           <div className="admin-empty" role="status">
-            Memuat data…
+            {t("Memuat data…")}
           </div>
         ) : error ? (
           <div className="admin-error" role="alert">
             {error}
-            <button onClick={() => setRefresh((v) => v + 1)}>Coba lagi</button>
+            <button onClick={() => setRefresh((v) => v + 1)}>{t("Coba lagi")}</button>
           </div>
         ) : rows.length === 0 ? (
           <Empty
-            title={search ? "Tidak ada hasil pencarian" : "Belum ada data"}
+            title={search ? t("Tidak ada hasil pencarian") : t("Belum ada data")}
           >
             {search
-              ? "Coba kata kunci lain atau kosongkan pencarian."
-              : "Data akan tampil di sini setelah tersedia. Anda juga bisa mengubah filter."}
+              ? t("Coba kata kunci lain atau kosongkan pencarian.")
+              : t("Data akan tampil di sini setelah tersedia. Anda juga bisa mengubah filter.")}
           </Empty>
         ) : (
           <div className="admin-table-scroll">
@@ -606,18 +615,18 @@ function Records({
                 <tr>
                   {(kind === "reports"
                     ? [
-                        "Laporan & lokasi",
-                        "Pelapor",
-                        "Waktu laporan",
-                        "Status",
-                        "Aksi",
+                        t("Laporan & lokasi"),
+                        t("Pelapor"),
+                        t("Waktu laporan"),
+                        t("Status"),
+                        t("Aksi"),
                       ]
                     : [
-                        "Nama bencana",
-                        "Lokasi",
-                        "Kategori",
-                        "Waktu",
-                        "ID catatan",
+                        t("Nama bencana"),
+                        t("Lokasi"),
+                        t("Kategori"),
+                        t("Waktu"),
+                        t("ID catatan"),
                       ]
                   ).map((v) => (
                     <th key={v}>{v}</th>
@@ -630,7 +639,7 @@ function Records({
                     <tr key={row.id}>
                       <td>
                         <strong className="admin-cell-title">
-                          {row.location?.name || "Lokasi belum tersedia"}
+                          {row.location?.name || t("Lokasi belum tersedia")}
                         </strong>
                         <span className="admin-excerpt">{row.rawText}</span>
                         <small>
@@ -639,7 +648,7 @@ function Records({
                         </small>
                       </td>
                       <td>
-                        {row.sourceName || "Tidak diketahui"}
+                        {row.sourceName || t("Tidak diketahui")}
                         <small>{row.sourceType || "—"}</small>
                       </td>
                       <td className="admin-date">{date(row.createdAt)}</td>
@@ -653,7 +662,7 @@ function Records({
                           className="admin-detail-link"
                           onClick={() => setSelected({...row, targetCollection: "reports"})}
                         >
-                          Tinjau <ArrowRight size={15} />
+                          {t("Tinjau")} <ArrowRight size={15} />
                         </button>
                       </td>
                     </tr>
@@ -663,7 +672,7 @@ function Records({
                         <strong>
                           {row.name || row.title || row.fullName || row.id}
                         </strong>
-                        {row.isMock && <small>DEMO</small>}
+                        <small>{row.isMock === true ? t("DEMO · data simulasi") : row.isMock === false ? t("REAL · data kejadian") : t("Asal data belum diketahui")}{row.reviewDisaster ? t(" · titik REAL terhubung") : ""}</small>
                       </td>
                       <td>
                         {row.province ||
@@ -676,12 +685,14 @@ function Records({
                         {row.category || row.disasterType || row.type || "—"}
                       </td>
                       <td className="admin-date">
-                        {date(row.timestamp || row.updatedAt || row.createdAt)}
+                        {date(row.reviewDisaster?.eventDate || row.eventDate || row.timestamp || row.updatedAt || row.createdAt)}
                       </td>
                       <td>
                         <small>{row.id}</small>
-                        <small>{row.approvalStatus === 'APPROVED' ? 'Disetujui superuser' : 'Menunggu fact-check'}</small>
-                        {!row.isMock && collection === 'disasters' && <button className="admin-detail-link" onClick={() => setSelected({...row, targetCollection:'disasters', rawText:row.guide?.cause ?? row.summary ?? row.name, location:{name:row.name,lat:row.coords?.lat,lng:row.coords?.lng}, verificationStatus:row.approvalStatus==='APPROVED'?'VERIFIED':row.approvalStatus==='REJECTED'?'REJECTED':'UNVERIFIED', approvalStatus:row.approvalStatus??'PENDING'})}>Fact-check <ArrowRight size={15}/></button>}
+                        <small>{row.isMock === true ? t("Data simulasi") : t("Data bencana")}</small>
+                        <button className="admin-detail-link" onClick={() => setSelectedDisaster(row)}>
+                          {t("Lihat detail")} <ArrowRight size={15} />
+                        </button>
                       </td>
                     </tr>
                   ),
@@ -692,18 +703,18 @@ function Records({
         )}
         <div className="admin-pagination">
           <span>
-            {page ? `${page.total} catatan · Halaman ${cursors.length}` : "—"}
+            {page ? t("{count} catatan · Halaman {page}", { count: page.total, page: cursors.length }) : "—"}
           </span>
           <div>
             <button
-              aria-label="Halaman sebelumnya"
+              aria-label={t("Halaman sebelumnya")}
               disabled={loading || cursors.length === 1}
               onClick={() => setCursors((v) => v.slice(0, -1))}
             >
               <ArrowLeft size={16} />
             </button>
             <button
-              aria-label="Halaman berikutnya"
+              aria-label={t("Halaman berikutnya")}
               disabled={loading || !page?.next}
               onClick={() => {
                 if (page?.next) setCursors((v) => [...v, page.next!]);
@@ -723,16 +734,100 @@ function Records({
             setSelected(null);
             setRefresh((v) => v + 1);
             setMessage(
-              "Fact-check tersimpan. Laporan/titik disetujui superuser.",
+              translate("Keputusan fact-check berhasil disimpan."),
             );
           }}
+        />
+      )}
+      {selectedDisaster && (
+        <DisasterDetail
+          row={selectedDisaster}
+          onClose={() => setSelectedDisaster(null)}
         />
       )}
     </>
   );
 }
 
-function Review({
+function DisasterDetail({
+  row,
+  onClose,
+}: {
+  row: any;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const ref = useRef<HTMLDialogElement>(null);
+  const [articles, setArticles] = useState<Array<{title?: string; url: string; sourceName?: string}>>([]);
+  const record = row.reviewDisaster ?? row;
+  const id = record.id ?? row.id;
+  const name = row.name || row.title || record.name || record.title || row.fullName || id;
+  const summary = row.summary || row.description || record.summary || record.description || record.guide?.cause || row.rawText;
+  const sourceRows = [row, record].flatMap((item) => [
+    ...(Array.isArray(item.evidenceUrls) ? item.evidenceUrls : []),
+    item.sourceUrl,
+    item.url,
+  ]).filter((url): url is string => typeof url === "string");
+
+  useEffect(() => {
+    const dialog = ref.current!;
+    dialog.showModal();
+    return () => dialog.close();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const normalize = (rows: Array<{title?: string; url?: string; sourceName?: string}>) => rows
+      .flatMap((article) => (article.url?.match(/https:\/\/[^\s]+/g) ?? []).map((url) => ({...article, url: newsSourceUrl(url)})))
+      .filter((article): article is {title?: string; url: string; sourceName?: string} => !!article.url)
+      .filter((article, index, all) => all.findIndex((candidate) => candidate.url === article.url) === index);
+    const fallback = normalize([
+      ...currentArticles.filter((article) => article.incidentId === id),
+      ...sourceRows.map((url) => ({url, sourceName: translate("Sumber data bencana")})),
+    ]);
+    setArticles(fallback);
+    adminApi<{rows: Array<{title?: string; url?: string; sourceName?: string}>}>(`/evidence/${encodeURIComponent(id)}`)
+      .then((data) => {
+        if (active) setArticles(normalize([...data.rows, ...fallback]));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [id]);
+
+  const location = row.province || row.location?.name || (typeof row.location === "string" ? row.location : record.province) || "—";
+  const category = row.category || row.disasterType || row.type || record.category || record.disasterType || "—";
+  const occurredAt = row.eventDate || row.timestamp || row.updatedAt || row.createdAt || record.eventDate || record.timestamp;
+
+  return (
+    <dialog ref={ref} className="admin-review" aria-labelledby="disaster-detail-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+      <header>
+        <div>
+          <span className="admin-eyebrow">{t("DETAIL BENCANA")} {row.isMock === true ? "· DEMO" : ""}</span>
+          <h2 id="disaster-detail-title">{name}</h2>
+        </div>
+        <button aria-label={t("Tutup detail bencana")} onClick={onClose}><X /></button>
+      </header>
+      <div className="admin-review-body">
+        <dl>
+          <div><dt>{t("Lokasi")}</dt><dd>{location}</dd></div>
+          <div><dt>{t("Kategori")}</dt><dd>{category}</dd></div>
+          <div><dt>{t("Waktu kejadian")}</dt><dd>{date(occurredAt)}</dd></div>
+          <div><dt>{t("ID catatan")}</dt><dd>{id}</dd></div>
+        </dl>
+        {summary && <><h3>{t("Ringkasan")}</h3><p className="admin-report-text">{summary}</p></>}
+        <h3>{t("Sumber berita dan data")}</h3>
+        {articles.length ? articles.map((article) => (
+          <a key={article.url} href={article.url} target="_blank" rel="noopener noreferrer">
+            {article.title || article.sourceName || article.url} · {t("Buka sumber")} ↗
+          </a>
+        )) : <p>{t("Belum ada tautan sumber yang tercatat.")}</p>}
+      </div>
+      <footer><button className="admin-secondary" onClick={onClose}>{t("Tutup")}</button></footer>
+    </dialog>
+  );
+}
+
+export function Review({
   report,
   onClose,
   onApproved,
@@ -743,20 +838,35 @@ function Review({
   onApproved: () => void;
   onError: (e: unknown) => void;
 }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
-  const [note, setNote] = useState("");
-  const [evidence, setEvidence] = useState("");
+  const reviewed = isFinalReviewStatus(report.verificationStatus);
+  const savedEvidence=(report.evidenceUrls??[]).map(newsSourceUrl).filter((url):url is string=>!!url);
+  const [note, setNote] = useState(report.reviewNote??"");
+  const [evidence, setEvidence] = useState<string[]>(savedEvidence);
+  const [evidenceLoading,setEvidenceLoading]=useState(true);
+  const [evidenceError,setEvidenceError]=useState("");
+  const [rejectOpen,setRejectOpen]=useState(false);
+  const rejectRef=useRef<HTMLDialogElement>(null);
+  const [rejectNote,setRejectNote]=useState("");
+  useEffect(()=>{if(rejectOpen)rejectRef.current?.showModal();},[rejectOpen]);
   const [suggestions, setSuggestions] = useState<Array<{title?:string;url?:string;sourceName?:string}>>([]);
   const [latitude,setLatitude]=useState(report.location?.lat?.toString()??'');
   const [longitude,setLongitude]=useState(report.location?.lng?.toString()??'');
   const [province,setProvince]=useState((report as Report & {province?:string}).province??'');
   useEffect(()=>{
     let active=true;
-    const id=report.targetCollection==='disasters'?report.id:report.disasterId;
-    if(id) adminApi<{rows:Array<{title?:string;url?:string;sourceName?:string}>}>(`/evidence/${encodeURIComponent(id)}`).then(data=>{if(active)setSuggestions(data.rows);}).catch(()=>{});
+    const name=report.location?.name?.toLowerCase()??'';
+    const inferred=currentRecords.filter(r=>[r.name,...r.aliases].some(alias=>name.split(/[,;]/).some(part=>part.trim()===alias.toLowerCase())));
+    const id=report.targetCollection==='disasters'?report.id:report.disasterId || (inferred.length===1?inferred[0].id:undefined);
+    const normalize=(rows:Array<{title?:string;url?:string;sourceName?:string}>)=>rows.flatMap(row=>(row.url?.match(/https:\/\/[^\s]+/g)??[]).map(raw=>({...row,url:newsSourceUrl(raw)}))).filter((row,index,all)=>!!row.url&&all.findIndex(other=>other.url===row.url)===index) as Array<{title?:string;url:string;sourceName?:string}>;
+    const fallback=normalize([...currentArticles.filter(a=>a.incidentId===id && a.discoveredBy!=='threads:keyword-search'),...savedEvidence.map(url=>({url,sourceName:new URL(url).hostname,title:translate('Bukti tersimpan oleh verifikator')}))]);
+    if(!id){setSuggestions(fallback);setEvidenceLoading(false);setEvidenceError(translate('Belum ada kejadian yang cocok untuk memuat berita pendukung.'));return;}
+    adminApi<{rows:Array<{title?:string;url?:string;sourceName?:string}>}>(`/evidence/${encodeURIComponent(id)}`).then(data=>{
+      if(active)setSuggestions(normalize([...data.rows,...fallback]));
+    }).catch(()=>{if(active){setSuggestions(fallback);setEvidenceError(translate('Berita Firestore gagal dimuat; menampilkan berita snapshot jika tersedia.'));}}).finally(()=>{if(active)setEvidenceLoading(false);});
     return ()=>{active=false;};
   },[report.id,report.disasterId,report.targetCollection]);
-  const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -766,12 +876,15 @@ function Review({
   }, []);
   const [rejectionReason,setRejectionReason]=useState("NO_DISASTER");
   async function approve(decision: "approve" | "reject" = "approve") {
-    setBusy(true);
     setError("");
+    if(decision==='approve' && !report.isMock && (evidence.length<1 || evidence.length>3)){setError(translate('Centang 1–3 berita pendukung sebelum menyetujui laporan.'));return;}
+    if(decision==='approve' && note.trim() && note.trim().length<10){setError(translate('Catatan tambahan minimal 10 karakter, atau kosongkan untuk menggunakan ringkasan bukti terpilih.'));return;}
+    if(decision==='reject' && rejectNote.trim().length<10){setError(translate('Isi alasan penolakan minimal 10 karakter.'));return;}
+    setBusy(true);
     try {
       await adminApi(`/${report.targetCollection??"reports"}/${encodeURIComponent(report.id)}/${decision}`, {
-        note, reason:rejectionReason,
-        evidenceUrls:evidence.split(/\s+/).filter(Boolean),
+        note:decision==='reject'?rejectNote:note.trim() || (report.isMock ? t('Persetujuan simulasi DEMO untuk latihan verifikasi; tidak menerbitkan titik peta.') : t('Disetujui berdasarkan {n} berita pendukung setelah pemeriksaan lokasi dan kejadian.', { n: evidence.length })), reason:rejectionReason,
+        evidenceUrls:evidence,
         lat:latitude ? Number(latitude) : undefined, lng:longitude ? Number(longitude) : undefined, province,
         expectedStatus: report.targetCollection==='disasters' ? (report as Report & {approvalStatus:string}).approvalStatus : report.verificationStatus,
       });
@@ -803,11 +916,11 @@ function Review({
     >
       <header>
         <div>
-          <span className="admin-eyebrow">DETAIL LAPORAN</span>
-          <h2 id="review-title">{report.location?.name || "Laporan warga"}</h2>
+          <span className="admin-eyebrow">{t("DETAIL LAPORAN")}</span>
+          <h2 id="review-title">{report.location?.name || t("Laporan warga")}</h2>
         </div>
         <button
-          aria-label="Tutup detail laporan"
+          aria-label={t("Tutup detail laporan")}
           onClick={onClose}
           disabled={busy}
         >
@@ -816,38 +929,39 @@ function Review({
       </header>
       <div className="admin-review-body">
         <Badge status={report.verificationStatus} />
+        {report.isMock && <p className="admin-error">{t("DEMO — approve/tolak disimpan ke laporan simulasi di Firestore. Tidak membuat atau mengubah marker bencana real. Berita pendukung opsional untuk latihan.")}</p>}
         <dl>
           <div>
-            <dt>Pelapor</dt>
+            <dt>{t("Pelapor")}</dt>
             <dd>{report.sourceName}</dd>
           </div>
           <div>
-            <dt>Dilaporkan</dt>
+            <dt>{t("Dilaporkan")}</dt>
             <dd>{date(report.createdAt)}</dd>
           </div>
           <div>
-            <dt>ID laporan</dt>
+            <dt>{t("ID laporan")}</dt>
             <dd>{report.id}</dd>
           </div>
           <div>
-            <dt>Keyakinan AI</dt>
+            <dt>{t("Keyakinan AI")}</dt>
             <dd>
               {typeof report.aiConfidence === "number"
-                ? `${Math.round(report.aiConfidence * 100)}% · bukan verifikasi manusia`
-                : "Belum tersedia"}
+                ? `${Math.round(report.aiConfidence * 100)}% · ${t("bukan verifikasi manusia")}`
+                : t("Belum tersedia")}
             </dd>
           </div>
         </dl>
-        <h3>Isi laporan</h3>
+        <h3>{t("Isi laporan")}</h3>
         <p className="admin-report-text">{report.rawText}</p>
         {safeUrl(report.sourceUrl) && (
           <a href={safeUrl(report.sourceUrl)!} target="_blank" rel="noreferrer">
-            Buka sumber laporan ↗
+            {t("Buka sumber laporan")} ↗
           </a>
         )}
         {safeUrl(report.mediaUrl) && (
           <a href={safeUrl(report.mediaUrl)!} target="_blank" rel="noreferrer">
-            Buka bukti lampiran ↗
+            {t("Buka bukti lampiran")} ↗
           </a>
         )}
         {report.extractedData?.conflictNotes && (
@@ -857,11 +971,11 @@ function Review({
         )}
         {!!report.extractedData?.needs?.length && (
           <>
-            <h3>Kebutuhan yang teridentifikasi</h3>
+            <h3>{t("Kebutuhan yang teridentifikasi")}</h3>
             <div className="admin-tags">
               {report.extractedData.needs.map((n, i) => (
                 <span key={`${n.category}-${i}`}>
-                  {needLabel(n.category)}
+                  {t(needLabel(n.category))}
                   {n.quantity ? ` · ${n.quantity} ${n.unit || ""}` : ""}
                 </span>
               ))}
@@ -871,21 +985,15 @@ function Review({
         {report.verificationStatus === "VERIFIED" ? (
           <div className="admin-success">
             {report.reviewedBy
-              ? `Disetujui ${report.reviewedBy} · ${date(report.reviewedAt)}`
-              : "Laporan sudah berstatus terverifikasi. Riwayat persetujuan manusia belum tercatat."}
+              ? t("Disetujui {name} · {date}", { name: report.reviewedBy, date: date(report.reviewedAt) })
+              : t("Laporan sudah berstatus terverifikasi. Riwayat persetujuan manusia belum tercatat.")}
             {report.reviewNote && <p>{report.reviewNote}</p>}
           </div>
-        ) : report.verificationStatus === "REJECTED" ? <div className="admin-error">Laporan ditolak. Marker bencana terkait disembunyikan.<p>{report.reviewNote}</p></div> : null}
+        ) : report.verificationStatus === "REJECTED" ? <div className="admin-error">{t("Laporan ditolak. Marker bencana terkait disembunyikan.")}<p>{report.reviewNote}</p></div> : null}
         {report.verificationStatus !== "REJECTED" && (
           <>
-            <label htmlFor="rejection-reason">Alasan penolakan</label>
-            <select id="rejection-reason" value={rejectionReason} onChange={e=>setRejectionReason(e.target.value)}>
-              <option value="NO_DISASTER">Tidak ada bencana di titik ini</option>
-              <option value="HOAX">Laporan hoaks</option>
-            </select>
-            <p>Penolakan menyembunyikan marker bencana terkait dari peta. Catatan fact-check wajib; tautan bukti dianjurkan.</p>
-            <label htmlFor="review-note">
-              Catatan fact-check <small>(wajib, minimal 10 karakter)</small>
+            {!reviewed && <><label htmlFor="review-note">
+              {t("Catatan fact-check")} <small>{t("(opsional untuk persetujuan)")}</small>
             </label>
             <textarea
               id="review-note"
@@ -893,21 +1001,17 @@ function Review({
               onChange={(e) => setNote(e.target.value)}
               maxLength={1000}
               rows={3}
-              placeholder="Tambahkan hasil pengecekan sumber atau konteks laporan…"
+              placeholder={t("Tambahkan hasil pengecekan sumber atau konteks laporan…")}
             />
-            <label htmlFor="evidence-urls">Tautan bukti (wajib untuk persetujuan; opsional untuk penolakan, maksimal 5)</label>
-            <textarea id="evidence-urls" value={evidence} onChange={event=>setEvidence(event.target.value)} rows={3} placeholder="Berita, laporan BNPB/BMKG, atau eviden lainnya" />
-            {report.sourceUrl && <p><a href={report.sourceUrl} target="_blank" rel="noopener noreferrer">Sumber record</a></p>}
-            {suggestions.map((source,index)=><p key={index}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.sourceName}: {source.title}</a></p>)}
-            {report.targetCollection!=='disasters' && <div><label>Provinsi titik<input value={province} onChange={event=>setProvince(event.target.value)} placeholder="Contoh: Jawa Timur"/></label><label>Latitude titik<input value={latitude} onChange={event=>setLatitude(event.target.value)} type="number" min="-90" max="90" step="any"/></label><label>Longitude titik<input value={longitude} onChange={event=>setLongitude(event.target.value)} type="number" min="-180" max="180" step="any"/></label></div>}
-            <label className="admin-confirm">
-              <input
-                type="checkbox"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-              />
-              Saya sudah memeriksa nama kota/kabupaten, provinsi, koordinat pada peta, tanggal kejadian, dan sumber evidennya.
-            </label>
+            </>}
+            <fieldset className="admin-evidence"><legend>{reviewed ? t("Bukti pilihan verifikator ({count} terpilih)", { count: evidence.length }) : t("Berita pendukung — pilih 1–3 berita ({count}/3)", { count: evidence.length })}</legend>
+              {evidenceLoading && <p role="status">{t("Memuat berita pendukung…")}</p>}
+              {evidenceError && <p role="status">{evidenceError}</p>}
+              {!evidenceLoading && suggestions.length===0 && <p>{t("Belum ada berita pendukung yang cocok. Laporan belum dapat disetujui; pilihan Tolak tetap tersedia.")}</p>}
+              {suggestions.map((source,index)=>{const url=newsSourceUrl(source.url)!;return <label key={url||index} className="admin-evidence-row"><input type="checkbox" aria-label={t("Pilih bukti: {name}", { name: source.title||source.sourceName||new URL(url).hostname })} checked={evidence.includes(url)} disabled={reviewed || (!evidence.includes(url)&&evidence.length>=3)} onChange={e=>setEvidence(previous=>e.target.checked?[...previous,url]:previous.filter(v=>v!==url))}/><span>{source.title||source.sourceName||url}<a href={url} target="_blank" rel="noopener noreferrer">{t("Buka sumber")} · {source.sourceName||new URL(url).hostname}</a></span></label>;})}
+            </fieldset>
+            {!reviewed && report.targetCollection!=='disasters' && <div><label>{t("Provinsi titik")}<select value={province} onChange={event=>setProvince(event.target.value)}><option value="">{t("Pilih provinsi")}</option>{Object.keys(PROVINCE_BOUNDS).sort().map(name=><option key={name} value={name}>{name}</option>)}</select></label><label>{t("Latitude titik")}<input value={latitude} onChange={event=>setLatitude(event.target.value)} type="number" min="-90" max="90" step="any"/></label><label>{t("Longitude titik")}<input value={longitude} onChange={event=>setLongitude(event.target.value)} type="number" min="-180" max="180" step="any"/></label></div>}
+
           </>
         )}
         {error && (
@@ -918,25 +1022,38 @@ function Review({
       </div>
       <footer>
         <button className="admin-secondary" onClick={onClose} disabled={busy}>
-          Tutup
+          {t("Tutup")}
         </button>
-        {report.verificationStatus !== "REJECTED" && <button className="admin-reject" disabled={!confirmed || busy || note.trim().length<10 || report.isMock} onClick={()=>approve("reject")}><X size={17}/>Tolak laporan</button>}
-        {!["VERIFIED","REJECTED"].includes(report.verificationStatus) && (
+        {!reviewed && <button className="admin-reject" disabled={busy} onClick={()=>{setError("");setRejectOpen(true);}}><X size={17}/>{t("Tolak laporan")}</button>}
+        {!reviewed && (
           <button
             className="admin-primary"
-            disabled={!confirmed || busy || note.trim().length<10 || !evidence.trim() || report.isMock}
+            disabled={busy}
             onClick={()=>approve("approve")}
           >
             <ShieldCheck size={17} />
-            {busy ? "Menyimpan…" : "Setujui laporan"}
+            {busy ? t("Menyimpan…") : t("Setujui laporan")}
           </button>
         )}
       </footer>
+      {rejectOpen && <dialog ref={rejectRef} className="admin-review admin-reject-dialog" aria-labelledby="reject-title" onCancel={e=>{e.preventDefault();if(!busy){rejectRef.current?.close();setRejectOpen(false);setError('');}}}>
+        <header><h2 id="reject-title">{t("Tolak laporan")}</h2></header>
+        <div className="admin-review-body">
+          <p>{t("Penolakan menyembunyikan marker bencana terkait. Tentukan alasan berdasarkan pemeriksaan Anda.")}</p>
+          <label htmlFor="rejection-reason">{t("Alasan penolakan")}</label>
+          <select id="rejection-reason" value={rejectionReason} onChange={e=>setRejectionReason(e.target.value)}><option value="NO_DISASTER">{t("Tidak ada bencana di titik ini")}</option><option value="HOAX">{t("Laporan hoaks")}</option></select>
+          <label htmlFor="rejection-note">{t("Catatan penolakan (minimal 10 karakter)")}</label>
+          <textarea id="rejection-note" value={rejectNote} onChange={e=>setRejectNote(e.target.value)} maxLength={1000} rows={4}/>
+          {error && <div className="admin-error" role="alert">{error}</div>}
+        </div>
+        <footer><button className="admin-secondary" disabled={busy} onClick={()=>{rejectRef.current?.close();setRejectOpen(false);setError('');}}>{t("Batal")}</button><button className="admin-reject" disabled={busy} onClick={()=>approve('reject')}>{busy?t('Menyimpan…'):t('Konfirmasi penolakan')}</button></footer>
+      </dialog>}
     </dialog>
   );
 }
 
 function Tokens() {
+  const { t } = useI18n();
   const [samples, setSamples] = useState<TokenSample[]>([]);
   const [days, setDays] = useState("7");
   const [loading, setLoading] = useState(true);
@@ -947,7 +1064,7 @@ function Tokens() {
       try {
         const data = await adminApi<TokenSample[]>("/ai-usage");
         if (active) { setSamples(data); setError(""); }
-      } catch { if (active) setError("Gagal membaca aiUsage. Periksa koneksi dan publikasikan Firestore Rules terbaru."); }
+      } catch { if (active) setError(translate("Gagal membaca aiUsage. Periksa koneksi dan publikasikan Firestore Rules terbaru.")); }
       finally { if (active) setLoading(false); }
     };
     void update();
@@ -957,32 +1074,30 @@ function Tokens() {
   const rows = samples.filter(
     (s) => Date.parse(s.at) >= Date.now() - Number(days) * 86400_000,
   );
-  const fmt = (n: number | null) => n === null ? "—" : n.toLocaleString("id-ID");
+  const fmt = (n: number | null) => n === null ? "—" : n.toLocaleString(localeFor());
   const sum = (key: "input" | "output" | "total") =>
     rows.some(s => s[key] === null) ? "—" : fmt(rows.reduce((total, s) => total + (s[key] ?? 0), 0));
   return (
     <>
       <div className="admin-notice">
-        <strong>Cakupan: Firestore aiUsage</strong>
+        <strong>{t("Cakupan: Firestore aiUsage")}</strong>
         <span>
-          Maksimal 1.000 panggilan terbaru dari crawler dan browser pengguna yang login.
-          Metadata browser dilaporkan oleh klien; metadata crawler dicatat server.
-          Bukan total tagihan proyek. Diperbarui setiap 30 detik.
+          {t("Maksimal 1.000 panggilan terbaru dari crawler dan browser pengguna yang login. Metadata browser dilaporkan oleh klien; metadata crawler dicatat server. Bukan total tagihan proyek. Diperbarui setiap 30 detik.")}
         </span>
       </div>
       <div className="admin-stats">
         <Stat
-          label="Total token tercatat"
+          label={t("Total token tercatat")}
           value={rows.length ? sum("total") : "—"}
           icon={<Sparkles />}
         />
         <Stat
-          label="Token input"
+          label={t("Token input")}
           value={rows.length ? sum("input") : "—"}
           icon={<ArrowRight />}
         />
         <Stat
-          label="Token output"
+          label={t("Token output")}
           value={rows.length ? sum("output") : "—"}
           icon={<ArrowLeft />}
         />
@@ -990,32 +1105,31 @@ function Tokens() {
       <section className="admin-panel">
         <div className="admin-panel-heading">
           <div>
-            <h2>Riwayat penggunaan AI</h2>
+            <h2>{t("Riwayat penggunaan AI")}</h2>
             <p>
-              Jumlah aktual yang dikembalikan provider. Total dapat mencakup
-              token penalaran.
+              {t("Jumlah aktual yang dikembalikan provider. Total dapat mencakup token penalaran.")}
             </p>
           </div>
           <select
-            aria-label="Periode penggunaan token"
+            aria-label={t("Periode penggunaan token")}
             value={days}
             onChange={(e) => setDays(e.target.value)}
           >
-            <option value="1">24 jam terakhir</option>
-            <option value="7">7 hari terakhir</option>
-            <option value="30">30 hari terakhir</option>
+            <option value="1">{t("24 jam terakhir")}</option>
+            <option value="7">{t("7 hari terakhir")}</option>
+            <option value="30">{t("30 hari terakhir")}</option>
           </select>
         </div>
-        {error ? <Empty title="Data token belum dapat dibaca">{error}</Empty> : loading ? <Empty title="Memuat penggunaan token…">Mengambil catatan dari Firestore.</Empty> : rows.length ? (
+        {error ? <Empty title={t("Data token belum dapat dibaca")}>{error}</Empty> : loading ? <Empty title={t("Memuat penggunaan token…")}>{t("Mengambil catatan dari Firestore.")}</Empty> : rows.length ? (
           <div className="admin-table-scroll">
             <table>
               <thead>
                 <tr>
-                  <th>Waktu</th>
-                  <th>Model</th>
-                  <th>Input</th>
-                  <th>Output</th>
-                  <th>Total</th>
+                  <th>{t("Waktu")}</th>
+                  <th>{t("Model")}</th>
+                  <th>{t("Input")}</th>
+                  <th>{t("Output")}</th>
+                  <th>{t("Total")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1035,9 +1149,8 @@ function Tokens() {
             </table>
           </div>
         ) : (
-          <Empty title="Belum ada penggunaan token tercatat">
-            Catatan muncul setelah panggilan Gemini baru berhasil dan metadata tersimpan di Firestore.
-            Riwayat sebelum pencatatan diaktifkan tidak tersedia.
+          <Empty title={t("Belum ada penggunaan token tercatat")}>
+            {t("Catatan muncul setelah panggilan Gemini baru berhasil dan metadata tersimpan di Firestore. Riwayat sebelum pencatatan diaktifkan tidak tersedia.")}
           </Empty>
         )}
       </section>
