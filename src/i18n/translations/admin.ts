@@ -281,6 +281,13 @@ const admin: Record<string, string> = {
     'Choose a rejection reason and enter a fact-check note of at least 10 characters.',
   'Maksimal 5 tautan bukti.': 'Maximum 5 evidence links.',
   'Tautan bukti harus berupa URL HTTPS yang valid.': 'Evidence links must be valid HTTPS URLs.',
+
+  // AdminPage login card — evaluator (jury) credentials
+  'Akses juri · simulasi approval': 'Evaluator access · approval simulation',
+  'Akun demo untuk mencoba alur verifikasi laporan dan approval titik bencana. Hak aksesnya sama dengan admin.':
+    'Demo account for trying the report verification and disaster-point approval flow. It holds the same access as admin.',
+  'Akun ini dapat mengubah data produksi. Gunakan hanya selama sesi penilaian.':
+    'This account can change production data. Use it only during the evaluation session.',
 };
 
 export default admin;

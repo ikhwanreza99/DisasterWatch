@@ -316,6 +316,28 @@ export default function AdminPage() {
             <div className="admin-login-note">
               <ShieldCheck size={16} /> {t("Akses khusus tim verificator DisasterWatch")}
             </div>
+            <div className="admin-judge" data-purpose="judge-access">
+              <div className="admin-judge-head">
+                <Sparkles size={15} />
+                <strong>{t("Akses juri · simulasi approval")}</strong>
+              </div>
+              <p>
+                {t("Akun demo untuk mencoba alur verifikasi laporan dan approval titik bencana. Hak aksesnya sama dengan admin.")}
+              </p>
+              <dl>
+                <div>
+                  <dt>{t("Username")}</dt>
+                  <dd><code>admindemo</code></dd>
+                </div>
+                <div>
+                  <dt>{t("Password")}</dt>
+                  <dd><code>admindemo123</code></dd>
+                </div>
+              </dl>
+              <p className="admin-judge-warn">
+                {t("Akun ini dapat mengubah data produksi. Gunakan hanya selama sesi penilaian.")}
+              </p>
+            </div>
           </section>
         </main>
         <footer>{t("DisasterWatch · Bersama, lebih siap menghadapi bencana.")}</footer>
@@ -334,7 +356,7 @@ export default function AdminPage() {
             <UserRound size={19} />
           </span>
           <span className="admin-account-name">
-            <strong>admin · superuser</strong>
+            <strong>{session.username} · superuser</strong>
             <small>{t("Verificator")}</small>
           </span>
           <button

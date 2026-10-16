@@ -51,3 +51,33 @@ the existence of real incidents; clicking explains this restriction.
 Google Search refresh reloads the published server status snapshot only. A nearby
 workflow link runs a fresh backend probe with check_google_search enabled.
 Browser requests never receive the GitHub or backend API secrets.
+
+## Evaluator (jury) account `admindemo`
+
+A second account, `admindemo` / Firebase Auth `admindemo@disasterwatch-61ed5.local`,
+exists for evaluation: its credentials are printed on the `/admin` login card so a
+judge can run the approval workflow without the primary account. The project owner
+chose full parity with `admin`, so it carries the same custom claim
+`superuser:true` and the same `users/<uid>` profile role `SUPERUSER`; no rule was
+loosened for it and `firestore.rules` is unchanged.
+
+That parity is the whole risk: anyone who opens `/admin` can approve or reject the
+live incidents, not only judges. Treat the account as public:
+
+- Rotate it after the evaluation window, or set `DEMO_ADMIN_PASSWORD` to a fresh
+  value and re-run the workflow, then update the login card.
+- To revoke it, disable the user in Firebase Console → Authentication, or delete
+  `admindemo@disasterwatch-61ed5.local`; both take effect without a redeploy.
+
+Provisioning runs in its own workflow, `Setup jury demo superuser`, which does
+exactly one thing and never re-provisions the primary account:
+
+```
+node --import tsx scripts/provisionDemoSuperuser.ts
+```
+
+It enables Email/Password (Google OAuth untouched), creates or updates the account,
+sets the `superuser:true` claim, revokes its old sessions and writes the Firestore
+profile. The password is never logged. Running `Setup superuser and approval rules`
+instead would also reset the primary `admin` password and re-release the rules.
+

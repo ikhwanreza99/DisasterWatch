@@ -8,6 +8,13 @@ import { locationValidation } from '../services/locationValidation';
 import { translate } from '../i18n';
 
 let adminApp: ReturnType<typeof initializeApp> | null = null;
+// Two dedicated superuser accounts share the same Firebase Auth sign-in path.
+// `admindemo` is the evaluator-facing one: identical privilege, published on
+// /admin so the approval workflow can be demonstrated without the primary account.
+const ADMIN_EMAIL = 'admin@disasterwatch-61ed5.local';
+const DEMO_EMAIL = 'admindemo@disasterwatch-61ed5.local';
+const ACCOUNTS: Record<string, string> = { admin: ADMIN_EMAIL, admindemo: DEMO_EMAIL };
+const usernameFor = (email: string | null) => (email === DEMO_EMAIL ? 'admindemo' : 'admin');
 function context() {
   getFirebaseApp(); // Preserve default Google user session, admin has a separate app.
   if (!adminApp) {
@@ -29,21 +36,23 @@ async function superuser() {
 }
 export async function firebaseAdminApi(path: string, body?: any): Promise<unknown> {
   if (path === '/login') {
-    if (body?.username !== 'admin') throw Object.assign(new Error(translate('Username atau password salah.')), {status:401});
+    const username = String(body?.username ?? '').trim().toLowerCase();
+    const email = ACCOUNTS[username];
+    if (!email) throw Object.assign(new Error(translate('Username atau password salah.')), {status:401});
     const {auth} = context();
     await setPersistence(auth, browserSessionPersistence);
     try {
-      await signInWithEmailAndPassword(auth, 'admin@disasterwatch-61ed5.local', body.password);
+      await signInWithEmailAndPassword(auth, email, body.password);
       await superuser();
     } catch { await signOut(auth); throw Object.assign(new Error(translate('Login ditolak. Periksa akun superuser dan Email/Password provider.')), {status:401}); }
-    return {username:'admin', demo:false};
+    return {username, demo:false};
   }
   const {auth, db, user} = await superuser();
   if (path === '/ai-usage') {
     const snapshot = await getDocs(query(collection(db,'aiUsage'), orderBy('at','desc'), limit(1000)));
     return snapshot.docs.map(d => ({...d.data(), id:d.id}));
   }
-  if (path === '/session') return {username:'admin', demo:false};
+  if (path === '/session') return {username: usernameFor(user.email), demo:false};
   if (path === '/logout') { await signOut(auth); return {ok:true}; }
   if (path === '/health') { await getDocs(query(collection(db,'reports'),limit(1))); return {state:'ok', checkedAt:new Date().toISOString(), detail:translate('Firebase Auth superuser dan akses Firestore berhasil.')}; }
   const url = new URL(path, 'https://admin.local');

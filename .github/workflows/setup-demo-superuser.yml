@@ -1,0 +1,35 @@
+name: Setup jury demo superuser
+# Kept separate from "Setup superuser and approval rules" on purpose: that job
+# also re-provisions the primary `admin` account (reset password, revoke tokens)
+# and re-releases the Firestore rules. Creating the evaluator account must not
+# touch either of those, so this workflow does exactly one thing.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: setup-demo-superuser
+  cancel-in-progress: false
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Provision jury demo superuser (admindemo)
+        id: demo
+        continue-on-error: true
+        run: node --import tsx scripts/provisionDemoSuperuser.ts
+        env:
+          FIREBASE_ADMIN_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+          # Optional. Without it the published default in the script is used.
+          DEMO_ADMIN_PASSWORD: ${{ secrets.DEMO_ADMIN_PASSWORD }}
+      - name: Fail if provisioning did not complete
+        if: steps.demo.outcome == 'failure'
+        run: |
+          echo 'Demo superuser provisioning failed. The service account needs Firebase Authentication Admin plus Firestore write access.'
+          exit 1
