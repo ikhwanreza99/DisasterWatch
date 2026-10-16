@@ -734,6 +734,7 @@ export default function App() {
         onClose={() => setIsDonationModalOpen(false)}
         disaster={activeDisaster}
         onAidAdded={handleAidAdded}
+        onSuggestedPosts={(id,posts)=>setDisasters(previous=>previous[id]?{...previous,[id]:{...previous[id],route:{...previous[id].route,checkpoints:posts}}}:previous)}
       /></Suspense>}
     </div>
   );
