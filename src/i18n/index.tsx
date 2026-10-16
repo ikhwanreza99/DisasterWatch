@@ -26,7 +26,12 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { en } from './translations';
+// Indonesian uses the source keys; download English only when selected.
+let en: Record<string, string> | null = null;
+let englishPromise: Promise<void> | null = null;
+export function loadEnglishTranslations(): Promise<void> {
+  return englishPromise ??= import('./translations').then(module => { en = module.en; });
+}
 
 export type Lang = 'id' | 'en';
 export type TranslationParams = Record<string, string | number | undefined | null>;
@@ -80,7 +85,7 @@ export function localeFor(lang: Lang = activeLang): string {
 
 /** Translate a key using the current language. Safe outside React. */
 export function t(key: string, params?: TranslationParams): string {
-  const raw = activeLang === 'en' ? en[key] ?? key : key;
+  const raw = activeLang === 'en' ? en?.[key] ?? key : key;
   return interpolate(raw, params);
 }
 
@@ -122,6 +127,8 @@ function syncDocumentLanguage(lang: Lang) {
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [lang, setLangState] = useState<Lang>(readInitialLang);
+  // Suspend on a saved EN preference too: no partially translated first render.
+  if (lang === 'en' && !en) throw loadEnglishTranslations();
 
   // Keep the module-level language in sync before children render so that plain
   // `t()` calls made during render use the correct language.
@@ -141,7 +148,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const toggleLang = useCallback(() => setLangState((prev) => (prev === 'id' ? 'en' : 'id')), []);
   const translateKey = useCallback(
     (key: string, params?: TranslationParams) => {
-      const raw = lang === 'en' ? en[key] ?? key : key;
+      const raw = lang === 'en' ? en?.[key] ?? key : key;
       return interpolate(raw, params);
     },
     [lang],

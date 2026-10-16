@@ -1,3 +1,4 @@
+import { useAidRecovery } from '../services/useAidRecovery';
 import { AutomaticImpact } from './detail/AutomaticImpact';
 import React from 'react';
 import {
@@ -35,7 +36,7 @@ interface SidebarDetailTemplateProps {
 }
 
 export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
-  disaster,
+  disaster: sourceDisaster,
   news,
   mobile = false,
   onOpenRoute,
@@ -46,6 +47,7 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
   intelReports = [],
   aidRecords = [],
 }) => {
+  const disaster = useAidRecovery(sourceDisaster);
   const { t, locale } = useI18n();
   const [failedPhotoUrl, setFailedPhotoUrl] = React.useState<string | null>(null);
   const showPhoto = !!disaster.photoUrl && disaster.photoUrl !== failedPhotoUrl;
@@ -311,7 +313,7 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
                       {config.label}
                     </span>
                     <span className="text-[9px] text-slate-400 font-medium">
-                      {t('Status Recovery')}
+                      {type === 'water' && disaster.gapRecovery.includes('estimasi bantuan') ? 'Estimasi bantuan' : t('Status Recovery')}
                     </span>
                   </div>
 

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { APIProvider, Map } from '@vis.gl/react-google-maps';
 import { Activity, ArrowLeft, RefreshCw, ArrowUpRight, CheckCircle2, AlertCircle, Clock3 } from 'lucide-react';
 import { initialChecks, probeBrowserCheck } from '../services/status/browserChecks';
-import { stale, stateLabels, statusAdvice, type ServiceCheck, type StatusSnapshot } from '../services/status/model';
+import { checkProgress } from '../services/status/checkProgress';
+import { stale, stateLabels, statusAdvice, safeStatusError, type ServiceCheck, type StatusSnapshot } from '../services/status/model';
 import { useI18n, translate, localeFor } from '../i18n';
 import { LanguageToggle } from '../i18n/LanguageToggle';
 
@@ -15,6 +16,8 @@ export default function GoogleStatusPage({ embedded = false }: { embedded?: bool
   const { t } = useI18n();
   const Content = embedded ? 'div' : 'main';
   const [checks, setChecks] = useState(initialChecks);
+  const [progressIds] = useState(() => initialChecks().filter(c => c.state === 'configured' && c.id !== 'storage').map(c => c.id));
+  const [showProgress, setShowProgress] = useState(false);
   const [snapshot, setSnapshot] = useState<StatusSnapshot | null>(null);
   const [snapshotError, setSnapshotError] = useState('');
   const [snapshotLoading, setSnapshotLoading] = useState(false);
@@ -78,8 +81,11 @@ export default function GoogleStatusPage({ embedded = false }: { embedded?: bool
     if (id === 'maps') { setMapAttempt(v => v + 1); setMapsTest(false); setMapsLoaded(false); update({ ...initialChecks()[0], state: 'checking', detail: 'Memuat peta Google...', checkedAt: null }); setMapsTest(true); return; }
     setRunning(id);
     update({ ...initialChecks().find(c => c.id === id)!, state: 'checking', detail: 'Mengirim pemeriksaan API...', checkedAt: null });
-    const result = await probeBrowserCheck(id, true);
-    update(result); setRunning(null);
+    try {
+      update(await probeBrowserCheck(id, true));
+    } catch (error) {
+      update({ ...initialChecks().find(c => c.id === id)!, state: 'error', checkedAt: new Date().toISOString(), detail: safeStatusError(error) });
+    } finally { setRunning(null); }
   }
   useEffect(() => {
     let mounted = true;
@@ -91,12 +97,22 @@ export default function GoogleStatusPage({ embedded = false }: { embedded?: bool
     }
     for (const check of configured.filter(c => !['maps', 'storage'].includes(c.id))) {
       update({ ...check, state: 'checking', detail: 'Pemeriksaan otomatis sedang berjalan...', checkedAt: null });
-      probeBrowserCheck(check.id, recheck > 0).then(result => { if (mounted) update(result); });
+      probeBrowserCheck(check.id, recheck > 0).then(result => { if (mounted) update(result); }).catch(error => { if (mounted) update({ ...check, state: 'error', checkedAt: new Date().toISOString(), detail: safeStatusError(error) }); });
     }
     return () => { mounted = false; };
   }, [recheck]);
   const backend = snapshot ? [...snapshot.services, ...(snapshot.searchProbe ? [snapshot.searchProbe] : [{ id: 'google-search-probe', name: 'Google Search · uji langsung', state: 'unknown' as const, scope: 'backend' as const, detail: 'Belum ada uji langsung. Run workflow Deploy dengan opsi “Uji Google Search” aktif.', checkedAt: null }])] : [];
   const busy = snapshotLoading || !!running || checks.some(c => c.state === 'checking');
+  const progress = checkProgress(checks, progressIds, snapshotLoading);
+  useEffect(() => {
+    if (busy) { setShowProgress(true); return; }
+    const timer = window.setTimeout(() => setShowProgress(false), 700);
+    return () => window.clearTimeout(timer);
+  }, [busy]);
+  const progressPercent = busy ? progress.percent : 100;
+  const progressLabel = busy
+    ? t('Memeriksa layanan · {done}/{total} tahap · {percent}%', { done: progress.completed, total: progress.total, percent: progressPercent })
+    : t('Pemeriksaan selesai · 100%');
   const visibleChecks=checks.filter(c=>c.state==='ok' && !!c.checkedAt);
   const visibleBackend=backend.filter(c=>c.state==='ok' && !!c.checkedAt);
   const ok=visibleChecks.length+visibleBackend.length;
@@ -124,6 +140,12 @@ export default function GoogleStatusPage({ embedded = false }: { embedded?: bool
     {browser && <button onClick={() => test(c.id)} disabled={!!running || c.state === 'checking' || c.state === 'disabled' || c.id === 'storage'} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40">{running === c.id || c.state === 'checking' ? t('Memeriksa...') : c.id === 'maps' ? t('Uji ulang Maps') : c.id === 'storage' ? t('Perlu lampiran') : t('Uji ulang')}</button>}
   </article>)}</div>; }
   return <div className={embedded ? "admin-status-view text-slate-900" : "min-h-screen bg-[#f8fafb] text-slate-900"}>
+    {showProgress && <div className="pointer-events-none fixed inset-x-0 top-0 z-[9999]" data-testid="status-check-progress">
+      <div role="progressbar" aria-label={t('Progres pemeriksaan layanan')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent} aria-valuetext={progressLabel} aria-busy={busy} className="h-1 w-full overflow-hidden bg-blue-100">
+        <div className="h-full bg-gradient-to-r from-blue-500 via-violet-500 to-cyan-400 transition-[width] duration-300 motion-reduce:transition-none" style={{width:`${progressPercent}%`}} />
+      </div>
+      <div role="status" aria-live="polite" aria-atomic="true" className="mx-auto w-fit max-w-[calc(100%-1rem)] rounded-b-lg border border-t-0 border-blue-100 bg-white/95 px-3 py-1 text-center text-[10px] font-medium text-blue-700 shadow-sm">{progressLabel}</div>
+    </div>}
     {!embedded && <header className="border-b border-slate-200/70 bg-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5"><a href="/" className="flex items-center gap-2 font-bold"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white"><Activity size={18}/></span>DisasterWatch<span className="hidden sm:inline text-xs font-normal text-slate-400 ml-2">Service status</span></a><div className="flex items-center gap-3"><LanguageToggle /><a href="/" className="flex items-center gap-2 text-xs text-slate-500"><ArrowLeft size={14}/>{t('Kembali ke peta')}</a></div></div></header>}
     <Content className={embedded ? "w-full" : "mx-auto max-w-6xl px-5 py-10"}>
       <div className={embedded ? "flex justify-end" : "flex flex-wrap items-start justify-between gap-5"}>{!embedded && <div><p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-600">DisasterWatch · Google services</p><h1 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">{t('Status layanan aplikasi')}</h1><p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-500">{t('Layanan Google yang berhasil diuji di aplikasi ini. Parameter tanpa hasil uji berhasil disembunyikan.')}</p></div>}<button type="button" onClick={() => setRecheck(v => v+1)} disabled={busy} aria-busy={busy} className="relative z-10 pointer-events-auto flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"><RefreshCw size={14} className={busy ? "animate-spin" : ""}/>{busy ? t("Memeriksa layanan...") : t("Muat ulang laporan")}</button></div>

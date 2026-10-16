@@ -22,6 +22,6 @@ async function main() {
   const ruleset=await created.json() as {name:string};
   const release=await fetch(`${base}/releases/cloud.firestore`,{method:'PATCH',headers,body:JSON.stringify({release:{name:'projects/disasterwatch-61ed5/releases/cloud.firestore',rulesetName:ruleset.name},updateMask:'rulesetName'})});
   if(!release.ok)throw new Error(`Rules release HTTP ${release.status}`);
-  console.log('Firestore rules validated and released: Google-only report submissions and audited superuser approval.');
+  console.log('Firestore rules validated and released: UID-bound anonymous or Google report submissions and audited superuser approval.');
 }
 main().catch(error=>{console.error(error instanceof Error?error.message:'Rules deployment failed');process.exitCode=1;});

@@ -62,11 +62,7 @@ test('mock mode: anonymous fallback, mockUser emission, and "Login belum tersedi
   assert.match(auth, /signInAnonymously\(auth\)/, 'ensureUser anonymous fallback missing');
   assert.match(auth, /if \(!auth\) return mockUser\(\);/, 'ensureUser mock fallback missing');
   assert.match(auth, /cb\(mockUser\(\)\)/, 'watchUser mockUser() emission missing');
-  assert.match(
-    auth,
-    /export function canReport\(user: UserIdentity\): boolean \{\s*return !user\.isAnonymous && \(!user\.isMock \|\| \(import\.meta\.env\.DEV && user\.uid === 'local-report-preview'\)\);/,
-    'canReport logic changed',
-  );
+  // Guest-report permission behavior is covered by reportAccess.test.ts.
   const union =
     auth + read('src/components/LoginModal.tsx') + readIfExists('src/lib/firebase/authErrors.ts');
   assert.ok(union.includes(MOCK_PROD_MESSAGE), 'mock-mode production message missing');
@@ -107,7 +103,7 @@ test('config hygiene: .env.example has empty VITE_FIREBASE_* values; workflow us
 test('untouched files keep their default markers (3.8)', () => {
   const map = read('src/components/MapCanvas.tsx');
   assert.ok(
-    map.includes('const [showApiLayers, setShowApiLayers] = useState(false);'),
+    map.includes('const [localApiLayers, setLocalApiLayers] = useState(false);') && read('src/App.tsx').includes('const [apiLayersEnabled, setApiLayersEnabled] = useState(false);'),
     'API data-layers toggle must default to off',
   );
   assert.ok(
@@ -124,5 +120,5 @@ test('untouched files keep their default markers (3.8)', () => {
     map.includes("showBmkg && bmkgStatus !== 'unavailable' && selectedBmkg && ("),
     'BMKG quake popup render condition changed',
   );
-  assert.ok(map.includes('Magnitudo: <b>M{selectedBmkg.magnitude.toFixed(1)}</b>'), 'BMKG quake popup content changed');
+  assert.ok(map.includes("{t('Magnitudo:')} <b>M{selectedBmkg.magnitude.toFixed(1)}</b>"), 'BMKG quake popup content changed');
 });

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Send, Sparkles, Paperclip, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import type { DisasterIncident } from '../types';
 import type { AidRecord, IntelligenceReport, UserIdentity } from '../domain/intelligence';
-import { canReport } from '../lib/firebase/auth';
+import { ensureReportUser } from '../lib/firebase/auth';
 import { getFirebaseApp } from '../lib/firebase/config';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { MAJOR_CITIES } from '../services/weather/cityWeather';
@@ -23,7 +23,6 @@ interface AIHelpdeskPanelProps {
   initialAttachment?: File;
   initialWorkflow?: WorkflowType;
   user?: UserIdentity;
-  onRequireLogin?: () => void;
   onClose: () => void;
   onReportSubmitted?: (reportData: any) => void;
   disasters?: Record<string, DisasterIncident>;
@@ -68,7 +67,7 @@ const services: { workflow: WorkflowType; label: string }[] = [
   { workflow: 'learn-disaster', label: 'Pelajari Bencana' },
 ];
 
-export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, hasContext = true, initialMessage, initialAttachment, initialWorkflow = 'menu', user, onRequireLogin, onClose,
+export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, hasContext = true, initialMessage, initialAttachment, initialWorkflow = 'menu', user, onClose,
   onReportSubmitted, disasters, intelReports = [], aidRecords = [], onIntelReport, nttCase }: AIHelpdeskPanelProps) {
   const { t } = useI18n();
   const context = hasContext ? disaster : undefined;
@@ -95,18 +94,12 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
   const mounted = useRef(true);
   const sequence = useRef(2);
   const sending = useRef(false);
-  const pendingReport = useRef<{ workflow: WorkflowType; text?: string } | null>(null);
   const locationSuggestionsActive = useRef(false);
   const add = (sender: Message['sender'], text: string) => setMessages(previous => [...previous, { id: sequence.current++, sender, text }]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, busy]);
 
   const start = (next: WorkflowType) => {
-    if ((next === 'report-disaster' || next === 'report-needs') && (!user || !canReport(user))) {
-      pendingReport.current = { workflow: next };
-      onRequireLogin?.();
-      return;
-    }
     setServiceChosen(true);
     locationSuggestionsActive.current = next === 'report-disaster' && !context;
     setQuickOptions(next === 'report-disaster' ? (context ? [] : regionOptions) : next === 'report-needs' ? Array.from(new Set([...(context?.supplies.map(item => item.name) ?? []), 'Air bersih', 'Makanan / sembako', 'Obat-obatan', 'Tempat tinggal sementara'])).slice(0, 4) : next === 'learn-disaster' ? ['Kapan bencana terjadi?', 'Berapa kerugian bencana?', 'Berikan kabar terbaru'] : []);
@@ -138,17 +131,17 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
   };
   const submit = async () => {
     if (sending.current) return;
-    if (!user || !canReport(user)) { onRequireLogin?.(); return; }
     sending.current = true; setBusy(true);
     add('user', t('Kirim laporan.'));
     try {
+      const reportUser = await ensureReportUser();
       let mediaUrl: string | undefined;
       if (attachment) {
-        if (user.isMock) mediaUrl = URL.createObjectURL(attachment);
+        if (reportUser.isMock) mediaUrl = URL.createObjectURL(attachment);
         else {
           const app = getFirebaseApp();
           if (!app) throw new Error(t('Layanan unggah dokumen belum tersedia.'));
-          const filePath = ref(getStorage(app), `report-attachments/${user.uid}/${crypto.randomUUID()}/${attachment.name}`);
+          const filePath = ref(getStorage(app), `report-attachments/${reportUser.uid}/${crypto.randomUUID()}/${attachment.name}`);
           await uploadBytes(filePath, attachment);
           mediaUrl = await getDownloadURL(filePath);
         }
@@ -156,15 +149,15 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
       // A user-provided location must not inherit coordinates from an unrelated selected incident.
       const match = Object.values(disasters ?? {}).find(d => answers.location.toLocaleLowerCase().includes(d.name.toLocaleLowerCase()));
       const rawText = `${workflow === 'report-needs' ? t('Laporan kebutuhan bantuan') : t('Laporan bencana')}\n${questions.map(q => `${q.key}: ${answers[q.key]}`).join('\n')}\nDokumen: ${attachment?.name || t('Tidak ada')}`;
-      const result = await submitReportPipeline({ disasterId: match?.id, sourceType: 'citizen', sourceName: user.displayName || 'Warga', rawText,
-        locationName: answers.location, lat: match?.coords.lat, lng: match?.coords.lng, mediaUrl, isMock: user.isMock });
+      const result = await submitReportPipeline({ disasterId: match?.id, sourceType: 'citizen', sourceName: reportUser.displayName || 'Warga', rawText,
+        locationName: answers.location, lat: match?.coords.lat, lng: match?.coords.lng, mediaUrl, isMock: reportUser.isMock });
       onIntelReport?.(result.report);
       if (!onIntelReport && onReportSubmitted) onReportSubmitted({ location: answers.location, category: answers.category, urgency: answers.urgency, desc: rawText, file: attachment?.name });
       if (!mounted.current) return;
       setStage('done');
       add('ai', t('{status} Terima kasih sudah melaporkan. {attachment}\n\nApakah ada hal lain yang ingin Anda laporkan atau pelajari?', {
         status: result.storeMode === 'mock' ? t('Laporan tersimpan dalam sesi demo lokal.') : t('Laporan berhasil disimpan untuk ditinjau.'),
-        attachment: attachment ? (user.isMock ? t('Dokumen pendukung tersedia dalam sesi lokal ini.') : t('Dokumen pendukung telah dilampirkan.')) : '',
+        attachment: attachment ? (reportUser.isMock ? t('Dokumen pendukung tersedia dalam sesi lokal ini.') : t('Dokumen pendukung telah dilampirkan.')) : '',
       }));
     } catch {
       if (mounted.current) add('ai', t('Laporan belum berhasil dikirim. Informasi Anda masih ada di sini. Silakan coba “Kirim Laporan” lagi.'));
@@ -174,12 +167,6 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
     const text = (suggestion ?? input).trim();
     if (!text || busy || sending.current) return;
     const reportIntent = detectReportIntent(text);
-    if ((reportIntent || workflow === 'report-disaster' || workflow === 'report-needs') && (!user || !canReport(user))) {
-      pendingReport.current = { workflow: reportIntent ?? workflow, text };
-      setInput(text);
-      onRequireLogin?.();
-      return;
-    }
     if (reportIntent && workflow !== 'report-disaster' && workflow !== 'report-needs') {
       add('user', text);
       start(reportIntent);
@@ -240,13 +227,6 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
     } catch { if (mounted.current) add('ai', t('Jawaban belum tersedia. Silakan coba lagi.')); }
     finally { sending.current = false; if (mounted.current) setBusy(false); }
   };
-  useEffect(() => {
-    if (!user || !canReport(user) || !pendingReport.current) return;
-    const pending = pendingReport.current;
-    pendingReport.current = null;
-    if (pending.text) add('user', pending.text);
-    start(pending.workflow);
-  }, [user]);
   const draftSent = useRef(false);
   useEffect(() => {
     if (draftSent.current || (!initialMessage && !initialAttachment)) return;

@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+@source "./";
+@source "../index.html";
 
 /* `dark:` follows the app's Light/Dark toggle (`.dark` on the app container), not the OS setting. */
 @custom-variant dark (&:where(.dark, .dark *));

@@ -1,5 +1,8 @@
 /** English translations — services slice. Keys are the Indonesian source strings. */
 const services: Record<string, string> = {
+  'Sesi pelaporan anonim belum tersedia. Silakan coba lagi.': 'The anonymous reporting session is not available yet. Please try again.',
+  'Laporan belum tersimpan di server. Silakan coba lagi.': 'The report has not been saved to the server. Please try again.',
+  'Oleh: Warga Pelapor': 'By: Citizen reporter',
   'Proxy Gemini server tidak tersedia di origin ini — kunci tidak lagi disertakan di bundle browser.': 'The Gemini server proxy is unavailable on this origin; the key is not included in the browser bundle.',
   'Proxy Gemini server tidak dikonfigurasi (tanpa GEMINI_API_KEY) — kunci tidak lagi disertakan di bundle browser.': 'The Gemini server proxy is not configured; the key is not included in the browser bundle.',
   'Login Google diperlukan untuk menguji proxy AI server.': 'Sign in with Google to test the server AI proxy.',

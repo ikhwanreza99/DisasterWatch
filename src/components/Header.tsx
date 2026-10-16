@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { DisasterTicker } from './DisasterTicker';
 import type { DisasterIncident } from '../types';
 import type { UserIdentity } from '../domain/intelligence';
-import { isGoogleUser } from '../lib/firebase/auth';
+import { isGoogleUser } from '../lib/firebase/identity';
 import { useMobileLayout } from './useMobileLayout';
 import { useI18n } from '../i18n';
 import { LanguageToggle } from '../i18n/LanguageToggle';

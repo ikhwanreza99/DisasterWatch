@@ -10,7 +10,7 @@ export function MapChatComposer({ onSend }: { onSend: (message: string, file?: F
   const fileInput = useRef<HTMLInputElement>(null);
   return (
     <div className="w-[min(420px,calc(100vw-5.5rem))]" data-purpose="map-ai-composer">
-      <button type="button" onClick={() => onSend('')} className="mobile-ai-launcher" aria-label={t('Buka DisasterAI layar penuh')}><Sparkles className="h-4 w-4" /><span className="flex-1 text-left text-slate-400">{t('Tanya DisasterAI…')}</span><Send className="h-7 w-7 rounded-full bg-violet-600 p-1.5 text-white" /></button>
+      <button type="button" onClick={() => onSend('')} className="mobile-ai-launcher" aria-label={`${t('Tanya DisasterAI…')} · ${t('Buka DisasterAI layar penuh')}`}><Sparkles className="h-4 w-4" /><span className="flex-1 text-left text-slate-400">{t('Tanya DisasterAI…')}</span><Send className="h-7 w-7 rounded-full bg-violet-600 p-1.5 text-white" /></button>
       <div className="hidden sm:block">
       {file && <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-violet-50 px-3 py-2 text-xs text-violet-700"><span className="truncate">{file.name}</span><button type="button" onClick={() => setFile(undefined)} aria-label={t('Hapus lampiran')} className="shrink-0"><X className="h-4 w-4" /></button></div>}
       <div className="rounded-full bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 p-[2px] shadow-xl">

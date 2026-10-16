@@ -1,5 +1,6 @@
 /** English translations — common slice (shared / cross-cutting strings). */
 const common: Record<string, string> = {
+  'Memuat peta…': 'Loading map…',
   'Kebakaran Hutan Dan Lahan':'Forest and land fire',
   'Kebakaran Hutan dan Lahan':'Forest and land fire',
   'Kebakaran Hutan & Lahan':'Forest and land fire',

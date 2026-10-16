@@ -1,3 +1,4 @@
+import { MapErrorBoundary } from './map/MapErrorBoundary';
 import { FloodAreas } from './map/FloodAreas';
 import { activeFloodAreas, areaPaths, areaColor, type FloodArea } from '../services/flood/areas';
 import { apiLayerVisibility } from '../domain/apiLayerVisibility';
@@ -583,6 +584,7 @@ const OSMMapRenderer: React.FC<{
   magmaRange?: ResolvedRange | null;
   /** Current map zoom (drives zoom-based decluttering). */
   zoomLevel?: number;
+  focusSelectedIncident?: boolean;
   highlightedDisasterKey?: string | null;
   selectedPostId?: NonNullable<DisasterIncident['route']>['checkpoints'][number]['id'] | null;
   onSelectPost?: (id: NonNullable<DisasterIncident['route']>['checkpoints'][number]['id']) => void;
@@ -627,6 +629,7 @@ const OSMMapRenderer: React.FC<{
   magmaEruptions = [],
   magmaRange = null,
   zoomLevel = 5,
+  focusSelectedIncident = true,
   highlightedDisasterKey = null,
   selectedPostId = null,
   onSelectPost,
@@ -781,14 +784,6 @@ const OSMMapRenderer: React.FC<{
     };
   }, [getTileConfig, isDarkMode, tileType, updatePos, onZoomChange]);
 
-  // Update tiles
-  useEffect(() => {
-    if (!mapRef.current) return;
-    const map = mapRef.current;
-    const cfg = getTileConfig(tileType, isDarkMode);
-    if (tileLayerRef.current) map.removeLayer(tileLayerRef.current);
-    tileLayerRef.current = L.tileLayer(cfg.url, { attribution: cfg.attribution, maxZoom: 19 }).addTo(map);
-  }, [tileType, isDarkMode, getTileConfig]);
 
   // Zoom triggers
   useEffect(() => {
@@ -835,7 +830,7 @@ const OSMMapRenderer: React.FC<{
       });
       mGroup.addLayer(m);
 
-      if (isSelected) {
+      if (isSelected && focusSelectedIncident) {
         circleRef.current = L.circle([lat, lng], {
           radius: incident.category === 'earthquake' ? 25000 : 18000,
           color: incident.category === 'flood' ? '#0ea5e9' : incident.category === 'fire' ? '#f59e0b' : '#e11d48',
@@ -848,7 +843,7 @@ const OSMMapRenderer: React.FC<{
     });
 
     updatePos();
-  }, [disasters, activeCategory, activeDisasterKey, onSelectDisaster, updatePos, highlightedDisasterKey]);
+  }, [disasters, activeCategory, activeDisasterKey, onSelectDisaster, updatePos, highlightedDisasterKey, focusSelectedIncident]);
 
   // BMKG earthquake layer (separate from Disaster incidents; distinct cyan style)
   useEffect(() => {
@@ -1155,7 +1150,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   onHighlightDisaster,
   disasters,
   activeDisasterKey,
-  onSelectDisaster,
+  onSelectDisaster: selectDisaster,
   activeCategory,
   isDarkMode,
   onExpandView,
@@ -1192,6 +1187,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   bmkgWeather = [],
   weatherStatus = 'idle',
 }) => {
+  const [hasSelectedIncident, setHasSelectedIncident] = useState(false);
+  const onSelectDisaster = useCallback((id: string) => {
+    setHasSelectedIncident(true);
+    selectDisaster(id);
+  }, [selectDisaster]);
+  const focusSelectedIncident = hasSelectedIncident || !isSidebarMinimized || isRouteOpen || isReportsOpen;
   const mobile = useMobileLayout();
   const { t, locale } = useI18n();
   const [showMobileNews, setShowMobileNews] = useState(true);
@@ -1230,8 +1231,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     [bmkgWeather],
   );
   const selectedWeather = activeWeather.find((w) => w.id === selectedWeatherId) ?? null;
-  // Major-city weather points: always fetched; visibility follows the API layer toggle.
-  const cityWx = useCityWeather(true);
+  // Fetch layer data only while the corresponding layer is visible.
+  const cityWx = useCityWeather(showWeather);
   // Major-city air quality (UAQI), merged into the same chip. Fetched only while
   // the CUACA layer is visible so Air Quality API usage tracks the weather layer.
   const cityAirWx = useCityAirQuality(showWeather);
@@ -1240,22 +1241,22 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     for (const a of cityAirWx.cities) rec[a.id] = a.air;
     return rec;
   }, [cityAirWx.cities]);
-  // MAGMA (PVMBG): always fetched; visibility follows the API layer toggle.
+  // MAGMA (PVMBG): fetched when enabled.
   // MAGMA legend is collapsed by default; (i) button next to zoom controls toggles it.
   const [showMagmaLegend, setShowMagmaLegend] = useState(false);
-  const magmaFeed = useMagma(true);
+  const magmaFeed = useMagma(showMagma);
   const [selectedMagma, setSelectedMagma] = useState<
     { kind: 'volcano'; v: Volcano } | { kind: 'landslide'; l: LandslideReport } | null
   >(null);
-  // Darwin VAAC volcanic ash: always fetched; visibility follows the API layer toggle.
-  const ash = useVaac(true);
+  // Darwin VAAC volcanic ash: fetched when enabled.
+  const ash = useVaac(showAsh);
   const [selectedAsh, setSelectedAsh] = useState<AshAdvisory | null>(null);
   const activeAshCount = ash.advisories.filter((a) => !a.terminated).length;
   useEffect(() => {
     if (firmsStatus === 'loading' || firmsProgress.failed > 0) setFirmsNoticeOpen(true);
   }, [firmsStatus, firmsProgress.failed]);
   // MAGMA eruption notices ("Informasi Letusan") follow the header date range.
-  const eruptions = useMagmaEruptions(true, selectedDate);
+  const eruptions = useMagmaEruptions(showMagma, selectedDate);
   const eruptionsByVolcano = useMemo(() => groupEruptions(eruptions.notices), [eruptions.notices]);
   const magmaCounts = useMemo(() => {
     const vs = magmaFeed.data?.volcanoes ?? [];
@@ -1506,7 +1507,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     >
       {/* Informative RefererNotAllowedMapError Notification Banner */}
       {hasAuthError && !dismissBanner && (
-        <div className="relative z-50 bg-amber-500/15 border-b border-amber-500/40 backdrop-blur-xl px-4 py-2.5 text-xs text-amber-200 flex flex-wrap items-center justify-between gap-3 shadow-xl animate-fadeIn">
+        <div className="absolute left-3 right-3 top-20 sm:left-24 sm:right-4 z-50 bg-amber-500/15 border-b border-amber-500/40 backdrop-blur-xl px-4 py-2.5 text-xs text-amber-200 flex flex-wrap items-center justify-between gap-3 shadow-xl animate-fadeIn">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="p-1 rounded-lg bg-amber-500/20 text-amber-400 shrink-0">
               <AlertTriangle className="w-4 h-4" />
@@ -1560,15 +1561,16 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       {/* Map Surface: Google Maps or OpenStreetMap Fallback */}
       <div className="w-full h-full absolute inset-0 z-0">
         {mapEngine === 'google' && apiKey && !hasAuthError ? (
+          <MapErrorBoundary onFailure={() => setMapEngine('osm')}>
           <APIProvider
             apiKey={apiKey}
             language={locale.startsWith('en') ? 'en' : 'id'}
             region="ID"
-            libraries={['places', 'geometry']}
           >
             <Map
               id="disaster-watch-map"
               mapId="DEMO_MAP_ID"
+              renderingType="RASTER"
               internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
               style={{ width: '100%', height: '100%' }}
               defaultCenter={{ lat: -2.5, lng: 118.0 }}
@@ -1576,6 +1578,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               minZoom={4}
               maxZoom={18}
               gestureHandling="greedy"
+              keyboardShortcuts={!mobile}
               disableDefaultUI={true}
               styles={isDarkMode && googleMapType === 'roadmap' ? darkGoogleMapStyles : undefined}
               onClick={() => {
@@ -1584,7 +1587,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               }}
             >
               <GoogleMapCameraController
-                activeDisaster={activeData}
+                activeDisaster={focusSelectedIncident ? activeData : undefined}
                 isRouteOpen={isRouteOpen}
                 routePoints={googleRoutePoints}
                 selectedPostPoint={selectedGooglePostPoint}
@@ -2285,8 +2288,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               )}
             </Map>
           </APIProvider>
+          </MapErrorBoundary>
         ) : (
           <OSMMapRenderer
+            focusSelectedIncident={focusSelectedIncident}
             floodAreas={visibleFloodAreas}
             floodGauges={floodGauges}
             selectedFlood={selectedFlood}

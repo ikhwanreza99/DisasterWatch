@@ -1,3 +1,4 @@
+import { useAidRecovery } from '../services/useAidRecovery';
 import { AutomaticImpact } from './detail/AutomaticImpact';
 import { NarrativeImpact } from './detail/NarrativeImpact';
 import { BnpbImpactCard } from './detail/BnpbImpactCard';
@@ -48,7 +49,7 @@ interface SlimSidebarProps {
 }
 
 export const SlimSidebar: React.FC<SlimSidebarProps> = ({
-  disaster,
+  disaster: sourceDisaster,
   isExpanded,
   onExpandView,
   onCollapseView,
@@ -63,6 +64,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
   nttCase,
   onOpenNttIntelligence,
 }) => {
+  const disaster = useAidRecovery(sourceDisaster);
   const { t, locale } = useI18n();
   const [failedPhotoUrl, setFailedPhotoUrl] = React.useState<string | null>(null);
   const showPhoto = !!disaster.photoUrl && disaster.photoUrl !== failedPhotoUrl;

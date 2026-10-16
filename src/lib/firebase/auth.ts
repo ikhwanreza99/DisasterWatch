@@ -1,3 +1,5 @@
+import { mockUser, canReport } from './identity';
+export { mockUser, isGoogleUser, canReport } from './identity';
 // Firebase Auth with graceful anonymous + mock fallback.
 import {
   Auth,
@@ -32,9 +34,6 @@ export function getAuthInstance(): Auth | null {
   if (!app) return null;
   cachedAuth = getAuth(app);
   return cachedAuth;
-}
-export function mockUser(): UserIdentity {
-  return { uid: 'local-demo-user', isAnonymous: true, displayName: 'Demo User', isMock: true };
 }
 /** Single mapper from a Firebase user to the app identity. */
 export function toIdentity(u: User): UserIdentity {
@@ -109,6 +108,15 @@ export async function ensureUser(): Promise<UserIdentity> {
     return mockUser();
   }
 }
+/** Reporting needs a Firebase identity, not a Google account. Never fake a live session. */
+export async function ensureReportUser(): Promise<UserIdentity> {
+  const user = await ensureUser();
+  if (isFirebaseConfigured() && !canReport(user)) {
+    throw new Error('Sesi pelaporan anonim belum tersedia. Silakan coba lagi.');
+  }
+  return user;
+}
+
 export function watchUser(cb: (u: UserIdentity) => void): () => void {
   const auth = getAuthInstance();
   if (!auth) {
@@ -176,14 +184,7 @@ export async function signOutUser(): Promise<UserIdentity> {
   return ensureUser();
 }
 
-export function isGoogleUser(u: UserIdentity): boolean {
-  return !u.isAnonymous && !u.isMock;
-}
-
 /** Temporary local preview session; never authenticates with Firebase. */
 export function previewUser(): UserIdentity {
   return { uid: 'local-report-preview', isAnonymous: false, displayName: 'Pelapor Demo', isMock: true };
-}
-export function canReport(user: UserIdentity): boolean {
-  return !user.isAnonymous && (!user.isMock || (import.meta.env.DEV && user.uid === 'local-report-preview'));
 }

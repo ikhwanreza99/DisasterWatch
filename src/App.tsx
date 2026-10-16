@@ -1,3 +1,4 @@
+import { initialAiWorkflow } from './services/appEntry';
 import {fetchSnapshot} from './services/snapshotCache';
 import { applyDisasterDecisions } from './services/disasterModeration';
 import React, { lazy, Suspense, useEffect, useState } from 'react';
@@ -6,15 +7,13 @@ import { newsSourceUrl } from './services/newsSourceUrl';
 import { classifyRelevance } from './services/incidentNews';
 import { descriptorFor } from './services/incidentRegistry';
 import { validDisasterPhoto, type DisasterPhoto } from './services/disasterPhoto';
-import { getDb } from './lib/firebase/firestore';
-import { collection, onSnapshot } from 'firebase/firestore';
 import { inRecentWindow } from './services/recentWindow';
 import { locationValidation } from './services/locationValidation';
 import { CategoryFilter, DisasterCategory, DisasterIncident, DisasterCheckpoint } from './types';
 import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
 import { MapProvider } from './components/map/MapProvider';
-import { SlimSidebar } from './components/SlimSidebar';
+const SlimSidebar = lazy(() => import('./components/SlimSidebar').then(module => ({ default: module.SlimSidebar })));
 const EvacuationPostView = lazy(() => import('./components/EvacuationPostView').then(module => ({ default: module.EvacuationPostView })));
 const CitizenReportsView = lazy(() => import('./components/CitizenReportsView').then(module => ({ default: module.CitizenReportsView })));
 const AIHelpdeskPanel = lazy(() => import('./components/AIHelpdeskPanel').then(module => ({ default: module.AIHelpdeskPanel })));
@@ -25,8 +24,7 @@ import { firmsSensorsLabel, useFirmsHotspots } from './services/firms';
 import { RANGE_LIMITS, resolveDateRange } from './domain/dateRange';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
 import { demoAid, demoReports } from './data/seedDemo';
-import { ensureUser, watchUser, canReport, consumeRedirectResult, signOutUser } from './lib/firebase/auth';
-import { mockUser } from './lib/firebase/auth';
+import { mockUser } from './lib/firebase/identity';
 import { useI18n, translate } from './i18n';
 
 type LoginReason = 'report' | 'account';
@@ -50,12 +48,13 @@ function writeLoginIntent(v: LoginReason | null) {
 const LoginModal = lazy(() => import('./components/LoginModal').then(module => ({ default: module.LoginModal })));
 const NttCaseView = lazy(() => import('./components/NttCaseView').then(module => ({ default: module.NttCaseView })));
 import { NTT_CASE_ID } from './domain/nttCase';
-import { loadNttCase, refreshNttCase, type NttCaseState } from './services/nttCaseStore';
+import type { NttCaseState } from './services/nttCaseStore';
 import { nttIncident } from './data/nttIncident';
 
 
 export default function App() {
   const { t } = useI18n();
+  const [entryWorkflow] = useState(() => initialAiWorkflow(window.location.pathname));
   // Follow the visible viewport when the on-screen keyboard opens on phones.
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -82,12 +81,18 @@ export default function App() {
     // Keep the dedicated NTT case accessible independently of the recent dataset.
     return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => id === NTT_CASE_ID || covered.has(id)));
   });
-  const [moderationLoaded,setModerationLoaded]=useState(()=>!getDb());
+  const [moderationLoaded,setModerationLoaded]=useState(false);
   const [ntt, setNtt] = useState<NttCaseState | null>(null);
   useEffect(() => {
-    const db=getDb();
-    if(!db)return;
-    return onSnapshot(collection(db,'disasters'),{includeMetadataChanges:true},snapshot=>{
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    // The map shell can paint while Firebase downloads. App Check still initializes
+    // through getDb before any protected read; markers remain gated by moderation.
+    Promise.all([import('./lib/firebase/firestore'), import('firebase/firestore')]).then(([store, {collection, onSnapshot}]) => {
+      if (cancelled) return;
+      const db = store.getDb();
+      if (!db) { setModerationLoaded(true); return; }
+      unsubscribe = onSnapshot(collection(db,'disasters'),{includeMetadataChanges:true},snapshot=>{
       if(snapshot.metadata.fromCache)return;
       const records = snapshot.docs.map(doc=>({...doc.data(),id:doc.id}) as DisasterIncident & {isMock?:boolean;eventDate?:string;approvalStatus?:string});
       const approved=records.filter(record=>record.approvalStatus==='APPROVED');
@@ -95,6 +100,8 @@ export default function App() {
       setDisasters(previous=>applyDisasterDecisions(previous,Object.fromEntries(approved.filter(incident=>incident.isMock===false && incident.coords && locationValidation(incident).status!=='REJECTED' && (incident.id===NTT_CASE_ID || inRecentWindow(incident.eventDate))).map(incident=>[incident.id,incident])),rejected));
       setModerationLoaded(true);
     },()=>{ /* Do not reveal incident markers until moderation has been read successfully. */ });
+    }).catch(() => { /* Keep markers gated if Firebase cannot initialize. */ });
+    return () => { cancelled = true; unsubscribe?.(); };
   },[]);
   useEffect(() => {
     const controller = new AbortController();
@@ -138,13 +145,13 @@ export default function App() {
   }, [activeDisasterKey, isRouteOpen]);
   const [aiDraft, setAiDraft] = useState<{ message: string; file?: File } | null>(null);
   const [hasAIContext, setHasAIContext] = useState(false);
-  const [isAIExpanded, setIsAIExpanded] = useState(false);
-  const [isAIOpen, setIsAIOpen] = useState<boolean>(false);
+  const [isAIExpanded, setIsAIExpanded] = useState(entryWorkflow !== null);
+  const [isAIOpen, setIsAIOpen] = useState<boolean>(entryWorkflow !== null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [loginReason, setLoginReason] = useState<LoginReason>('report');
   const [loginError, setLoginError] = useState('');
-  const [aiWorkflow, setAiWorkflow] = useState<'menu' | 'report-disaster'>('menu');
-  useEffect(() => watchUser(setCurrentUser), []);
+  const [aiWorkflow, setAiWorkflow] = useState<'menu' | 'report-disaster'>(entryWorkflow ?? 'menu');
+
 
   // Modal overlays
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
@@ -288,6 +295,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      const { signOutUser } = await import('./lib/firebase/auth');
       setCurrentUser(await signOutUser());
     } catch {
       // Already logged (code only) in auth.ts; keep the current state.
@@ -297,10 +305,6 @@ export default function App() {
   };
 
   const handleReportDisaster = () => {
-    if (!canReport(currentUser)) {
-      openLogin('report');
-      return;
-    }
     openReportForm();
   };
 
@@ -360,6 +364,7 @@ export default function App() {
     if (!ntt || nttRefreshing) return;
     setNttRefreshing(true);
     try {
+      const { refreshNttCase } = await import('./services/nttCaseStore');
       setNtt(await refreshNttCase(ntt));
     } finally {
       setNttRefreshing(false);
@@ -386,19 +391,24 @@ export default function App() {
   // NTT case loads independently (localStorage seed → Firestore best-effort); never blocks dashboard.
   useEffect(() => {
     let cancelled = false;
-    loadNttCase().then((s) => {
+    if (!isNttOpen && !isAIOpen && (isSidebarMinimized || activeDisasterKey !== NTT_CASE_ID)) return;
+    import('./services/nttCaseStore').then(module => module.loadNttCase()).then((s) => {
       if (cancelled) return;
       setNtt(s);
-    });
+    }).catch(() => { /* The map stays available if the case cannot be loaded. */ });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isNttOpen, isAIOpen, isSidebarMinimized, activeDisasterKey]);
   useEffect(() => {
     let cancelled = false;
     setStoreNotice('Laporan resmi ditinjau 12 Okt 2026 · lokasi peta mewakili wilayah, bukan batas terdampak.');
-    // Finish a pending Google redirect sign-in first so ensureUser() doesn't start an anonymous session.
-    consumeRedirectResult()
+    let stopWatching: (() => void) | undefined;
+    // Preserve redirect-before-anonymous ordering while loading Auth after the shell.
+    import('./lib/firebase/auth').then(async ({watchUser, consumeRedirectResult, ensureUser}) => {
+      if (cancelled) return;
+      stopWatching = watchUser(setCurrentUser);
+      await consumeRedirectResult()
       .then(({ user, source, error }) => {
         if (cancelled) return;
         const reason: LoginReason | null =
@@ -414,12 +424,15 @@ export default function App() {
         }
       })
       .finally(() => {
-        ensureUser().then((u) => {
+        if (cancelled) return;
+        return ensureUser().then((u) => {
           if (!cancelled) setCurrentUser(u);
         });
       });
+    }).catch(() => { /* Login can retry loading Auth on demand. */ });
     return () => {
       cancelled = true;
+      stopWatching?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -432,7 +445,7 @@ export default function App() {
       title: t('Laporan Warga Baru'),
       desc: newReportData.description || newReportData.desc || t('Laporan baru diterima dari lapangan.'),
       time: t('Baru saja'),
-      author: t('Oleh: Warga Pelapor Terverifikasi'),
+      author: t('Oleh: Warga Pelapor'),
       sourceType: 'citizen' as const,
       tag: t('Menunggu Verifikasi TRC'),
       tagClass: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -607,7 +620,7 @@ export default function App() {
 
           {/* MODE 1: Compact Homepage Menu Sidebar (Only rendered when no other window is open and user un-minimizes sidebar) */}
           {activeDisaster && !isDetailOpen && !isRouteOpen && !isReportsOpen && !isAIOpen && !isNttOpen && !isSidebarMinimized && (
-            <SlimSidebar
+            <Suspense fallback={<div role="status" className="absolute right-4 top-20 rounded-xl bg-white p-3 shadow">{t('Memuat DisasterWatch...')}</div>}><SlimSidebar
               disaster={activeDisaster}
               isExpanded={isSidebarExpanded}
               onExpandView={handleOpenDetail}
@@ -625,7 +638,7 @@ export default function App() {
               aidRecords={aidRecords}
               nttCase={ntt}
               onOpenNttIntelligence={handleOpenNttIntel}
-            />
+            /></Suspense>
           )}
 
           {/* MODE 3: Dedicated Single-Window "Posko Evakuasi" (replaces Rute Distribusi, from feat/homepage-slicing) */}
@@ -666,7 +679,6 @@ export default function App() {
               initialMessage={aiDraft?.message}
               initialAttachment={aiDraft?.file}
               user={currentUser}
-              onRequireLogin={() => openLogin('report')}
               disaster={activeDisaster}
               onClose={() => setIsAIOpen(false)}
               onReportSubmitted={handleNewReportSuccess}

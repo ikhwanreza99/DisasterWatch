@@ -1,3 +1,4 @@
+import { useAidRecovery } from '../../services/useAidRecovery';
 // DisasterDetailView: THE shared disaster-detail template for every incident.
 // Same header hierarchy, cards, panels, and states — data comes from the adapter,
 // never from hardcoded per-city UI.
@@ -33,7 +34,7 @@ interface Props {
 }
 
 export const DisasterDetailView: React.FC<Props> = ({
-  disaster,
+  disaster: sourceDisaster,
   detail,
   timeline,
   mobile = false,
@@ -45,6 +46,7 @@ export const DisasterDetailView: React.FC<Props> = ({
   aidRecords = [],
   extraAction,
 }) => {
+  const disaster = useAidRecovery(sourceDisaster);
   const { t } = useI18n();
   const matched = filterIncidentNews(detail.articles, detail.incidentId);
   const review = reviewQueue(detail.articles, detail.incidentId);
@@ -71,7 +73,7 @@ export const DisasterDetailView: React.FC<Props> = ({
         <div className="xl:col-span-6 space-y-4 min-w-0 xl:overflow-y-auto xl:h-full pb-4">
           <IncidentOverviewCard disaster={disaster} detail={detail} onOpenRoute={onOpenRoute} onOpenBrief={onOpenDisasterBrief} />
           <IncidentOfficialParams params={detail.officialParams} />
-          <RecoveryStatusCards services={disaster.recoveryServices} />
+          <RecoveryStatusCards services={disaster.recoveryServices} estimated={disaster.gapRecovery.includes('estimasi bantuan')} />
           {extraAction && (
             <button
               type="button"

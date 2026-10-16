@@ -4,8 +4,7 @@ import { newId, nowIso } from '../../domain/intelligence';
 import { extractDisasterInfo } from '../ai/disasterExtraction';
 import { validateReport } from '../ai/disasterValidation';
 import { listRecentReports, saveReport } from '../store/disasterStore';
-import { getAuthInstance } from '../../lib/firebase/auth';
-import { isFirebaseConfigured } from '../../lib/firebase/config';
+import { ensureReportUser } from '../../lib/firebase/auth';
 
 export interface SubmitReportInput {
   disasterId?: string;
@@ -32,8 +31,7 @@ export interface PipelineResult {
 }
 
 export async function submitReportPipeline(input: SubmitReportInput): Promise<PipelineResult> {
-  const user = getAuthInstance()?.currentUser;
-  if (isFirebaseConfigured() && (!user || !user.providerData.some(provider => provider.providerId === 'google.com'))) throw new Error('Login Google diperlukan sebelum mengirim laporan bencana.');
+  const user = await ensureReportUser();
   const { extraction, engine, note } = await extractDisasterInfo(input.rawText, {
     locationHint: input.locationName,
   });
@@ -54,7 +52,7 @@ export async function submitReportPipeline(input: SubmitReportInput): Promise<Pi
     verificationStatus: 'AI_REVIEWED' as VerificationStatus,
     aiConfidence: extraction.confidence,
     extractedData: extraction,
-    isMock: user ? false : input.isMock ?? true,
+    isMock: user.isMock,
   };
 
   const existing = await listRecentReports(input.disasterId, 50);
@@ -66,6 +64,7 @@ export async function submitReportPipeline(input: SubmitReportInput): Promise<Pi
   }
 
   const store = await saveReport(candidate);
+  if (!user.isMock && store.mode !== 'live') throw new Error('Laporan belum tersimpan di server. Silakan coba lagi.');
   return {
     report: candidate,
     engine,

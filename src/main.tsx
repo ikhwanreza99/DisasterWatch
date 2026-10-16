@@ -37,8 +37,10 @@ const LoadingFallback: FC = () => {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <Suspense fallback={<div className="p-8 text-slate-500" role="status">DisasterWatch…</div>}>
     <LanguageProvider>
       <Suspense fallback={<LoadingFallback />}>{isAdminPage ? <AdminPage /> : isStatusPage ? <GoogleStatusPage /> : isCalculationPage ? <CalculationVerificationPage /> : <App />}</Suspense>
     </LanguageProvider>
+    </Suspense>
   </StrictMode>,
 );

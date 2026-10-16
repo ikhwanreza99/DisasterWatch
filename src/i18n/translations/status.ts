@@ -1,5 +1,9 @@
 /** English translations — status slice. Keys are the Indonesian source strings. */
 const status: Record<string, string> = {
+  'Progres pemeriksaan layanan': 'Service check progress',
+  'Memeriksa layanan · {done}/{total} tahap · {percent}%': 'Checking services · {done}/{total} steps · {percent}%',
+  'Pemeriksaan selesai · 100%': 'Checks finished · 100%',
+
   'Belum diperiksa': 'Not yet checked',
   'Laporan server terbaru dimuat. Untuk menjalankan uji Google Search baru, buka workflow dan aktifkan opsi Uji Google Search.':
     'The latest server report was loaded. To run a new Google Search test, open the workflow and enable the Test Google Search option.',

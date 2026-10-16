@@ -20,7 +20,7 @@ function badge(status: string): string {
   }
 }
 
-export const RecoveryStatusCards: React.FC<{ services: DisasterIncident['recoveryServices'] }> = ({ services }) => {
+export const RecoveryStatusCards: React.FC<{ services: DisasterIncident['recoveryServices']; estimated?: boolean }> = ({ services, estimated }) => {
   const { t } = useI18n();
   if (!services || services.length === 0) {
     return (
@@ -44,7 +44,7 @@ export const RecoveryStatusCards: React.FC<{ services: DisasterIncident['recover
             </div>
             <div className="min-w-0 mb-2.5">
               <span className="text-[14px] font-bold text-slate-900 block break-words">{t(config.label)}</span>
-              <span className="text-[9px] text-slate-400 font-medium">{t('Status Recovery')}</span>
+              <span className="text-[9px] text-slate-400 font-medium">{estimated && service.type === 'water' ? 'Estimasi bantuan' : t('Status Recovery')}</span>
             </div>
             <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden mb-2.5">
               <div className={`h-full rounded-full ${config.progress} transition-all duration-500`} style={{ width: `${service.recovery}%` }} />
