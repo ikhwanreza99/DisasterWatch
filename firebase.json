@@ -11,6 +11,13 @@
     ],
     "rewrites": [
       {
+        "source": "/api/**",
+        "run": {
+          "serviceId": "disasterwatch-api",
+          "region": "asia-southeast2"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

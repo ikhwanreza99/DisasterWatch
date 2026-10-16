@@ -13,8 +13,8 @@
     "seed:verify": "tsx scripts/seedFirestore.ts --verify-only",
     "start": "tsx server/index.ts",
     "test:admin": "tsx --test server/admin.test.ts",
-    "test:proxy": "tsx --test server/proxy.test.ts",
-    "test": "tsx --test server/admin.test.ts server/proxy.test.ts",
+    "test:proxy": "tsx --test server/proxy.test.ts server/guards.test.ts",
+    "test": "tsx --test server/admin.test.ts server/proxy.test.ts server/guards.test.ts",
     "check:bundle-secrets": "tsx scripts/checkBundleSecrets.ts"
   },
   "dependencies": {
