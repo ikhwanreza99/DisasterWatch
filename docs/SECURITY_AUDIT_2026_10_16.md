@@ -23,3 +23,7 @@ Any Gemini/FIRMS backend key ever shipped in an older public bundle must be rota
 ## Verification
 
 Typecheck/build, six loopback proxy security tests, secret guard over dist, production public asset and security-header verification. No payment, account-role, actual admin decision or private-key rotation is performed by this audit.
+
+## Dependency follow-up
+
+Initial runtime npm audit reported five high-severity entries rooted in @grpc/grpc-js and source-map-js. Overrides update the installed graph to @grpc/grpc-js 1.14.6 and source-map-js 1.2.2, retaining Firebase 12.19.0. Subsequent `npm audit --omit=dev` reports zero vulnerabilities; this is a runtime dependency report, not a proof of application security. Typecheck/build and bundle-secret guard pass after the update.
