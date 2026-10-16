@@ -7,6 +7,8 @@ import {
   redactStatusText,
   stale,
   safeStatusError,
+  isStatusVisible,
+  statusAdvice,
   type ServiceCheck,
 } from './model.ts';
 const check: ServiceCheck = { id:'x',name:'x',state:'configured',detail:'x',checkedAt:null,scope:'backend' };
@@ -14,6 +16,21 @@ test('configuration is not proof and old success evidence is stale', () => {
   assert.equal(stale(check),false);
   assert.equal(stale({...check,state:'ok',checkedAt:'2026-10-12T00:00:00Z'},Date.parse('2026-10-13T01:00:00Z')),true);
   assert.equal(stale({...check,checkedAt:'invalid'}),true);
+});
+test('configured and unknown checks are hidden while actionable results remain visible', () => {
+  assert.equal(isStatusVisible({ ...check, state: 'configured' }), false);
+  assert.equal(isStatusVisible({ ...check, state: 'unknown' }), false);
+  assert.equal(isStatusVisible({ ...check, state: 'ok' }), true);
+  assert.equal(isStatusVisible({ ...check, state: 'error' }), true);
+  assert.equal(isStatusVisible({ ...check, state: 'disabled' }), true);
+});
+test('Google Search 403 failure explains the likely key and API permissions to check', () => {
+  assert.match(statusAdvice({ ...check, id: 'google-search-probe', state: 'error', detail: 'HTTP 403' }) || '', /DISASTERWATCH_GEMINI_SEARCH_KEY/);
+});
+test('Maps timeout failure explains the key, API and App Check settings to inspect', () => {
+  const advice = statusAdvice({ ...check, id: 'maps', state: 'error', detail: 'Peta belum berhasil memuat dalam 20 detik.' }) || '';
+  assert.match(advice, /Maps JavaScript API/);
+  assert.match(advice, /App Check\/reCAPTCHA/);
 });
 test('status errors exclude secrets, URLs and raw provider bodies', () => {
   assert.equal(safeStatusError(new Error('HTTP 403 secret=private-key response body')), 'HTTP 403');

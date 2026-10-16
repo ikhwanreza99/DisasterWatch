@@ -13,6 +13,9 @@ export const stateLabels: Record<ServiceState, string> = {
   ok: 'Berhasil diuji', error: 'Gagal', configured: 'Terpasang · belum diuji',
   disabled: 'Nonaktif', unknown: 'Belum diketahui', empty: 'Berhasil · data kosong', checking: 'Memeriksa',
 };
+export function isStatusVisible(check: ServiceCheck): boolean {
+  return check.state !== 'configured' && check.state !== 'unknown';
+}
 export function stale(check: ServiceCheck, now = Date.now()): boolean {
   return !!check.checkedAt && (!Number.isFinite(Date.parse(check.checkedAt)) || now - Date.parse(check.checkedAt) > 24 * 3600_000);
 }
@@ -66,6 +69,10 @@ export function hasValidGeminiCandidates(data: unknown): boolean {
 
 export function statusAdvice(check: ServiceCheck): string | null {
   if (check.state !== 'error') return null;
+  if (check.id === 'maps')
+    return 'Peta tidak selesai dimuat dalam 20 detik. Pastikan Maps JavaScript API aktif, key VITE_GOOGLE_MAPS_API_KEY mengizinkan origin situs ini, serta billing dan kuota tersedia. Jika muncul 403 App Check/reCAPTCHA, periksa site key dan domain yang diizinkan.';
+  if (check.id === 'google-search-probe' && check.detail.includes('HTTP 403'))
+    return 'Uji Google Search ditolak (HTTP 403). Pastikan secret DISASTERWATCH_GEMINI_SEARCH_KEY valid, Gemini API aktif di proyek key tersebut, dan pembatasan key mengizinkan request dari GitHub Actions.';
   if (check.id.startsWith('serpapi-')) return check.detail.includes('HTTP 429')
     ? 'Periksa kuota dan batas request akun SerpApi. Tunggu sebelum menjalankan uji kembali.'
     : 'Periksa GitHub Secret SERPAPI_API_KEY, akun SerpApi, dan status layanannya. Setelah mengganti key, jalankan workflow hosting dengan check_serpapi.';

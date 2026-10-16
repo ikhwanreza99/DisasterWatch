@@ -39,3 +39,32 @@ test('generated incident labels translate without changing Indonesian source dat
   assert.equal(en['Jawa Tengah'], 'Central Java');
   assert.equal(en['jiwa'], 'people');
 });
+
+test('dynamic status report text is translated while retaining live counts and dates', async () => {
+  const { translateStatusText } = await import('../src/i18n/statusText.ts');
+  const { en } = await import('../src/i18n/translations.ts');
+  const english = (key: string, params?: Record<string, string | number | null | undefined>) =>
+    (en[key] ?? key).replace(/\{(\w+)\}/g, (token, name: string) => {
+      const value = params?.[name];
+      return value === undefined || value === null ? token : String(value);
+    });
+
+  assert.equal(
+    translateStatusText('Dataset · 14 hari terakhir', english),
+    'Dataset · last 14 days',
+  );
+  assert.equal(
+    translateStatusText(
+      'Tersimpan 1267 artikel. Sampel 500: 146 sesuai kejadian, 132 perlu review. Berita digabung dengan sumber lain setelah pemeriksaan lokasi dan tanggal.',
+      english,
+    ),
+    '1267 articles stored. Sample of 500: 146 match incidents, 132 need review. News is merged with other sources after location and date checks.',
+  );
+  assert.equal(
+    translateStatusText(
+      'Respons Air Quality API valid untuk Jakarta; UAQI 32 (Kualitas udara rendah).',
+      english,
+    ),
+    'Valid Air Quality API response for Jakarta; UAQI 32 (Low air pollution).',
+  );
+});
