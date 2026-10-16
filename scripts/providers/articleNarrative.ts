@@ -1,5 +1,11 @@
 import {newsSourceUrl} from '../../src/services/newsSourceUrl.ts';
-const PUBLISHERS=['antaranews.com','hukumonline.com','rri.co.id','bnpb.go.id','padang.go.id','bni.co.id','pertamina.com'];
+export const NARRATIVE_PUBLISHERS=['antaranews.com','hukumonline.com','rri.co.id','bnpb.go.id','padang.go.id','bni.co.id','pertamina.com'];
+/** Allowlisted publisher check, shared by the fetcher and the candidate collector. */
+export function isNarrativePublisher(url:string):boolean {
+  const safe=newsSourceUrl(url);if(!safe)return false;
+  const host=new URL(safe).hostname;
+  return NARRATIVE_PUBLISHERS.some(d=>host===d||host.endsWith(`.${d}`));
+}
 const decode=(text:string)=>text.replace(/&nbsp;|&#160;/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
 export function narrativeParagraphs(html:string):string[]{
   const clean=html.replace(/<(script|style|nav|footer|aside)\b[^>]*>[\s\S]*?<\/\1>/gi,'');
@@ -8,8 +14,7 @@ export function narrativeParagraphs(html:string):string[]{
 }
 export async function fetchNarrative(url:string):Promise<string[]> {
   const safe=newsSourceUrl(url);if(!safe)throw new Error('Invalid article URL');
-  const host=new URL(safe).hostname;
-  if(!PUBLISHERS.some(d=>host===d||host.endsWith(`.${d}`)))throw new Error('Publisher not enabled');
+  if(!isNarrativePublisher(safe))throw new Error('Publisher not enabled');
   const response=await fetch(safe,{redirect:'error',signal:AbortSignal.timeout(20000),headers:{Accept:'text/html'}});
   if(!response.ok||!response.headers.get('content-type')?.includes('text/html')||!response.body)throw new Error(`Article HTTP ${response.status}`);
   const reader=response.body.getReader();const decoder=new TextDecoder();let size=0,html='';

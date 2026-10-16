@@ -161,6 +161,15 @@ const detail: Record<string, string> = {
   'Perkiraan penerima manfaat bantuan': 'Estimated aid beneficiaries',
   'Perkiraan nilai bantuan dilaporkan': 'Estimated reported aid value',
   'Nilai bantuan bukan estimasi kerugian bencana. Angka mengikuti laporan sumber, bukan nilai inventaris terkini.': 'Aid value is not an estimate of disaster loss. Figures follow the source report, not current inventory value.',
+  'Angka dampak mengikuti laporan sumber dan tidak dijumlahkan antar pemberitaan.': 'Impact figures follow the source report and are not summed across articles.',
+  'Warga mengungsi/dievakuasi': 'People displaced/evacuated',
+  'Warga terdampak': 'People affected',
+  'Kepala keluarga terdampak': 'Households affected',
+  'Rumah terdampak': 'Homes affected',
+  'orang': 'people',
+  'jiwa': 'people',
+  'kk': 'households',
+  'rumah': 'homes',
 
   // RecoveryStatusCards
   'Air & Sanitasi': 'Water & Sanitation',

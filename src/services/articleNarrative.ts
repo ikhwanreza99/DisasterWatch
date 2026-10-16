@@ -1,18 +1,49 @@
 export interface NarrativeFact {
-  kind:'DISTRIBUTED'|'NEEDED'|'CAPACITY'|'AID_VALUE'|'LOSS'|'BENEFICIARIES';
+  kind:'DISTRIBUTED'|'NEEDED'|'CAPACITY'|'AID_VALUE'|'LOSS'|'BENEFICIARIES'|'IMPACT';
   item:string; quantity:number; unit:string; sourceUrl:string; sourceName:string;
   publishedAt:string; organization:string|null;
 }
 export interface NarrativeArticle {url:string;sourceName:string;publishedAt:string;title:string;paragraphs:string[]}
 const number=(value:string)=>Number(value.replace(/\./g,'').replace(',','.'));
+// A paragraph about another city must never contribute this incident's impact counts.
+const mentionsPadang=(text:string)=>/padang/i.test(text)&&!/padang panjang/i.test(text);
+// A passage naming another province describes a different event (national BNPB
+// roundups list many provinces); it may only contribute when it also names Padang.
+const OTHER_PROVINCE=/\b(aceh|sumatera utara|sumatera selatan|kepulauan riau|jambi|bengkulu|lampung|bangka belitung|banten|jawa barat|jawa tengah|jawa timur|kalimantan \w+|sulawesi \w+|papua\w*|nusa tenggara \w+|maluku\w*|gorontalo)\b/i;
+// Reported impact figures (people/homes). Numerals only: "ratusan"/"puluhan" stay
+// unreported rather than becoming an invented precise count. Each source keeps its
+// own value — figures are never summed across articles or converted to needs.
+const IMPACT_METRICS:Array<{item:string;unit:string;patterns:RegExp[]}>= [
+  {item:'Warga mengungsi/dievakuasi',unit:'orang',patterns:[
+    /([\d][\d.]*)\s*(?:jiwa|orang|warga|penduduk)\s*(?:yang\s*)?(?:mengungsi|dievakuasi|terjebak)/i,
+    /(?:mengungsi|dievakuasi|terjebak)[^.]{0,40}?([\d][\d.]*)\s*(?:jiwa|orang|warga|penduduk)/i,
+  ]},
+  {item:'Warga terdampak',unit:'jiwa',patterns:[
+    /([\d][\d.]*)\s*(?:jiwa|orang|warga)\s*[^.]{0,60}?\bterdampak/i,
+    /\bterdampak[^.]{0,40}?([\d][\d.]*)\s*(?:jiwa|orang|warga)/i,
+  ]},
+  {item:'Kepala keluarga terdampak',unit:'kk',patterns:[
+    /([\d][\d.]*)\s*(?:kepala keluarga|kk)\s*[^.]{0,40}?\bterdampak/i,
+    /\bterdampak[^.]{0,40}?([\d][\d.]*)\s*(?:kepala keluarga|kk)/i,
+  ]},
+  {item:'Rumah terdampak',unit:'rumah',patterns:[
+    /([\d][\d.]*)\s*(?:unit\s*)?rumah\s*[^.]{0,30}?(?:terdampak|terendam|rusak|hancur)/i,
+    /(?:merendam|rendam|merusak)[^.]{0,30}?([\d][\d.]*)\s*(?:unit\s*)?rumah/i,
+  ]},
+];
 export function extractNarrativeFacts(article:NarrativeArticle):NarrativeFact[] {
   const facts:NarrativeFact[]=[];
   const all=article.paragraphs.join(' ');
+  // Article-level identity: a Padang flood-event title; Padang Panjang and
+  // unrelated events are excluded before any number is read at all.
+  if(!/\bpadang\b/i.test(article.title)||/padang panjang/i.test(article.title)||!/banjir/i.test(article.title))return [];
   const organization=/pertamina/i.test(article.title)?'Pertamina':/\bbni\b/i.test(article.title)?'BNI':null;
-  const benefit=all.match(/penerima manfaat[^.]{0,40}?([\d.,]+)\s*(jiwa|orang)/i);
   const base={sourceUrl:article.url,sourceName:article.sourceName,publishedAt:article.publishedAt,organization};
-  if(benefit)facts.push({...base,kind:'BENEFICIARIES',item:'Perkiraan penerima manfaat bantuan',quantity:number(benefit[1]),unit:benefit[2]});
-  for(const paragraph of article.paragraphs){
+  // Narrative quantity facts additionally require the body to confirm this city.
+  const bodyConfirms=/kota padang|banjir (?:di )?padang/i.test(all);
+  const benefit=all.match(/penerima manfaat[^.]{0,40}?([\d.,]+)\s*(jiwa|orang)/i);
+  if(bodyConfirms&&benefit)facts.push({...base,kind:'BENEFICIARIES',item:'Perkiraan penerima manfaat bantuan',quantity:number(benefit[1]),unit:benefit[2]});
+  if(bodyConfirms)for(const paragraph of article.paragraphs){
     if(!/bantuan|disalur|distribusi|mencakup|tersebut|butuh|kekurangan|kerugian/i.test(paragraph))continue;
     const needed=/\b(dibutuhkan|membutuhkan|kekurangan)\b/i.test(paragraph) && !/disalur|distribusi/i.test(paragraph);
     const capacity=paragraph.match(/(?:tangki|tanki)[^.;]{0,50}?berkapasitas\s*([\d.,]+)\s*liter\s+air bersih/i);
@@ -32,8 +63,24 @@ export function extractNarrativeFacts(article:NarrativeArticle):NarrativeFact[] 
       if(kind)facts.push({...base,kind,item:kind==='LOSS'?'Kerugian dilaporkan':'Perkiraan nilai bantuan',quantity:number(money[1])*(/^mi/i.test(money[2])?1e9:1e6),unit:'Rp'});
     }
   }
-  // Require article-level location and event identity before retaining facts.
-  if(/padang panjang/i.test(article.title) || !/\bpadang\b/i.test(article.title) || !/banjir/i.test(article.title) || !/kota padang|banjir (?:di )?padang/i.test(all))return [];
+  // Reported impact figures. Title identity already applies, so a city-specific
+  // report still contributes when its body never repeats "Kota Padang"; a passage
+  // naming another province only counts when it also names Padang. One value per
+  // metric per source: the largest figure is the report's own total, so per-shelter
+  // subsets are not published as separate figures and nothing is summed across
+  // articles.
+  const impact=new Map<string,{quantity:number;unit:string}>();
+  for(const passage of [article.title,...article.paragraphs]){
+    if(!mentionsPadang(passage)&&OTHER_PROVINCE.test(passage))continue;
+    for(const metric of IMPACT_METRICS){
+      const match=metric.patterns.map(p=>passage.match(p)).find(Boolean);
+      const quantity=match?number(match[1]):NaN;
+      if(!Number.isFinite(quantity)||quantity<=0)continue;
+      const current=impact.get(metric.item);
+      if(!current||quantity>current.quantity)impact.set(metric.item,{quantity,unit:metric.unit});
+    }
+  }
+  for(const [item,value] of impact)facts.push({...base,kind:'IMPACT',item,unit:value.unit,quantity:value.quantity});
   const seen=new Set<string>();
   return facts.filter(f=>Number.isFinite(f.quantity)&&f.quantity>0&&!seen.has(`${f.kind}|${f.item}|${f.quantity}|${f.unit}`)&&!!seen.add(`${f.kind}|${f.item}|${f.quantity}|${f.unit}`));
 }
