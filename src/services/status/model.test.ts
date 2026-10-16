@@ -20,6 +20,8 @@ test('configuration is not proof and old success evidence is stale', () => {
 test('configured and unknown checks are hidden while actionable results remain visible', () => {
   assert.equal(isStatusVisible({ ...check, state: 'configured' }), false);
   assert.equal(isStatusVisible({ ...check, state: 'unknown' }), false);
+  assert.equal(isStatusVisible({ ...check, id: 'gemini-direct', state: 'disabled' }), false);
+  assert.equal(isStatusVisible({ ...check, id: 'gemini-direct', state: 'ok' }), true);
   assert.equal(isStatusVisible({ ...check, state: 'ok' }), true);
   assert.equal(isStatusVisible({ ...check, state: 'error' }), true);
   assert.equal(isStatusVisible({ ...check, state: 'disabled' }), true);

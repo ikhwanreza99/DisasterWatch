@@ -14,7 +14,8 @@ export const stateLabels: Record<ServiceState, string> = {
   disabled: 'Nonaktif', unknown: 'Belum diketahui', empty: 'Berhasil · data kosong', checking: 'Memeriksa',
 };
 export function isStatusVisible(check: ServiceCheck): boolean {
-  return check.state !== 'configured' && check.state !== 'unknown';
+  if (check.state === 'configured' || check.state === 'unknown') return false;
+  return !(check.id === 'gemini-direct' && check.state === 'disabled');
 }
 export function stale(check: ServiceCheck, now = Date.now()): boolean {
   return !!check.checkedAt && (!Number.isFinite(Date.parse(check.checkedAt)) || now - Date.parse(check.checkedAt) > 24 * 3600_000);
