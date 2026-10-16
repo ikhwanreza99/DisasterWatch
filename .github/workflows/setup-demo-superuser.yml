@@ -26,6 +26,9 @@ jobs:
         run: node --import tsx scripts/provisionDemoSuperuser.ts
         env:
           FIREBASE_ADMIN_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+          # The hosting account lacks Firebase Authentication Admin; the seeding
+          # account is offered as a second candidate and probed at runtime.
+          FIREBASE_ADMIN_SERVICE_ACCOUNT_FALLBACK: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT }}
           # Optional. Without it the published default in the script is used.
           DEMO_ADMIN_PASSWORD: ${{ secrets.DEMO_ADMIN_PASSWORD }}
       - name: Fail if provisioning did not complete
