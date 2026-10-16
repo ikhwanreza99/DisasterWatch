@@ -61,6 +61,7 @@ export interface IntelligenceReport {
 }
 
 export interface AidRecord {
+  destinationPost?: { id: number; name: string; placeId?: string; location?: string; recommendation: boolean };
   itemName?: string;
   id: string;
   disasterId: string;

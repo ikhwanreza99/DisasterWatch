@@ -1,5 +1,18 @@
 /** English translations — modals slice. Keys are the Indonesian source strings. */
 const modals: Record<string, string> = {
+  'Kapasitas (estimasi pembagian)':'Capacity (allocation estimate)',
+  'Tutup form donasi':'Close donation form',
+  'Pilih Posko Drop-off':'Choose a drop-off post',
+  'Memuat daftar Posko Bantuan…':'Loading aid posts…',
+  'Daftar posko gagal dimuat.':'Unable to load aid posts.',
+  'Belum ada posko yang tersedia untuk wilayah ini.':'No posts are available for this area yet.',
+  'Lihat di Google Maps':'View on Google Maps',
+  'Usulan lokasi; konfirmasi operasional sebelum mengantar bantuan.':'Proposed location; confirm operations before delivering aid.',
+  'Posko tujuan: {name}':'Destination post: {name}',
+  '{qty} jiwa/posko (estimasi)':'{qty} people/post (estimate)',
+  'Asumsi: {population} jiwa ÷ {count} posko.':'Assumption: {population} people ÷ {count} posts.',
+  'Target pembagian; kapasitas lokasi belum diverifikasi.':'Allocation target; venue capacity is unverified.',
+  'Sumber jumlah jiwa':'Population source',
   // ----- Shared labels -----
   Batal: 'Cancel',
   'Selesai & Tutup': 'Done & Close',
