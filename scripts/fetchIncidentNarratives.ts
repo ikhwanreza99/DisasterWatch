@@ -14,6 +14,15 @@ const sources=[
  // impact rows survive a changing Firestore candidate list or relevance decision.
  {url:'https://rri.co.id/nasional/2804357/banjir-padang-belum-surut-bnpb-ungkap-jumlah-pengungsi-hingga-kerusakan-rumah',sourceName:'RRI.co.id',publishedAt:'2026-10-12T10:05:00+07:00',title:'Banjir Padang Belum Surut, BNPB Ungkap Jumlah Pengungsi hingga Kerusakan Rumah'},
 ];
+// One retry for a transient network/HTTP failure; a policy rejection is final, so a
+// blocked publisher is not fetched twice. A missing article stays unavailable either way.
+async function fetchWithRetry(url:string):Promise<string[]|null>{
+ for(let attempt=0;attempt<2;attempt++){
+  try{return await fetchNarrative(url);}
+  catch(error){if(/Publisher not enabled|Invalid article URL/.test(String(error)))return null;}
+ }
+ return null;
+}
 async function main(){
  const now=new Date().toISOString();let app;const rows:NarrativeFact[]=[];const checks:Array<{url:string;state:string;facts:number}>=[];
  const raw=process.env.FIREBASE_NEWS_SERVICE_ACCOUNT;
@@ -38,8 +47,9 @@ async function main(){
   }
   // Bounded known publishers only. No redirects, paywall bypass, or full-body storage.
   for(const source of candidates.filter(s=>inRecentWindow(s.publishedAt))){
-   try{const paragraphs=await fetchNarrative(source.url);const facts=extractNarrativeFacts({...source,paragraphs});rows.push(...facts);checks.push({url:source.url,state:paragraphs.length?'FETCHED':'EMPTY',facts:facts.length});}
-   catch{checks.push({url:source.url,state:'UNAVAILABLE',facts:0});}
+   const paragraphs=await fetchWithRetry(source.url);
+   if(!paragraphs){checks.push({url:source.url,state:'UNAVAILABLE',facts:0});continue;}
+   const facts=extractNarrativeFacts({...source,paragraphs});rows.push(...facts);checks.push({url:source.url,state:paragraphs.length?'FETCHED':'EMPTY',facts:facts.length});
   }
   const dataset={version:1,generatedAt:now,incidents:{padang:{incidentId:'padang',facts:rows,checks,notice:'Catatan narasi berita; bukan inventaris terkini atau verifikasi independen. Nilai bantuan berbeda dari kerugian bencana.'}}};
   await mkdir('public/data',{recursive:true});await writeFile('public/data/incident-narratives.json',JSON.stringify(dataset));

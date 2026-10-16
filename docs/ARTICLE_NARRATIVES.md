@@ -6,9 +6,10 @@ Padang aid/needs/recovery/impact article URLs from incidentArticles. Fetchable
 publishers and impact-titled reports are preferred so a slot is not spent on a
 blocked domain or a report with no figures. Fetching is server-only, allowlisted
 publishers, HTTPS, no redirect traversal, bounded body/time, no paywall bypass.
-Failures remain unavailable rather than generating artificial records. Articles
-must be within 7 calendar days WIB; Padang Panjang and unrelated event titles are
-excluded.
+A transient network failure is retried once; a blocked publisher or invalid URL
+is not, and failures remain unavailable rather than generating artificial
+records. Articles must be within 7 calendar days WIB; Padang Panjang and
+unrelated event titles are excluded.
 
 Only structured facts are stored, not full article bodies. Original item names,
 units, source URL, publication time and organization are retained. Counts are
