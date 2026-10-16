@@ -603,9 +603,17 @@
   background: white;
   border-bottom: 1px solid #e5eaf3;
 }
-.admin-login > header > span {
+.admin-login > header > span,
+.admin-login-meta > span {
   color: #64748b;
   font-size: 12px;
+}
+/* Language control on the login screen, grouped with the portal label the way
+   the dashboard groups it with the account block. */
+.admin-login-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 .admin-login main {
   max-width: 1100px;
@@ -1086,6 +1094,12 @@
   }
   .admin-login > header {
     padding: 20px;
+  }
+  /* The dashboard hides .admin-account-name at this width and keeps the language
+     control; the login header keeps the same shape instead of wrapping the label
+     onto a second line behind the toggle. */
+  .admin-login-meta > span {
+    display: none;
   }
   .admin-login main {
     display: block;

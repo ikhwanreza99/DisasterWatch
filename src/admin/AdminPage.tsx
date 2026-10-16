@@ -244,7 +244,10 @@ export default function AdminPage() {
       <div className="admin-app admin-login">
         <header>
           <Brand />
-          <span>{t("Portal Verificator")}</span>
+          <div className="admin-login-meta">
+            <span>{t("Portal Verificator")}</span>
+            <LanguageToggle />
+          </div>
         </header>
         <main>
           <div className="admin-login-intro">
