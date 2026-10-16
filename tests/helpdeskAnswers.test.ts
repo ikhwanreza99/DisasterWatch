@@ -72,3 +72,11 @@ test('several consecutive city-only follow-ups keep the original topic', () => {
 test('asking about a different disaster type prompts clarification', () => {
   assert.match(fallbackAnswer('Apa penyebab gempa?', deps, { selectedDisasterId: 'demak' }), /Jenis bencana.*berbeda/);
 });
+
+test('unavailable local population is not answered as zero, while an explicitly recorded zero remains valid', () => {
+  const unknown = { ...demak, impact: 'Belum tersedia' };
+  const empty = { disasters: { demak: unknown }, reports: [], aid: [] };
+  assert.match(fallbackAnswer('Berapa orang terdampak di Demak?', empty), /belum tersedia/);
+  assert.doesNotMatch(fallbackAnswer('Berapa orang terdampak di Demak?', empty), /0 orang/);
+  assert.match(fallbackAnswer('Berapa orang terdampak di Demak?', { ...empty, reports: [report('zero', 'demak', 0)] }), /0 orang/);
+});

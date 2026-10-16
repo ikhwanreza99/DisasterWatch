@@ -180,12 +180,20 @@ function prepareQuestion(question: string, deps: AssistantDeps, conversation: As
   return { scope, deps: scopeAssistantDeps(deps, scope.incidents.map(d => d.id)), question: resolveAssistantQuestion(question, all, conversation.history) };
 }
 
+function missingPopulation(question: string, target: DisasterIncident | undefined, deps: AssistantDeps): boolean {
+  if (!target || !/terdampak|terkena dampak|berapa orang|jumlah (korban|pengungsi|jiwa)|populasi/i.test(question)) return false;
+  const recorded = deps.reports.some(report => report.disasterId === target.id && report.extractedData?.affectedPopulation != null);
+  const legacyRecorded = /[\d.,]+\s*(KK|jiwa|keluarga)\b/i.test(target.impact);
+  return !recorded && !legacyRecorded;
+}
+
 /** Offline answers follow the same location and conversation rules as Gemini. */
 export function fallbackAnswer(question: string, deps: AssistantDeps, conversation: AssistantConversation = {}): string {
   const prepared = prepareQuestion(question, deps, conversation);
   if (prepared.scope.unknownLocation) return translate('Lokasi yang Anda tanyakan belum dapat dicocokkan dengan insiden di DisasterWatch. Sebutkan kota/kabupaten atau pilih insiden yang ingin dibahas.');
   const target = prepared.scope.incidents.length === 1 ? prepared.scope.incidents[0] : undefined;
   if (hasIncidentTypeConflict(question, target)) return translate('Jenis bencana yang Anda tanyakan berbeda dari insiden yang sedang dibahas. Sebutkan jenis bencana dan kota/kabupaten yang Anda maksud.');
+  if (target && missingPopulation(prepared.question, target, deps)) return translate('Data jumlah warga terdampak di {name} belum tersedia dalam aplikasi. Belum tersedia tidak berarti nol orang terdampak.', { name: target.name });
   const q = prepared.question.toLowerCase();
   if (target) {
     let detail: string | undefined;
@@ -237,7 +245,7 @@ export async function askAssistant(
 ): Promise<{ answer: string; engine: 'gemini' | 'deterministic' }> {
   // Fresh data for every turn. History only supplies conversational references.
   const scope = resolveAssistantScope(question, Object.values(deps.disasters), conversation);
-  if (scope.unknownLocation || hasIncidentTypeConflict(question, scope.incidents.length === 1 ? scope.incidents[0] : undefined)) return { answer: fallbackAnswer(question, deps, conversation), engine: 'deterministic' };
+  if (scope.unknownLocation || hasIncidentTypeConflict(question, scope.incidents.length === 1 ? scope.incidents[0] : undefined) || missingPopulation(resolveAssistantQuestion(question, Object.values(deps.disasters), conversation.history), scope.incidents.length === 1 ? scope.incidents[0] : undefined, deps)) return { answer: fallbackAnswer(question, deps, conversation), engine: 'deterministic' };
   try {
     const model = await getGeminiModel();
     if (model) {
