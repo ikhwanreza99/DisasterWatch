@@ -22,6 +22,8 @@ import {
 interface HeaderProps {
   /** Separate date selections for the FIRMS and MAGMA layers. */
   dates: Record<DateTarget, string>;
+  /** Date filters are relevant only while API-backed map layers are enabled. */
+  apiLayersEnabled: boolean;
   onSelectDate: (target: DateTarget, value: string) => void;
   onReportDisaster: () => void;
   /** Incidents for the "Terkini" news ticker (from feat/homepage-slicing). */
@@ -39,6 +41,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   user,
   dates,
+  apiLayersEnabled,
   onSelectDate,
   onReportDisaster,
   disasters,
@@ -60,6 +63,9 @@ export const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     if (!isSignedIn) setIsAccountOpen(false);
   }, [isSignedIn]);
+  useEffect(() => {
+    if (!apiLayersEnabled) setIsCalendarOpen(false);
+  }, [apiLayersEnabled]);
   // Retry the Google photo whenever it changes.
   useEffect(() => {
     setPhotoFailed(false);
@@ -149,7 +155,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Date Filter Toolbar & Controls (Top-Right) */}
       <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto shrink-0">
         {/* Date Selector Dropdown Button */}
-        <div className="relative">
+        {apiLayersEnabled && <div className="relative">
           <button
             onClick={() => setIsCalendarOpen(!isCalendarOpen)}
             className="flex items-center gap-2 bg-slate-50 dark:bg-[#0f1b38]/70 hover:bg-slate-100 dark:hover:bg-[#14234b] active:scale-95 transition-all text-slate-700 dark:text-slate-200 px-2.5 sm:px-5 py-2 rounded-full font-medium text-xs sm:text-sm shadow-xs border border-slate-200/80 dark:border-slate-700/70"
@@ -283,7 +289,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Laporkan Bencana */}
         <button

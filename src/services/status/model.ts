@@ -14,6 +14,7 @@ export const stateLabels: Record<ServiceState, string> = {
   disabled: 'Nonaktif', unknown: 'Belum diketahui', empty: 'Berhasil · data kosong', checking: 'Memeriksa',
 };
 export function isStatusVisible(check: ServiceCheck): boolean {
+  if (check.id === 'maps' || check.id === 'google-search-probe') return false;
   if (check.state === 'configured' || check.state === 'unknown') return false;
   return !(check.id === 'gemini-direct' && check.state === 'disabled');
 }

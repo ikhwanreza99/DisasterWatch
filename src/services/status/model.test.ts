@@ -22,6 +22,10 @@ test('configured and unknown checks are hidden while actionable results remain v
   assert.equal(isStatusVisible({ ...check, state: 'unknown' }), false);
   assert.equal(isStatusVisible({ ...check, id: 'gemini-direct', state: 'disabled' }), false);
   assert.equal(isStatusVisible({ ...check, id: 'gemini-direct', state: 'ok' }), true);
+  assert.equal(isStatusVisible({ ...check, id: 'maps', state: 'error' }), false);
+  assert.equal(isStatusVisible({ ...check, id: 'maps', state: 'ok' }), false);
+  assert.equal(isStatusVisible({ ...check, id: 'google-search-probe', state: 'error' }), false);
+  assert.equal(isStatusVisible({ ...check, id: 'google-search-probe', state: 'ok' }), false);
   assert.equal(isStatusVisible({ ...check, state: 'ok' }), true);
   assert.equal(isStatusVisible({ ...check, state: 'error' }), true);
   assert.equal(isStatusVisible({ ...check, state: 'disabled' }), true);

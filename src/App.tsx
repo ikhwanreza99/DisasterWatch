@@ -523,6 +523,7 @@ export default function App() {
       <Header
           user={currentUser}
           dates={{ bmkg: bmkgDate, firms: selectedDate, magma: magmaDate }}
+          apiLayersEnabled={apiLayersEnabled}
           onSelectDate={(target, value) =>
             target === 'magma' ? setMagmaDate(value) : target === 'bmkg' ? setBmkgDate(value) : setSelectedDate(value)
           }
