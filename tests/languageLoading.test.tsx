@@ -26,6 +26,31 @@ test('Indonesian renders immediately and saved English renders translated after 
  }
 });
 
+test('new browser visits default to English while a saved Indonesian choice is retained', async () => {
+  await loadEnglishTranslations();
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  try {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { localStorage: { getItem: () => null } },
+    });
+    const defaultHtml = renderToStaticMarkup(<LanguageProvider><Labels /></LanguageProvider>);
+    assert.match(defaultHtml, /en-US:/);
+    assert.match(defaultHtml, /Report a Disaster/);
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { localStorage: { getItem: () => 'id' } },
+    });
+    const savedHtml = renderToStaticMarkup(<LanguageProvider><Labels /></LanguageProvider>);
+    assert.match(savedHtml, /id-ID:/);
+    assert.match(savedHtml, /Laporkan Bencana/);
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'window', original);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});
+
 
 test('generated incident labels translate without changing Indonesian source data or location names', async () => {
   const { incidentText } = await import('../src/i18n/incidentText.ts');

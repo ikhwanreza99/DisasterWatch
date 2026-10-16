@@ -1,7 +1,8 @@
 /**
  * DisasterWatch i18n.
  *
- * The default (and source) language is Indonesian. Every user-visible string is
+ * Indonesian is the source language. English is the default for new browser
+ * visits. Every user-visible string is
  * passed through `t()`, whose key is the Indonesian text itself. Switching the
  * language to English looks the key up in the dictionary in ./translations.ts and
  * returns the English string; when a key is missing it safely falls back to the
@@ -26,7 +27,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-// Indonesian uses the source keys; download English only when selected.
+// Download English only when selected (or used as the browser default).
 let en: Record<string, string> | null = null;
 let englishPromise: Promise<void> | null = null;
 export function loadEnglishTranslations(): Promise<void> {
@@ -55,8 +56,8 @@ function readInitialLang(): Lang {
   } catch {
     /* storage unavailable (private mode) */
   }
-  // Default to the app's source language (Indonesian); the toggle switches to English.
-  return 'id';
+  // New browser visits default to English; retain the Indonesian server fallback.
+  return 'en';
 }
 
 /** Replace `{placeholder}` tokens in a template with the supplied values. */
