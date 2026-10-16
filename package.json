@@ -14,7 +14,7 @@
     "start": "tsx server/index.ts",
     "test:admin": "tsx --test server/admin.test.ts",
     "test:proxy": "tsx --test server/proxy.test.ts server/guards.test.ts",
-    "test": "tsx --test server/admin.test.ts server/proxy.test.ts server/guards.test.ts src/services/airquality/airQuality.test.ts scripts/geminiSecretScan.test.ts src/services/status/model.test.ts src/services/status/automaticChecks.test.ts tests/articleNarrative.test.ts tests/insightFormulas.test.ts tests/insightCalculator.test.tsx tests/calculationEngine.test.ts tests/calculationRegistry.test.tsx",
+    "test": "tsx --test server/admin.test.ts server/proxy.test.ts server/guards.test.ts src/services/airquality/airQuality.test.ts scripts/geminiSecretScan.test.ts src/services/status/model.test.ts src/services/status/automaticChecks.test.ts tests/articleNarrative.test.ts tests/insightFormulas.test.ts tests/insightCalculator.test.tsx tests/calculationEngine.test.ts tests/calculationRegistry.test.tsx tests/evacuationCandidates.test.ts",
     "check:bundle-secrets": "tsx scripts/checkBundleSecrets.ts",
     "check:secrets": "tsx scripts/checkNoGeminiSecret.ts"
   },

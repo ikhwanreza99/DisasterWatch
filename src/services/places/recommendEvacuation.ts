@@ -1,6 +1,6 @@
 import {currentRecords} from '../../data/currentIncidents';
 import {nearbyFacilities,findReportedArea} from './placeSearch';
-import {facilityCandidates,rankCandidates,placeInRegion} from './evacuationCandidates';
+import {facilityCandidates,rankCandidates,placeInRegion,MAX_CANDIDATES} from './evacuationCandidates';
 import {getGeminiModel} from '../../lib/firebase/ai';
 import {translate} from '../../i18n';
 import type {DisasterIncident,DisasterCheckpoint} from '../../types';
@@ -29,7 +29,7 @@ export function recommendEvacuation(disaster:DisasterIncident,onCandidates?:List
       }
     }
     if(posts.length<3){radius=15000;posts=await search();}
-    posts=posts.slice(0,10);
+    posts=posts.slice(0,MAX_CANDIDATES);
     const entry=cache.get(key);if(entry)entry.posts=posts;
     listeners.forEach(listener=>listener(posts));
     let method:Recommendation['method']='distance';

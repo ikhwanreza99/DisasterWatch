@@ -4,9 +4,15 @@ When a disaster has no reported route checkpoints, opening Posko Evakuasi search
 Google Places API (New) Nearby Search around the stored disaster coordinates.
 Types include mosque, church, schools, parks/fields, stadium/sports complex and
 community center. Search 5 km first, expand to 15 km if fewer than 3 eligible
-places, max 20 provider results, max 10 displayed candidates. Coordinates and
+places, max 20 provider results, max 5 displayed candidates. Coordinates and
 names must come from Places; closed, duplicate, out-of-radius and ineligible
 places are excluded. Distances are straight-line, not driving routes.
+
+Google sometimes pins several distinct venues to one shared coordinate/plus-code.
+Candidates closer than 50 m to an already-kept candidate are dropped, so the map
+shows one marker per real site instead of a stack of overlapping pins; only then is
+the list capped at five. Marker positions are the Places coordinates, never the
+disaster coordinate.
 
 Places candidates appear immediately. Gemini receives candidate IDs, facility
 types and distances and may reorder those IDs only. Invalid response or API

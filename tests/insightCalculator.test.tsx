@@ -27,7 +27,7 @@ test('the impact calculator is a labelled simulation that never invents results'
   assert.doesNotMatch(markup, />45%</);
 });
 
-test('the detail panel exposes the calculator inside the aid-gap card', () => {
+test('the scenario calculator stays hidden in the detail panel', () => {
   const markup = renderToStaticMarkup(
     <LanguageProvider>
       <SidebarDetailTemplate
@@ -41,6 +41,7 @@ test('the detail panel exposes the calculator inside the aid-gap card', () => {
       />
     </LanguageProvider>,
   );
-  assert.match(markup, /data-testid="insight-calculator"/);
   assert.match(markup, /Kesenjangan Bantuan/);
+  assert.doesNotMatch(markup, /data-testid="insight-calculator"/);
+  assert.doesNotMatch(markup, /Perhitungan dampak/);
 });

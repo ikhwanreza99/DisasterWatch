@@ -1,6 +1,11 @@
 import type { DisasterCheckpoint } from '../../types';
 export interface FacilityPlace {id?:string;displayName?:{text?:string};formattedAddress?:string;location?:{latitude?:number;longitude?:number};types?:string[];businessStatus?:string;addressComponents?:Array<{longText?:string;types?:string[]}>}
 export const FACILITY_TYPES = ['mosque','church','school','primary_school','secondary_school','park','stadium','sports_complex','community_center'];
+/** Provider results are capped here and deduplicated, so the map never stacks markers on one point. */
+export const MAX_CANDIDATES = 5;
+// Google often pins several distinct venues to one shared plus-code/coordinate. Two
+// "facilities" that close are one site on the map, so only the nearest is kept.
+const MIN_SEPARATION_METERS = 50;
 export function distanceMeters(lat:number,lng:number,toLat:number,toLng:number) {
   const rad=Math.PI/180, a=Math.sin((toLat-lat)*rad/2)**2+Math.cos(lat*rad)*Math.cos(toLat*rad)*Math.sin((toLng-lng)*rad/2)**2;
   return Math.round(6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
@@ -15,7 +20,9 @@ export function facilityCandidates(places:FacilityPlace[],lat:number,lng:number,
     seen.add(place.id);
     const type=place.types.includes('mosque')?'Masjid':place.types.includes('church')?'Gereja':place.types.some(t=>t.includes('school'))?'Sekolah':place.types.includes('community_center')?'Balai warga':'Lapangan / fasilitas olahraga';
     return [{id:-(index+1),name,location:place.formattedAddress??'Alamat belum tersedia',lat:location.latitude,lng:location.longitude,placeId:place.id,recommendation:true,facilityType:type,distanceMeters:distance,googleMapsUrl:`https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}&query_place_id=${encodeURIComponent(place.id)}`,tag:'Usulan fasum',capacityStatus:'Belum Ada Data' as const,subtitle:'Kapasitas, akses, izin pengelola, dan keamanan lokasi perlu diperiksa BPBD.'}];
-  }).sort((a,b)=>a.distanceMeters!-b.distanceMeters!);
+  }).sort((a,b)=>a.distanceMeters!-b.distanceMeters!)
+    .filter((candidate,index,all)=>all.findIndex(other=>distanceMeters(candidate.lat!,candidate.lng!,other.lat!,other.lng!)<=MIN_SEPARATION_METERS)===index)
+    .slice(0,MAX_CANDIDATES);
 }
 // Gemini can order existing IDs only; cannot invent a place, capacity, or coordinates.
 export function rankCandidates(candidates:DisasterCheckpoint[],response:string):DisasterCheckpoint[] {
