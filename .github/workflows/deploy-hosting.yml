@@ -178,6 +178,8 @@ jobs:
       # so an unconfigured project can never block the critical Hosting deploy.
       # Once the project grants the required IAM, the next push deploys Cloud Run
       # automatically and the /api/** rewrite is enabled on its own.
+      # NOTE: --set-env-vars uses "^@^" as its delimiter because ALLOWED_ORIGINS
+      # contains commas, which gcloud would otherwise read as pair separators.
       # ---------------------------------------------------------------------
       - name: Authenticate to Google Cloud (best effort)
         continue-on-error: true
@@ -218,7 +220,7 @@ jobs:
             --region asia-southeast2 \
             --allow-unauthenticated \
             --port 8080 \
-            --set-env-vars "ENABLE_ADMIN_API=false,ALLOWED_ORIGINS=https://disasterwatch-61ed5.web.app,https://disasterwatch-61ed5.firebaseapp.com" \
+            --set-env-vars "^@^ENABLE_ADMIN_API=false@ALLOWED_ORIGINS=https://disasterwatch-61ed5.web.app,https://disasterwatch-61ed5.firebaseapp.com" \
             --set-secrets "GEMINI_API_KEY=gemini-key:latest,NASA_FIRMS_MAP_KEY=firms-key:latest" \
             --min-instances 0 --max-instances 2 \
             --quiet

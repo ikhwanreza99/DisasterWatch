@@ -49,7 +49,7 @@ gcloud run deploy "$SERVICE" \
   --source . \
   --allow-unauthenticated \
   --port 8080 \
-  --set-env-vars "ENABLE_ADMIN_API=false,ALLOWED_ORIGINS=${ORIGINS}" \
+  --set-env-vars "^@^ENABLE_ADMIN_API=false@ALLOWED_ORIGINS=${ORIGINS}" \
   --set-secrets "GEMINI_API_KEY=gemini-key:latest,NASA_FIRMS_MAP_KEY=firms-key:latest" \
   --min-instances 0 --max-instances 2 \
   --quiet
