@@ -231,7 +231,7 @@ export async function fetchFirmsHotspots(
   return list;
 }
 
-export function useFirmsHotspots(selectedDate: string) {
+export function useFirmsHotspots(selectedDate: string, enabled = true) {
   const range = firmsRangeFromSelection(selectedDate);
   const [hotspots, setHotspots] = useState<FireHotspot[]>([]);
   const [status, setStatus] = useState<FirmsStatus>({ state: 'idle' });
@@ -240,6 +240,7 @@ export function useFirmsHotspots(selectedDate: string) {
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
+    if (!enabled) { setRefreshing(false); return; }
     const ctrl = new AbortController();
     setRefreshing(true);
     setStatus({ state: 'loading' });
@@ -267,7 +268,7 @@ export function useFirmsHotspots(selectedDate: string) {
       });
     return () => ctrl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range.id, nonce]);
+  }, [range.id, nonce, enabled]);
 
   const refresh = useCallback(() => {
     cache.clear();

@@ -313,6 +313,8 @@ function CenteredDisasterMarker({ onClick, ...props }: React.ComponentProps<type
 }
 
 interface MapCanvasProps {
+  apiLayersEnabled?: boolean;
+  onApiLayersChange?: (enabled: boolean) => void;
   mobileFilterSlot?: React.ReactNode;
   mapActionSlot?: React.ReactNode;
   onHighlightDisaster?: (id: string | null) => void;
@@ -1146,6 +1148,8 @@ const OSMMapRenderer: React.FC<{
 };
 
 export const MapCanvas: React.FC<MapCanvasProps> = ({
+  apiLayersEnabled,
+  onApiLayersChange,
   mobileFilterSlot,
   mapActionSlot,
   onHighlightDisaster,
@@ -1194,8 +1198,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const [firmsNoticeOpen, setFirmsNoticeOpen] = useState(true);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-  // Master switch for every API data map layer (bottom-left toggle). ON by default; category selects the visible sources.
-  const [showApiLayers, setShowApiLayers] = useState(true);
+  // API layers load only after the user enables the eye control.
+  const [localApiLayers, setLocalApiLayers] = useState(false);
+  const showApiLayers = apiLayersEnabled ?? localApiLayers;
   const showFlood = showApiLayers && (activeCategory === 'flood' || activeCategory === 'all');
   const flood = useFlood(showFlood);
   const [selectedFloodId, setSelectedFloodId] = useState<string | null>(null);
@@ -1294,7 +1299,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     if (!showAsh) setSelectedAsh(null);
   }, [showBmkg, showFirms, showBmkgWeather, showWeather, showMagma, showAsh]);
   const toggleApiLayers = useCallback(() => {
-    setShowApiLayers((on) => {
+    const on = showApiLayers;
       if (on) {
         // Hiding the layers: close any popup that belongs to them.
         setSelectedBmkgId(null);
@@ -1305,9 +1310,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         setSelectedCityId(null);
         setShowMagmaLegend(false);
       }
-      return !on;
-    });
-  }, []);
+      setLocalApiLayers(!on);
+      onApiLayersChange?.(!on);
+  }, [showApiLayers, onApiLayersChange]);
   // Compact summary of the layers that are ON (shown next to the Layer button).
   const activeLayerChips = [
     showBmkg && {

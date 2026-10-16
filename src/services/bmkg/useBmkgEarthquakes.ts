@@ -10,6 +10,7 @@ import type { BmkgStatus } from './bmkgTypes';
 export interface UseBmkgOptions {
   /** Set to e.g. 600_000 for 10-min refresh. 0 = off (default). */
   autoRefreshMs?: number;
+  enabled?: boolean;
 }
 
 export interface UseBmkgEarthquakes {
@@ -22,7 +23,7 @@ export interface UseBmkgEarthquakes {
 }
 
 export function useBmkgEarthquakes(options: UseBmkgOptions = {}): UseBmkgEarthquakes {
-  const { autoRefreshMs = 0 } = options;
+  const { autoRefreshMs = 0, enabled = true } = options;
   const [events, setEvents] = useState<EarthquakeEvent[]>([]);
   const [status, setStatus] = useState<BmkgStatus>({ state: 'idle' });
   const [perFeed, setPerFeed] = useState<UseBmkgEarthquakes['perFeed']>(null);
@@ -38,6 +39,7 @@ export function useBmkgEarthquakes(options: UseBmkgOptions = {}): UseBmkgEarthqu
   }, []);
 
   useEffect(() => {
+    if (!enabled) { setRefreshing(false); return; }
     let cancelled = false;
     setRefreshing(true);
     setStatus((s) => (s.state === 'ready' ? s : { state: 'loading' }));
@@ -66,14 +68,14 @@ export function useBmkgEarthquakes(options: UseBmkgOptions = {}): UseBmkgEarthqu
     return () => {
       cancelled = true;
     };
-  }, [nonce]);
+  }, [nonce, enabled]);
 
   // Conservative optional auto-refresh only.
   useEffect(() => {
-    if (!autoRefreshMs || autoRefreshMs < 600_000) return;
+    if (!enabled || !autoRefreshMs || autoRefreshMs < 600_000) return;
     const t = setInterval(() => setNonce((n) => n + 1), autoRefreshMs);
     return () => clearInterval(t);
-  }, [autoRefreshMs]);
+  }, [autoRefreshMs, enabled]);
 
   const refresh = useCallback(() => setNonce((n) => n + 1), []);
 

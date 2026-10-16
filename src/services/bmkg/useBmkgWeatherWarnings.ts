@@ -21,8 +21,8 @@ export interface UseBmkgWeatherWarnings {
   refreshing: boolean;
 }
 
-export function useBmkgWeatherWarnings(options: { autoRefreshMs?: number } = {}): UseBmkgWeatherWarnings {
-  const { autoRefreshMs = 0 } = options;
+export function useBmkgWeatherWarnings(options: { autoRefreshMs?: number; enabled?: boolean } = {}): UseBmkgWeatherWarnings {
+  const { autoRefreshMs = 0, enabled = true } = options;
   const [warnings, setWarnings] = useState<BmkgWeatherWarning[]>([]);
   const [status, setStatus] = useState<BmkgStatus>({ state: 'idle' });
   const [errorType, setErrorType] = useState<BmkgWeatherErrorType>('UNKNOWN');
@@ -38,6 +38,7 @@ export function useBmkgWeatherWarnings(options: { autoRefreshMs?: number } = {})
   }, []);
 
   useEffect(() => {
+    if (!enabled) { setRefreshing(false); return; }
     let cancelled = false;
     // Capability gate: the nowcast endpoints are known browser-blocked, so do
     // NOT attempt the request (avoids the CORS console error entirely).
@@ -76,13 +77,13 @@ export function useBmkgWeatherWarnings(options: { autoRefreshMs?: number } = {})
     return () => {
       cancelled = true;
     };
-  }, [nonce]);
+  }, [nonce, enabled]);
 
   useEffect(() => {
-    if (!autoRefreshMs || autoRefreshMs < MIN_WEATHER_AUTO_REFRESH_MS) return;
+    if (!enabled || !autoRefreshMs || autoRefreshMs < MIN_WEATHER_AUTO_REFRESH_MS) return;
     const t = setInterval(() => setNonce((n) => n + 1), autoRefreshMs);
     return () => clearInterval(t);
-  }, [autoRefreshMs]);
+  }, [autoRefreshMs, enabled]);
 
   const refresh = useCallback(() => setNonce((n) => n + 1), []);
 
