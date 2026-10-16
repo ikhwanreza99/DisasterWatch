@@ -1,8 +1,8 @@
-# Production auto-deploy: push to main → build → Firebase Hosting (LIVE).
+# Production auto-deploy: push to main → build → API to Cloud Run → Firebase Hosting (LIVE).
 #
-# Scope: Hosting plus newsArticles/newsFeeds and sourced disasters writes via Admin SDK.
-# This workflow never deploys Firestore rules,
-# Cloud Functions, Cloud Run, App Hosting, or the Blaze plan (Spark free tier).
+# Scope: Cloud Run (server-side API proxies) + Hosting plus newsArticles/newsFeeds
+# and sourced disasters writes via Admin SDK.
+# This workflow never deploys Firestore rules, Cloud Functions, or the Blaze plan.
 #
 # Auth: official Firebase Hosting GitHub action using a service-account key
 # stored as a GitHub Secret (never committed). Owner setup (one time):
@@ -172,6 +172,68 @@ jobs:
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           BNPB_DRIVE_API_KEY: ${{ secrets.BNPB_DRIVE_API_KEY }}
           FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT }}
+
+      # ---------------------------------------------------------------------
+      # Cloud Run API proxy — every step below is BEST EFFORT (continue-on-error)
+      # so an unconfigured project can never block the critical Hosting deploy.
+      # Once the project grants the required IAM, the next push deploys Cloud Run
+      # automatically and the /api/** rewrite is enabled on its own.
+      # ---------------------------------------------------------------------
+      - name: Authenticate to Google Cloud (best effort)
+        continue-on-error: true
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+
+      - name: Set up Cloud SDK (best effort)
+        continue-on-error: true
+        uses: google-github-actions/setup-gcloud@v2
+
+      # Creates/refreshes the Secret Manager secrets from repo secrets when the
+      # repo owner has added them; otherwise it skips with a notice.
+      - name: Ensure Secret Manager secrets (best effort)
+        continue-on-error: true
+        env:
+          GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FIRMS_KEY: ${{ secrets.NASA_FIRMS_MAP_KEY || secrets.VITE_NASA_FIRMS_MAP_KEY }}
+        run: |
+          upsert() {
+            name="$1"; value="$2"
+            if [ -z "$value" ]; then echo "skip $name (repo secret not set)"; return 0; fi
+            if gcloud secrets describe "$name" --project disasterwatch-61ed5 >/dev/null 2>&1; then
+              printf '%s' "$value" | gcloud secrets versions add "$name" --project disasterwatch-61ed5 --data-file=- >/dev/null && echo "updated $name"
+            else
+              printf '%s' "$value" | gcloud secrets create "$name" --project disasterwatch-61ed5 --data-file=- >/dev/null && echo "created $name"
+            fi
+          }
+          upsert gemini-key "$GEMINI_KEY"
+          upsert firms-key "$FIRMS_KEY"
+
+      - name: Deploy API proxy to Cloud Run (best effort)
+        continue-on-error: true
+        run: |
+          gcloud run deploy disasterwatch-api \
+            --project disasterwatch-61ed5 \
+            --source . \
+            --region asia-southeast2 \
+            --allow-unauthenticated \
+            --port 8080 \
+            --set-env-vars "ENABLE_ADMIN_API=false,ALLOWED_ORIGINS=https://disasterwatch-61ed5.web.app,https://disasterwatch-61ed5.firebaseapp.com" \
+            --set-secrets "GEMINI_API_KEY=gemini-key:latest,NASA_FIRMS_MAP_KEY=firms-key:latest" \
+            --min-instances 0 --max-instances 2 \
+            --quiet
+
+      # firebase.json routes /api/** to Cloud Run. Keep that rewrite ONLY when the
+      # service actually exists, so a missing service can never break the deploy.
+      # Without it the app still works: Firebase AI Logic (primary) + FIRMS snapshot.
+      - name: Route /api/** to Cloud Run only when it is live
+        run: |
+          if gcloud run services describe disasterwatch-api --project disasterwatch-61ed5 --region asia-southeast2 >/dev/null 2>&1; then
+            echo "Cloud Run service is live — keeping the /api/** rewrite."
+          else
+            echo "::warning::Cloud Run service not available yet — deploying without the /api/** rewrite."
+            node -e 'const fs=require("fs");const c=JSON.parse(fs.readFileSync("firebase.json","utf8"));const h=Array.isArray(c.hosting)?c.hosting:[c.hosting];for(const t of h){if(t&&Array.isArray(t.rewrites))t.rewrites=t.rewrites.filter(r=>!r.run);}fs.writeFileSync("firebase.json",JSON.stringify(c,null,2)+"\n");'
+          fi
 
       - name: Deploy Hosting only (live channel)
         uses: FirebaseExtended/action-hosting-deploy@v0

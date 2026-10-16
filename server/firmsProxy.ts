@@ -45,7 +45,10 @@ export function createFirmsProxy(options: FirmsProxyOptions = {}) {
       const text = await upstream.text();
       if(!upstream.ok||!text.startsWith('latitude,')||text.includes(key)){res.status(502).json({error:'FIRMS upstream unavailable.'});return;}
       res.status(200).type("text/csv").send(text);
-    } catch {
+    } catch (error) {
+      // Log a key-safe reason (never the URL, which contains the MAP_KEY).
+      const reason = error instanceof Error ? error.message.replace(/[A-Za-z0-9_-]{20,}/g, "[redacted]") : "unknown error";
+      console.error("[firms-proxy]", reason);
       res.status(502).json({ error: "FIRMS upstream unavailable." });
     }
   });
