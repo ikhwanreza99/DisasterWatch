@@ -50,3 +50,5 @@ public/data/disaster-photos.json
 
 # Generated structured article narratives; published at deploy time.
 public/data/incident-narratives.json
+
+public/data/bnpb-regional.json

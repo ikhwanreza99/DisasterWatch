@@ -82,6 +82,10 @@ jobs:
         env:
           ZAPI_API_KEY: ${{ secrets.ZAPI_API_KEY }}
 
+      - name: Snapshot BNPB regional allocation scenario
+        continue-on-error: true
+        run: npx tsx scripts/fetchBnpbRegional.ts
+
       - name: Extract Padang article narratives
         continue-on-error: true
         run: npx tsx scripts/fetchIncidentNarratives.ts
