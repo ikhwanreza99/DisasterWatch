@@ -1,6 +1,6 @@
 import {currentRecords} from '../../data/currentIncidents';
 import {nearbyFacilities,findReportedArea} from './placeSearch';
-import {facilityCandidates,rankCandidates,placeInRegion,MAX_CANDIDATES} from './evacuationCandidates';
+import {facilityCandidates,rankCandidates,placeInRegion,isAmbiguousAnchor,anchorQueries,areaWords,MAX_CANDIDATES} from './evacuationCandidates';
 import {getGeminiModel} from '../../lib/firebase/ai';
 import {translate} from '../../i18n';
 import type {DisasterIncident,DisasterCheckpoint} from '../../types';
@@ -19,13 +19,23 @@ export function recommendEvacuation(disaster:DisasterIncident,onCandidates?:List
     let radius=5000, centre={lat,lng}, anchorNote:string|null=null;
     const search=async()=>facilityCandidates((await nearbyFacilities(centre.lat,centre.lng,radius)).filter(p=>placeInRegion(p,disaster.name)),centre.lat,centre.lng,radius);
     let posts=await search();
-    if(!posts.length){
+    // The stored coordinate can be a plus-code shared by many venues (Padang): every
+    // result lands within metres of the reference and the markers stack on the disaster
+    // pin. Re-anchor to the area named in the report so real, distinct facilities surface.
+    if(!posts.length || isAmbiguousAnchor(posts)){
       const source=currentRecords.find(r=>r.id===disaster.id);
       const area=(disaster as DisasterIncident & {officialReports?:Array<{location?:string}>}).officialReports?.at(-1)?.location ?? source?.reports?.at(-1)?.location;
-      if(area){
-        const query=`${area.replace(/Kecamatan:|Kec\.|Ds\./g,' ').replace(/\s+/g,' ').trim()}, ${disaster.name}, ${disaster.province}`;
+      const queries=area?anchorQueries(area,disaster.name,disaster.province):[];
+      for(const query of queries){
         const found=(await findReportedArea(query)).find(p=>placeInRegion(p,disaster.name)&&Number.isFinite(p.location?.latitude)&&Number.isFinite(p.location?.longitude));
-        if(found?.location){centre={lat:found.location.latitude!,lng:found.location.longitude!};anchorNote=translate('Acuan wilayah laporan: {area}. Lokasi dicocokkan melalui Google Places.', {area: area.replace(/\s+/g,' ')});posts=await search();}
+        if(!found?.location)continue;
+        const previous=posts;
+        centre={lat:found.location.latitude!,lng:found.location.longitude!};
+        anchorNote=translate('Acuan wilayah laporan: {area}. Lokasi dicocokkan melalui Google Places.', {area: areaWords(area!)[0] ?? area!.replace(/\s+/g,' ').trim()});
+        posts=await search();
+        // Keep the original list rather than showing a changed reference with no results.
+        if(!posts.length){posts=previous;anchorNote=null;centre={lat,lng};}
+        break;
       }
     }
     if(posts.length<3){radius=15000;posts=await search();}

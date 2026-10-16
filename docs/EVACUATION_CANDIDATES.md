@@ -34,8 +34,13 @@ BPBD/operator verification is required before treating a candidate as active.
 Reference: https://developers.google.com/maps/documentation/places/web-service/nearby-search
 
 Facilities must match the incident regency/city (Places addressComponents,
-address fallback) as well as the radius. If no matching facilities are found,
-resolve the area named in the BNPB report with Text Search, validate its regency,
+address fallback) as well as the radius. If no matching facilities are found, or when
+every result sits within 25 m of the stored coordinate (a plus-code shared by many
+venues — the Padang case, where markers stack on the disaster pin), resolve the area
+named in the BNPB report with Text Search, validate its regency,
 then search around that representative area. Show the changed search reference
 explicitly; do not silently label Bangka Tengah facilities as Bangka Selatan.
+The anchor query is built from the first place-name token after stripping admin
+keywords, tried as a two-word then one-word name, and the original list is kept if the
+new anchor finds nothing.
 This does not change the incident's official coordinates or prove the exact site.

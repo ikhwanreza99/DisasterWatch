@@ -6,6 +6,34 @@ export const MAX_CANDIDATES = 5;
 // Google often pins several distinct venues to one shared plus-code/coordinate. Two
 // "facilities" that close are one site on the map, so only the nearest is kept.
 const MIN_SEPARATION_METERS = 50;
+// When every candidate sits this close to the reference, the reference is a plus-code
+// shared by many venues, not a real site: the caller should re-anchor to the reported area.
+export const AMBIGUOUS_ANCHOR_METERS = 25;
+export function isAmbiguousAnchor(candidates:DisasterCheckpoint[]):boolean {
+  return candidates.length > 0 && candidates.every(candidate => (candidate.distanceMeters ?? Number.POSITIVE_INFINITY) <= AMBIGUOUS_ANCHOR_METERS);
+}
+/** Place-name tokens in a BNPB location string, admin keywords and punctuation stripped. */
+export function areaWords(area:string):string[] {
+  return area
+    .replace(/\b(?:kecamatan|kec|kelurahan|kel|desa|ds|kabupaten|kab)\b\.?/gi,' ')
+    .replace(/[^\p{L}\s]/gu,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean);
+}
+/**
+ * Clean Places text queries for the reported area (never the raw BNPB string), most
+ * specific first. A single-word name is retried because BNPB often appends a different
+ * kelurahan; `placeInRegion` still guards the regency on whatever comes back.
+ */
+export function anchorQueries(area:string,incidentName:string,province:string):string[] {
+  const words=areaWords(area);
+  if(!words.length)return [];
+  const prefix=/\b(?:kecamatan|kec)\b/i.test(area)?'Kecamatan ':'';
+  const two=words[1]&&words[1]!==words[0]?`${words[0]} ${words[1]}`:null;
+  return [...new Set([two,words[0]].filter(Boolean).map(leaf=>`${prefix}${leaf}, ${incidentName}, ${province}`))];
+}
 export function distanceMeters(lat:number,lng:number,toLat:number,toLng:number) {
   const rad=Math.PI/180, a=Math.sin((toLat-lat)*rad/2)**2+Math.cos(lat*rad)*Math.cos(toLat*rad)*Math.sin((toLng-lng)*rad/2)**2;
   return Math.round(6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
