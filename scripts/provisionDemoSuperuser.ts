@@ -68,8 +68,9 @@ async function main() {
     console.log('Demo superuser admindemo created/updated; custom claim superuser=true verified. No password logged.');
   } catch (error) {
     const code = String((error as { code?: string }).code ?? '').replace(/[^a-z/-]/gi, '');
-    const http = error instanceof Error ? error.message.match(/HTTP \d{3}/)?.[0] ?? '';
-    throw new Error(`phase=${phase}${code ? ` code=${code}` : ''}${http ? ` ${http}` : ''}${error instanceof Error ? ` ${error.message}` : ''}`);
+    const http = error instanceof Error ? (error.message.match(/HTTP \d{3}/)?.[0] ?? '') : '';
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`phase=${phase}${code ? ' code=' + code : ''}${http ? ' ' + http : ''} ${detail}`);
   } finally { await deleteApp(app); }
 }
 main().catch(error => {
