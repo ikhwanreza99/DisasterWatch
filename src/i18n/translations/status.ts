@@ -78,6 +78,9 @@ const status: Record<string, string> = {
   'Google Places · Autocomplete & Details': 'Google Places · Autocomplete & Details',
   'Google Weather · Kondisi sekarang': 'Google Weather · Current conditions',
   'Google Weather · Prakiraan': 'Google Weather · Forecast',
+  'Google Air Quality · UAQI kota': 'Google Air Quality · City UAQI',
+  'Respons Air Quality API valid untuk Jakarta; UAQI {aqi} ({category}).':
+    'Valid Air Quality API response for Jakarta; UAQI {aqi} ({category}).',
   'Firebase Auth · Google Login': 'Firebase Auth · Google Login',
   'Cloud Firestore · baca dari web': 'Cloud Firestore · read from web',
   'Firebase Storage · lampiran laporan': 'Firebase Storage · report attachments',

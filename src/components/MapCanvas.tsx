@@ -49,6 +49,8 @@ import { MapSearch } from './map/MapSearch';
 import { DisasterCallout, DisasterMarker, disasterMarkerHtml } from './map/disasterMarkers';
 import type { PlaceResult } from '../services/places/placeSearch';
 import { useCityWeather, type CityWeather } from '../services/weather/cityWeather';
+import { useCityAirQuality, type CityAirQuality } from '../services/airquality/cityAirQuality';
+import type { AirQualityNow } from '../services/airquality/googleAirQuality';
 import {
   useMagma,
   MAGMA_LANDSLIDE_URL,
@@ -233,25 +235,34 @@ function escHtml(s: string): string {
 }
 
 /** Compact map chip: icon + temperature + city name. */
-function cityWeatherChipHtml(c: CityWeather): string {
+function cityWeatherChipHtml(c: CityWeather, air?: AirQualityNow | null): string {
   const w = c.weather;
+  const badge = air
+    ? `<span class="ml-0.5 rounded-full px-1.5 py-[1px] text-[10px] font-black text-white" style="background:${escHtml(air.color)}" title="AQI: ${escHtml(air.aqiDisplay)}${air.category ? ` — ${escHtml(air.category)}` : ''}">${escHtml(air.aqiDisplay)}</span>`
+    : '';
   return (
     `<div class="flex items-center gap-1 pl-0.5 pr-2 py-0.5 rounded-full bg-white/95 border border-sky-300 shadow-md whitespace-nowrap cursor-pointer transform -translate-x-1/2 -translate-y-1/2">` +
     `<img src="${escHtml(w.iconUrl)}" alt="" class="w-5 h-5" />` +
     `<span class="text-[11px] font-black text-slate-900">${Math.round(w.temperature)}°</span>` +
     `<span class="text-[10px] font-semibold text-slate-600">${escHtml(c.name)}</span>` +
+    badge +
     `</div>`
   );
 }
 
-function cityWeatherPopupHtml(c: CityWeather): string {
+function cityWeatherPopupHtml(c: CityWeather, air?: AirQualityNow | null): string {
   const w = c.weather;
   return (
     `<div style="font-size:12px;line-height:1.45">` +
     `<div style="font-weight:800">⛅ ${escHtml(c.name)}</div>` +
     `<div><b>${Math.round(w.temperature)}°C</b> ${translate('(terasa {temp}°C)', { temp: Math.round(w.feelsLike) })} • ${escHtml(w.conditionText)}</div>` +
     `<div>${translate('Hujan:')} <b>${w.rainProbability}%</b> • ${translate('Kelembapan:')} <b>${w.humidity}%</b> • ${translate('Angin:')} <b>${Math.round(w.windSpeed)} ${translate('km/j')}</b></div>` +
-    `<div style="color:#64748b;font-size:11px">Source: Google Weather</div>` +
+    (air
+      ? `<div style="margin-top:2px">🌫 ${translate('Kualitas udara (UAQI):')} <b style="color:${escHtml(air.color)}">${escHtml(air.aqiDisplay)}</b>${air.category ? ` ${escHtml(air.category)}` : ''}` +
+        (air.dominantPollutant ? ` • ${translate('polutan dominan')}: <b>${escHtml(air.dominantPollutant.toUpperCase())}</b>` : '') +
+        `</div>`
+      : '') +
+    `<div style="color:#64748b;font-size:11px">Source: Google Weather${air ? ' · Google Air Quality' : ''}</div>` +
     `</div>`
   );
 }
@@ -550,6 +561,7 @@ const OSMMapRenderer: React.FC<{
   showWeather?: boolean;
   showBmkgWeather?: boolean;
   cityWeather?: CityWeather[];
+  cityAir?: CityAirQuality[];
   magma?: MagmaData | null;
   showMagma?: boolean;
   ashAdvisories?: AshAdvisory[];
@@ -594,6 +606,7 @@ const OSMMapRenderer: React.FC<{
   showWeather = true,
   showBmkgWeather = true,
   cityWeather = [],
+  cityAir = [],
   magma = null,
   showMagma = false,
   ashAdvisories = [],
@@ -902,22 +915,25 @@ const OSMMapRenderer: React.FC<{
     });
   }, [bmkgWeather, showBmkgWeather, weatherStatus, mapEpoch]);
 
-  // Major-city weather chips (only while CUACA layer is ON)
+  // Major-city weather + air-quality chips (only while CUACA layer is ON)
   useEffect(() => {
     const cGroup = cityWeatherLayerRef.current;
     if (!mapRef.current || !cGroup) return;
     cGroup.clearLayers();
     if (!showWeather || zoomLevel < CITY_WEATHER_MIN_ZOOM) return;
+    const airByCity: Record<string, AirQualityNow | undefined> = {};
+    for (const a of cityAir) airByCity[a.id] = a.air;
     cityWeather.forEach((c) => {
+      const air = airByCity[c.id] ?? null;
       L.marker([c.lat, c.lng], {
-        icon: L.divIcon({ html: cityWeatherChipHtml(c), className: 'city-weather-marker', iconSize: [0, 0] }),
+        icon: L.divIcon({ html: cityWeatherChipHtml(c, air), className: 'city-weather-marker', iconSize: [0, 0] }),
         zIndexOffset: 300,
-        title: t('Cuaca {name}', { name: c.name }),
+        title: air ? t('Cuaca & kualitas udara {name}', { name: c.name }) : t('Cuaca {name}', { name: c.name }),
       })
-        .bindPopup(cityWeatherPopupHtml(c), { maxWidth: 260, closeButton: true, className: 'bmkg-popup' })
+        .bindPopup(cityWeatherPopupHtml(c, air), { maxWidth: 280, closeButton: true, className: 'bmkg-popup' })
         .addTo(cGroup);
     });
-  }, [cityWeather, showWeather, mapEpoch, zoomLevel]);
+  }, [cityWeather, cityAir, showWeather, mapEpoch, zoomLevel]);
 
   // MAGMA layer: volcano activity levels + gerakan tanah reports (PVMBG)
   useEffect(() => {
@@ -1175,6 +1191,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const selectedWeather = activeWeather.find((w) => w.id === selectedWeatherId) ?? null;
   // Major-city weather points: always fetched; visibility follows the API layer toggle.
   const cityWx = useCityWeather(true);
+  // Major-city air quality (UAQI), merged into the same chip. Fetched only while
+  // the CUACA layer is visible so Air Quality API usage tracks the weather layer.
+  const cityAirWx = useCityAirQuality(showWeather);
   // MAGMA (PVMBG): always fetched; visibility follows the API layer toggle.
   // MAGMA legend is collapsed by default; (i) button next to zoom controls toggles it.
   const [showMagmaLegend, setShowMagmaLegend] = useState(false);
@@ -2226,6 +2245,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             showWeather={showWeather}
             showBmkgWeather={showBmkgWeather}
             cityWeather={cityWx.cities}
+            cityAir={cityAirWx.cities}
             magma={magmaFeed.data}
             showMagma={showMagma}
             ashAdvisories={ash.advisories}

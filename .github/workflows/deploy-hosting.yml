@@ -192,6 +192,9 @@ jobs:
           # Public-by-design keys, allow-listed by exact value in the shape scan.
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          # Already listed in SERVER_ONLY but never handed to the guard, so its
+          # value was never actually compared against the bundle.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       # ---------------------------------------------------------------------
       # Cloud Run API proxy — every step below is BEST EFFORT (continue-on-error)

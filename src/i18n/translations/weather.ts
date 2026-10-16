@@ -85,6 +85,11 @@ const weather: Record<string, string> = {
     "Early-warning data is available at BMKG, but BMKG's official endpoint currently does not allow direct access from the DisasterWatch browser.",
   'Refresh peringatan cuaca BMKG (manual)': 'Refresh BMKG weather warnings (manual)',
   'Memuat…': 'Loading…',
+
+  // Google Air Quality — merged into the CUACA city chip
+  'Cuaca & kualitas udara {name}': 'Weather & air quality {name}',
+  'Kualitas udara (UAQI):': 'Air quality (UAQI):',
+  'polutan dominan': 'dominant pollutant',
 };
 
 export default weather;

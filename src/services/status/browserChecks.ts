@@ -4,6 +4,7 @@ import { createCheckRunner } from './automaticChecks';
 import { appCheckStatus, firebaseEnv, getFirebaseApp, firebaseStatus, hasAppCheckSiteKey, probeAppCheckToken } from '../../lib/firebase/config';
 import { getDb } from '../../lib/firebase/firestore';
 import { resolveGeminiCandidates, resolveGeminiModel } from '../../lib/firebase/geminiConfig';
+import { parseAirQuality } from '../airquality/googleAirQuality';
 import { autocompletePlaces, getPlace, newSessionToken } from '../places/placeSearch';
 import { fallbackNote, hasValidGeminiCandidates, isNonEmptyModelText, redactStatusText, safeStatusError, type ServiceCheck } from './model';
 
@@ -15,6 +16,7 @@ export function initialChecks(): ServiceCheck[] {
   return [
     ['maps', 'Google Maps JavaScript', maps], ['places', 'Google Places · Autocomplete & Details', maps],
     ['weather', 'Google Weather · Kondisi sekarang', maps], ['forecast', 'Google Weather · Prakiraan', maps],
+    ['airquality', 'Google Air Quality · UAQI kota', maps],
     ['auth', 'Firebase Auth · Google Login', firebase], ['firestore', 'Cloud Firestore · baca dari web', firebase],
     ['storage', 'Firebase Storage · lampiran laporan', !!env.storageBucket],
     ['appcheck', 'Firebase App Check · token', firebase && appCheckPresent],
@@ -74,6 +76,15 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       const data = await checkedJson(`https://weather.googleapis.com/v1/${endpoint}?key=${encodeURIComponent(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)}&location.latitude=-6.2&location.longitude=106.8&languageCode=id`);
       if (id === 'weather' ? !data.temperature : !Array.isArray(data.forecastDays) || !data.forecastDays.length) throw new Error('No weather payload');
       detail = 'Respons Weather API valid untuk Jakarta; tidak memakai cuaca simulasi.';
+    } else if (id === 'airquality') {
+      const data = await checkedJson(`https://airquality.googleapis.com/v1/currentConditions:lookup?key=${encodeURIComponent(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location: { latitude: -6.2, longitude: 106.8 }, languageCode: 'id' }),
+      });
+      const aq = parseAirQuality(data);
+      if (!aq) throw new Error('No AQI payload');
+      detail = translate('Respons Air Quality API valid untuk Jakarta; UAQI {aqi} ({category}).', { aqi: aq.aqiDisplay, category: aq.category || '-' });
     } else if (id === 'gemini-direct') {
       const candidates = resolveGeminiCandidates();
       const primary = candidates[0]!;

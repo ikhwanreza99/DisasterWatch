@@ -115,6 +115,10 @@ const views: Record<string, string> = {
   'Selang pembuangan': 'Discharge hoses',
   'Kantong pasir': 'Sandbags',
   'Asesmen kebutuhan setempat': 'Local needs assessment',
+
+  // ArchitectureBadge — Google Air Quality Platform
+  'AQI kota besar (UAQI)': 'Large-city AQI (UAQI)',
+  'TANPA BADGE AQI': 'NO AQI BADGE',
 };
 
 export default views;
