@@ -137,6 +137,6 @@ export function resolveDateRange(sel: string, limits: RangeLimits = RANGE_LIMITS
 
 /** Short label for a selection, e.g. "Today", "7 hari", "1 Jun–30 Jun 2022". */
 export function selectionLabel(sel: string, limits: RangeLimits): string {
-  if (sel === 'Today') return t('Today');
+  if (sel === 'Today') return t('Hari ini');
   return resolveDateRange(sel, limits).label;
 }
