@@ -10,6 +10,7 @@ import { getGeminiModel } from '../../lib/firebase/ai';
 import { localeFor, translate } from '../../i18n';
 import { ASSISTANT_SYSTEM } from './prompts';
 import { summarizeGaps } from '../intelligence/aidGapEngine';
+import { asksRecentDisasters, recentDisasterList } from './recentDisasterList';
 import {
   buildAssistantSnapshot,
   computeDashboardStats,
@@ -39,6 +40,16 @@ export function fallbackAnswer(question: string, deps: AssistantDeps): string {
   const q = question.toLowerCase();
   const all = Object.values(deps.disasters);
   const stats = computeDashboardStats(deps);
+
+  if (asksRecentDisasters(q)) {
+    const list = recentDisasterList(deps.disasters);
+    const english = localeFor().startsWith('en');
+    const dates = `${list.startDate}–${list.endDate} (WIB)`;
+    const rows = list.records.map(record => `• ${record.date}: ${record.name} — ${record.type}`).join('\n');
+    return english
+      ? `Disasters recorded in the last 14 calendar days, ${dates}: ${list.records.length} area/type entries.\n${rows}\nLatest available event date: ${list.latestDate ?? 'unavailable'}. Source coverage may be delayed or incomplete; these events are not all confirmed to remain active.`
+      : `Bencana tercatat dalam 14 hari terakhir, ${dates}: ${list.records.length} wilayah/jenis bencana.\n${rows}\nTanggal kejadian terbaru tersedia: ${list.latestDate ?? 'belum tersedia'}. Cakupan sumber dapat terlambat atau belum lengkap; tidak semuanya dipastikan masih aktif.`;
+  }
 
   // Conversational "Pelajari Bencana" flow (location not yet known): answer from app guides only.
   if (/mempelajari bencana/.test(q)) {
@@ -161,13 +172,15 @@ export function fallbackAnswer(question: string, deps: AssistantDeps): string {
     return translate('Secara umum (panduan umum, bukan data DisasterWatch saat ini): ikuti arahan posko/BNPB setempat — amankan diri dan keluarga dulu, siapkan dokumen penting dan tas siaga, matikan listrik/gas bila terancam, dan hindari area berbahaya. Untuk kondisi spesifik wilayah Anda, tanyakan misalnya "wilayah mana yang paling prioritas?" berdasarkan data DisasterWatch saat ini.');
   }
 
-  return translate('Saya menjawab dari DATA APLIKASI: {count} insiden aktif ({names}). Tanya misalnya: "daerah mana yang paling membutuhkan air bersih?", "berapa bantuan yang masih kurang?", atau "berapa laporan belum diverifikasi?"', { count: all.length, names: all.map((d) => d.name).join('; ') });
+  const window = recentDisasterList(deps.disasters);
+  return translate('Saya menjawab dari DATA APLIKASI dalam rentang {start}–{end} (WIB): {count} wilayah/jenis bencana tercatat ({names}). Tanya misalnya: "daerah mana yang paling membutuhkan air bersih?", "berapa bantuan yang masih kurang?", atau "berapa laporan belum diverifikasi?"', { start: window.startDate, end: window.endDate, count: window.records.length, names: window.records.map((d) => `${d.name} (${d.date})`).join('; ') });
 }
 
 export async function askAssistant(
   question: string,
   deps: AssistantDeps,
 ): Promise<{ answer: string; engine: 'gemini' | 'deterministic' }> {
+  if (asksRecentDisasters(question)) return { answer: fallbackAnswer(question, deps), engine: 'deterministic' };
   // Fresh snapshot per question — props already mirror Firestore-synced app state.
   const snapshot = buildAssistantSnapshot(deps);
   const context = renderAssistantContextText(snapshot);

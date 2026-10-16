@@ -28,15 +28,15 @@ test('current news requires matching location, disaster type and reporting date'
   }
 });
 
-test('all 86 BNPB reports are represented without losing dates or disaster types', async () => {
+test('all 113 BNPB reports are represented without losing dates or disaster types', async () => {
   const { NATIONAL_REPORT_COUNT } = await import('../src/data/currentIncidents.ts');
-  assert.equal(NATIONAL_REPORT_COUNT, 86);
-  assert.equal(allCurrentRecords.length, 62);
+  assert.equal(NATIONAL_REPORT_COUNT, 113);
+  assert.equal(allCurrentRecords.length, 70);
   assert.ok(currentRecords.every(r => inRecentWindow(r.date)));
   assert.equal(new Set(currentRecords.map(r => r.id)).size, currentRecords.length);
   for (const record of allCurrentRecords) {
     assert.ok(record.lat >= -11 && record.lat <= 6 && record.lng >= 95 && record.lng <= 141);
-    for (const report of record.reports ?? []) assert.ok(report.date >= '2026-10-01' && report.date <= '2026-10-12');
+    for (const report of record.reports ?? []) assert.ok(report.date >= '2026-10-01' && report.date <= '2026-10-14');
   }
   assert.ok(currentRecords.some(r => r.category === 'other' && r.disasterLabel === 'Kekeringan'));
   assert.ok(allCurrentRecords.some(r => r.category === 'landslide'));

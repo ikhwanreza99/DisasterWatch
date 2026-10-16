@@ -14,6 +14,7 @@ import { localeFor } from '../../i18n';
 import { estimateImpact } from '../intelligence/impactEngine';
 import { summarizeGaps } from '../intelligence/aidGapEngine';
 import { rankDisasters } from '../intelligence/priorityEngine';
+import { recentDisasterContext } from './recentDisasterList';
 
 export interface AssistantDeps {
   disasters: Record<string, DisasterIncident>;
@@ -33,6 +34,7 @@ export interface DashboardStats {
 
 export interface AssistantSnapshot {
   generatedAt: string;
+  recentDisasters: string;
   isDemoData: boolean;
   summary: DashboardStats;
   disasters: Array<{
@@ -229,6 +231,7 @@ export function buildAssistantSnapshot(deps: AssistantDeps): AssistantSnapshot {
 
   return {
     generatedAt: new Date().toISOString(),
+    recentDisasters: recentDisasterContext(deps.disasters),
     isDemoData: true,
     summary: stats,
     disasters,
@@ -281,6 +284,7 @@ function fmt(n: number): string {
 /** Render the snapshot as compact grounded text for the Gemini prompt. Numbers are precomputed. */
 export function renderAssistantContextText(snap: AssistantSnapshot, maxChars = 6000): string {
   const L: string[] = [
+    snap.recentDisasters,
     'DATA DISASTERWATCH SAAT INI (otoritatif untuk angka/fakta — data demo/prototipe, bukan feed resmi BNPB/BMKG):',
     `RINGKASAN: ${snap.summary.activeDisasters} insiden aktif; ${fmt(snap.summary.affectedPeople)} orang terdampak; prioritas tertinggi ${snap.summary.topPriorityName} (skor ${snap.summary.topPriorityScore}); ${snap.summary.unverifiedReports} laporan belum terverifikasi; total gap bantuan ${fmt(snap.summary.totalAidGap)}.`,
   ];
