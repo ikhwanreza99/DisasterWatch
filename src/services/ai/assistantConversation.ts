@@ -1,4 +1,5 @@
 import type { DisasterIncident } from '../../types';
+import { asksForIncidentList, normalizeAssistantQuestion } from './assistantIntent';
 
 export interface AssistantTurn { sender: 'ai' | 'user'; text: string }
 export interface AssistantConversation {
@@ -26,11 +27,12 @@ export function recentAssistantHistory(history: AssistantTurn[] = []): Assistant
 
 export function resolveAssistantScope(question: string, incidents: DisasterIncident[], conversation: AssistantConversation = {}) {
   const resolve = (text: string) => {
-    if (/\b(seluruh|semua|nasional|indonesia|keseluruhan)\b/i.test(text)) return { incidents: [], global: true, unknownLocation: false };
     const matches = findIncidentMatches(text, incidents);
     if (matches.length) return { incidents: matches, global: false, unknownLocation: false };
-    // An explicit new place must not silently inherit the previous incident.
-    const unknownLocation = /\bdi\s+(?!(?:sana|sini|situ|lokasi|tempat|mana|atas|bawah|aplikasi|data|dashboard|menu|disasterwatch|lapangan)\b)[\p{L}][\p{L}-]+/iu.test(text);
+    if (/\b(nasional|indonesia|nationwide|nationally)\b/i.test(text)) return { incidents: [], global: true, unknownLocation: false };
+    // Resolve explicit new places before broad words such as "any disaster" or "where".
+    const unknownLocation = /\bdi\s+(?!(?:sana|sini|situ|lokasi|tempat|mana|atas|bawah|aplikasi|data|dashboard|menu|disasterwatch|lapangan)\b)[\p{L}][\p{L}-]+/iu.test(text) || /\b(?:in|at|near)\s+(?!(?:the|this|that|there|here|my|our|an|a|general|detail)\b)[\p{L}][\p{L}-]+/iu.test(text);
+    if (!unknownLocation && (asksForIncidentList(text) || /\b(seluruh|semua|keseluruhan|all|across)\b|\b(?:which|what) (?:region|area|city|cities|district)s?\b|\bwhere\b|(?:wilayah|daerah|kota) mana/i.test(text))) return { incidents: [], global: true, unknownLocation: false };
     return { incidents: [], global: false, unknownLocation };
   };
   const direct = resolve(question);
@@ -50,7 +52,7 @@ export function resolveAssistantQuestion(question: string, incidents: DisasterIn
   if (!matches.length) return question;
   let rest = ` ${normalize(question)} `;
   for (const incident of matches) for (const alias of incidentAliases(incident).sort((a, b) => b.length - a.length)) rest = rest.replaceAll(` ${alias} `, ' ');
-  rest = rest.replace(/\b(kalau|bagaimana|gimana|dan|di|untuk|yang|dengan|kota|kabupaten)\b/g, '').trim();
+  rest = rest.replace(/\b(kalau|bagaimana|gimana|dan|di|untuk|yang|dengan|kota|kabupaten|what|how|about|in|at|and|for|city|district)\b/g, '').trim();
   if (rest) return question;
   const previousTurns = recentAssistantHistory(history);
   for (let index = previousTurns.length - 1; index >= 0; index--) {
@@ -67,6 +69,6 @@ export function hasIncidentTypeConflict(question: string, target: DisasterIncide
     [/\b(?:banjir|flood)\b/i, 'flood'], [/\b(?:gempa|earthquake)\b/i, 'earthquake'],
     [/\b(?:kebakaran|fire)\b/i, 'fire'], [/\b(?:longsor|landslide)\b/i, 'landslide'],
   ] as const;
-  const types = mentioned.filter(([pattern]) => pattern.test(question)).map(([, type]) => type);
+  const types = mentioned.filter(([pattern]) => pattern.test(normalizeAssistantQuestion(question))).map(([, type]) => type);
   return types.length > 0 && !types.some(type => type === target.category);
 }

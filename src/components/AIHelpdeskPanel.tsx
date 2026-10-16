@@ -39,7 +39,7 @@ interface AIHelpdeskPanelProps {
   /** Grounded NTT case (real-data). When present + question is case-specific, it answers from case context. */
   nttCase?: NttCaseState | null;
 }
-interface Message { id: number; sender: 'ai' | 'user'; text: string }
+interface Message { id: number; sender: 'ai' | 'user'; text: string; engine?: 'gemini' | 'deterministic' }
 const attachmentQuestion = 'Apakah Anda memiliki foto atau dokumen pendukung? Lampiran bersifat opsional dan tidak otomatis memverifikasi laporan.';
 const regionOptions = ['Sumatera', 'Jawa', 'Sulawesi', 'Sulawesi & Maluku', 'Papua', 'Bali & NTT'];
 const updateQuestion = (incident: DisasterIncident) => t('Apa kabar terbaru tentang {title} di {name}? Ceritakan perubahan kondisi, dampak, atau penanganan yang Anda ketahui.', { title: incident.fullTitleDisplay, name: incident.name });
@@ -94,7 +94,7 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
     | { action: 'submit' }
     | null>(null);
   const locationSuggestionsActive = useRef(false);
-  const add = (sender: Message['sender'], text: string) => setMessages(previous => [...previous, { id: sequence.current++, sender, text }]);
+  const add = (sender: Message['sender'], text: string, engine?: Message['engine']) => setMessages(previous => [...previous, { id: sequence.current++, sender, text, engine }]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, busy]);
 
@@ -241,7 +241,7 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
         const result = useNtt
           ? await askNttAssistant(text, nttCase, conversation)
           : await askAssistant(text, { disasters: available, reports: intelReports, aid: aidRecords }, conversation);
-        if (mounted.current) add('ai', result.answer);
+        if (mounted.current) add('ai', result.answer, result.engine);
       }
     } catch { if (mounted.current) add('ai', t('Jawaban belum tersedia. Silakan coba lagi.')); }
     finally { sending.current = false; if (mounted.current) setBusy(false); }
@@ -282,7 +282,7 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
           <div role="log" aria-live="polite" aria-relevant="additions" className="flex flex-col gap-4">
             {messages.map(message => <div key={message.id} className={`flex gap-2 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
               {message.sender === 'ai' && <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600"><Sparkles className="h-4 w-4" aria-hidden="true" /></span>}
-              <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${message.sender === 'user' ? 'rounded-tr-sm bg-violet-600 text-white' : 'rounded-tl-sm border border-slate-200 bg-white text-slate-700'}`}>{message.text}</div>
+              <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${message.sender === 'user' ? 'rounded-tr-sm bg-violet-600 text-white' : 'rounded-tl-sm border border-slate-200 bg-white text-slate-700'}`}>{message.text}{message.engine && <span className="mt-2 block border-t border-slate-100 pt-2 text-[10px] text-slate-400">{t(message.engine === 'gemini' ? 'Gemini · jawaban berdasarkan data aplikasi' : 'Mode data aplikasi · tanpa AI generatif')}</span>}</div>
             </div>)}
           </div>
           {showServices && <div className="flex flex-wrap gap-2 pl-10">{services.map(service => <button key={service.workflow} type="button" disabled={busy} onClick={() => start(service.workflow)} className="rounded-full border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-50 disabled:opacity-50">{service.workflow === 'report-disaster' && context ? t('Laporkan Update Bencana') : t(service.label)}</button>)}</div>}
