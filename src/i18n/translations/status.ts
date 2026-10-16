@@ -1,5 +1,13 @@
 /** English translations — status slice. Keys are the Indonesian source strings. */
 const status: Record<string, string> = {
+  'Proxy AI server tidak tersedia untuk sesi anonim. Uji utama memakai Firebase AI Logic.': 'The server AI proxy is unavailable to anonymous sessions. The primary check uses Firebase AI Logic.',
+  'Pemeriksaan otomatis selesai · {percent}% · {failed} gagal': 'Automatic checks finished · {percent}% · {failed} failed',
+  'Uji Gemini berjalan otomatis tanpa login Google. {detail}': 'Gemini is tested automatically without Google sign-in. {detail}',
+  'Firebase Auth · sesi pelaporan': 'Firebase Auth · reporting session',
+  'Sesi Firebase untuk pelaporan tersedia; tidak memerlukan login Google. Tidak ada laporan uji yang dikirim.': 'A Firebase reporting session is available; Google sign-in is not required. No test report was submitted.',
+  'Hasil pemeriksaan layanan, termasuk gagal, nonaktif, dan belum diuji. Progres 100% berarti pemeriksaan selesai, bukan semua layanan berhasil.': 'Service check results, including failures, disabled services and untested services. 100% means checks finished, not that every service succeeded.',
+  'Halaman ini menunjukkan pemeriksaan aplikasi, bukan status global Google. Secret backend tidak dikirim ke browser. Hasil gagal dan nonaktif juga ditampilkan agar kendala dapat ditindaklanjuti. Uji Gemini tidak memerlukan login Google.': 'This page shows application checks, not global Google status. Backend secrets are not sent to the browser. Failed and disabled results are shown so issues can be addressed. Gemini checks do not require Google sign-in.',
+
   'Progres pemeriksaan layanan': 'Service check progress',
   'Memeriksa layanan · {done}/{total} tahap · {percent}%': 'Checking services · {done}/{total} steps · {percent}%',
   'Pemeriksaan selesai · 100%': 'Checks finished · 100%',

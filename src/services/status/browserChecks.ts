@@ -17,7 +17,7 @@ export function initialChecks(): ServiceCheck[] {
     ['maps', 'Google Maps JavaScript', maps], ['places', 'Google Places · Autocomplete & Details', maps],
     ['weather', 'Google Weather · Kondisi sekarang', maps], ['forecast', 'Google Weather · Prakiraan', maps],
     ['airquality', 'Google Air Quality · UAQI kota', maps],
-    ['auth', 'Firebase Auth · Google Login', firebase], ['firestore', 'Cloud Firestore · baca dari web', firebase],
+    ['auth', 'Firebase Auth · sesi pelaporan', firebase], ['firestore', 'Cloud Firestore · baca dari web', firebase],
     ['storage', 'Firebase Storage · lampiran laporan', !!env.storageBucket],
     ['appcheck', 'Firebase App Check · token', firebase && appCheckPresent],
     ['firebase-ai', 'Firebase AI Logic · Gemini', firebase], ['gemini-direct', 'Gemini Developer API · fallback', true],
@@ -51,7 +51,6 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
   let firestoreSession: string | null = null;
   try {
     let detail = '';
-    const env = firebaseEnv();
     if (id === 'firestore') {
       const { getAuthInstance } = await import('../../lib/firebase/auth');
       const auth = getAuthInstance();
@@ -62,9 +61,10 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       const snap = await getDocsFromServer(query(collection(db, 'incidentArticles'), limit(1)));
       detail = translate('Baca Firestore dari server berhasil; sampel {count} artikel.', { count: snap.size });
     } else if (id === 'auth') {
-      const data = await checkedJson(`https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${encodeURIComponent(env.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'google.com', continueUri: window.location.origin }) });
-      if (!data.authUri) throw new Error('No OAuth URL');
-      detail = 'Endpoint Google OAuth menghasilkan URL login. Login pengguna sampai selesai belum diuji.';
+      const { ensureReportUser, canReport } = await import('../../lib/firebase/auth');
+      const identity = await ensureReportUser();
+      if (!canReport(identity)) throw new Error('Sesi pelaporan belum tersedia');
+      detail = translate('Sesi Firebase untuk pelaporan tersedia; tidak memerlukan login Google. Tidak ada laporan uji yang dikirim.');
     } else if (id === 'places') {
       const token = newSessionToken();
       const places = await autocompletePlaces('Jakarta', token, AbortSignal.timeout(20_000));
@@ -97,7 +97,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
             try {
               // The API key lives server-side; probe the same-origin proxy instead.
               const {getAuth}=await import('firebase/auth');const app=getFirebaseApp();const user=app?getAuth(app).currentUser:null;
-              if(!user||user.isAnonymous)return {...base,checkedAt,state:'disabled',detail:translate('Login Google diperlukan untuk menguji proxy AI server.')};
+              if(!user||user.isAnonymous)return {...base,checkedAt,state:'disabled',detail:translate('Proxy AI server tidak tersedia untuk sesi anonim. Uji utama memakai Firebase AI Logic.')};
               const token=await user.getIdToken();
               const response = await fetch('/api/ai/generate', {
                 method: 'POST',
@@ -177,7 +177,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
 
 // Persist sanitized evidence for 10 minutes in this tab, without API keys.
 async function checkedWithCache(id: string, force = false): Promise<ServiceCheck> {
-  const key = `dw:status:v4:${id}:${resolveGeminiModel()}`;
+  const key = `dw:status:v5:${id}:${resolveGeminiModel()}`;
   // Firestore always restores current identity after navigation; do not reuse another session.
   if (!force && id !== 'firestore') try {
     const saved = JSON.parse(sessionStorage.getItem(key) || 'null') as ServiceCheck | null;
@@ -198,7 +198,7 @@ async function checkedWithCache(id: string, force = false): Promise<ServiceCheck
 const automaticRunner = createCheckRunner(id => checkedWithCache(id));
 export function probeBrowserCheck(id: string, force = false) {
   if (force) {
-    try { sessionStorage.removeItem(`dw:status:v4:${id}:${resolveGeminiModel()}`); } catch { /* storage unavailable */ }
+    try { sessionStorage.removeItem(`dw:status:v5:${id}:${resolveGeminiModel()}`); } catch { /* storage unavailable */ }
   }
   return automaticRunner(id, force);
 }
