@@ -10,6 +10,7 @@ import type { LiveInputAvailability } from '../../services/insights/calculationI
 
 export function InsightCalculator({incidentId,live}:{incidentId:string;live?:LiveInputAvailability|null}){
   const [values,setValues]=useState<Record<string,string>>({});
+  const [sevUnit,setSevUnit]=useState<'fraction'|'percent'>('fraction');
   const { t, locale } = useI18n();
   // Raw numeric parse: empty string -> null (missing is never zero).
   // Malformed numbers (e.g. "abc") also -> null here and surface as
@@ -25,8 +26,8 @@ export function InsightCalculator({incidentId,live}:{incidentId:string;live?:Liv
 
   // --- A. Loss (engine-backed; trace/status shown below) ---
   const physical=useMemo(()=>estimatePhysicalDamage({assetCount:n('assets'),
-    replacementCostPerAsset:n('cost'),damageFraction:n('severity'),
-    currency:'IDR',area,period,sourceRefs:src('assets'),evidenceTier:'modeled'}),[values,incidentId]);
+    replacementCostPerAsset:n('cost'),damageFraction:n('severity'),damageFractionUnit:sevUnit,
+    currency:'IDR',area,period,sourceRefs:src('assets'),evidenceTier:'modeled'}),[values,incidentId,sevUnit]);
   void physical;
   const flowNet=useMemo(()=>{
     const normal=n('normal'),actual=n('actual'),duration=n('duration');
@@ -40,8 +41,8 @@ export function InsightCalculator({incidentId,live}:{incidentId:string;live?:Liv
   // economicLoss semantics preserved: max(0, normal-actual) x days).
   const econForTotal:CalculationResult={...flowNet};
   const physicalForTotal:CalculationResult=useMemo(()=>estimatePhysicalDamage({assetCount:n('assets'),
-    replacementCostPerAsset:n('cost'),damageFraction:n('severity'),currency:'IDR',area,period,sourceRefs:src('assets'),evidenceTier:'modeled'}),
-    [values,incidentId]);
+    replacementCostPerAsset:n('cost'),damageFraction:n('severity'),damageFractionUnit:sevUnit,currency:'IDR',area,period,sourceRefs:src('assets'),evidenceTier:'modeled'}),
+    [values,incidentId,sevUnit]);
   const total=useMemo(()=>estimateTotalLoss(physicalForTotal,econForTotal),[physicalForTotal,econForTotal]);
 
   // --- B. Gaps ---
@@ -91,7 +92,7 @@ export function InsightCalculator({incidentId,live}:{incidentId:string;live?:Liv
     {live.blockers.map((b,i)=><span key={i} className="block text-slate-500">• {b}</span>)}
   </div>}
   <details className="mt-3"><summary className="cursor-pointer text-blue-600">{t('Simulasi — bukan data resmi')}</summary><div className="space-y-4 mt-3">
-  <section><b>{t('Kerusakan fisik & kerugian ekonomi')}</b>{statusBadge(total)}<div className="grid grid-cols-2 gap-2 mt-2">{field('assets',t('Jumlah aset (bukan KK)'))}{field('cost',t('Biaya penggantian IDR/aset'))}{field('severity',t('Fraksi kerusakan 0–1'))}{field('normal',t('Arus ekonomi bersih normal IDR/hari'))}{field('actual',t('Arus bersih aktual IDR/hari'))}{field('duration',t('Durasi hari'))}</div><p className="mt-2">Damage: {output(physicalForTotal,' IDR')} · Flow loss: {output(econForTotal,' IDR')}<br/>{t('Total cakupan asesmen')}: {output(total,' IDR')}</p>{traceLine(total)}<p className="text-[10px] text-slate-400">physical: {physicalForTotal.trace} · flow: {econForTotal.trace}</p></section>
+  <section><b>{t('Kerusakan fisik & kerugian ekonomi')}</b>{statusBadge(total)}<div className="grid grid-cols-2 gap-2 mt-2">{field('assets',t('Jumlah aset (bukan KK)'))}{field('cost',t('Biaya penggantian IDR/aset'))}<label className="block text-[11px] text-slate-500">{t('Tingkat kerusakan')}<div className="mt-1 flex gap-1"><input type="number" min="0" step="any" value={values['severity']??''} onChange={e=>setValues({...values,['severity']:e.target.value})} className="block w-full rounded-lg border border-slate-200 p-2 text-slate-800" placeholder={t('Belum tersedia')}/><select value={sevUnit} onChange={e=>setSevUnit(e.target.value as 'fraction'|'percent')} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-800" aria-label={t('Satuan tingkat kerusakan')}><option value="fraction">{t('Fraksi 0–1')}</option><option value="percent">{t('Persen 0–100')}</option></select></div></label>{field('normal',t('Arus ekonomi bersih normal IDR/hari'))}{field('actual',t('Arus bersih aktual IDR/hari'))}{field('duration',t('Durasi hari'))}</div><p className="mt-2">Damage: {output(physicalForTotal,' IDR')} · Flow loss: {output(econForTotal,' IDR')}<br/>{t('Total cakupan asesmen')}: {output(total,' IDR')}</p>{traceLine(total)}<p className="text-[10px] text-slate-400">physical: {physicalForTotal.trace} · flow: {econForTotal.trace}</p></section>
   <section><b>{t('Gap pendanaan dan fisik (terpisah)')}</b>{statusBadge(funding)}<div className="grid grid-cols-2 gap-2 mt-2">{field('required',t('Biaya pemulihan IDR'))}{field('funding',t('Dana tersedia teralokasi IDR'))}{field('damaged',t('Aset perlu dipulihkan'))}{field('restored',t('Aset sudah pulih'))}</div><p className="mt-2">{t('Pendanaan:')} {output(funding,' IDR')} ({output(fundingPct,'%')}) · {t('Fisik:')} {output(physGapPct,'%')}{statusBadge(physGapPct)}</p>{traceLine(funding)}{traceLine(physGap)}<p className="text-[10px] text-slate-400">Gap fisik: {physGap.value===null?t('Belum tersedia'):`${physGap.value} unit belum pulih`} · {physGap.trace}</p></section>
   <section><b>{t('Pemulihan layanan')}</b>{svcIds.map(([id,label])=>{
     const r=estimateUtilityRecovery({service:id as 'water'|'electricity'|'access'|'telecom',

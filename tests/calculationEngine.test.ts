@@ -7,6 +7,7 @@ import {
   evaluateLifeSafetyOverride, classifyNeedTier, priorityWeightsSum, duplicateFactIds,
   roundIdr, PRIORITY_WEIGHTS, PRIORITY_VERSION, CALCULATION_ENGINE_VERSION, METHOD_VERSION,
   damage, economicLoss, totalLoss, gap, gapPercent, utilityRecovery, forecast, priority,
+  toDamageFraction,
 } from '../src/services/insights/formulas';
 import { summariseLiveInputs } from '../src/services/insights/calculationInputs';
 
@@ -208,4 +209,78 @@ test('live Firestore summary never invents quantities', () => {
     recovery: [], claims: [], aidEvents: [{ id: 'e1', incidentId: 'x' } as never],
   });
   assert.match(withUnquantified.blockers.join(' '), /no quantified demand|not usable stock/);
+});
+
+test('severity percent converts explicitly, never silently', () => {
+  const pct = estimatePhysicalDamage({ assetCount: 5, replacementCostPerAsset: 150_000_000, damageFraction: 50, damageFractionUnit: 'percent' });
+  assert.equal(pct.status, 'calculated');
+  assert.equal(pct.value, 375_000_000);
+  assert.match(pct.trace, /50%.*0\.5/);
+  // Bare 50 in fraction mode stays invalid (guideline: never treat 50 as 0.5).
+  const bare = estimatePhysicalDamage({ assetCount: 5, replacementCostPerAsset: 150_000_000, damageFraction: 50 });
+  assert.equal(bare.status, 'invalid_input');
+  assert.equal(bare.value, null);
+  // Percent out of 0-100 is invalid too.
+  assert.equal(estimatePhysicalDamage({ assetCount: 5, replacementCostPerAsset: 1, damageFraction: 150, damageFractionUnit: 'percent' }).status, 'invalid_input');
+  // Helper is pure and explicit.
+  assert.deepEqual(toDamageFraction(50, 'percent'), { fraction: 0.5, error: null });
+  assert.equal(toDamageFraction(50, 'fraction').fraction, null);
+  assert.ok(toDamageFraction(50, 'fraction').error);
+});
+
+test('net vs gross economic-loss basis is recorded, not confused', () => {
+  const net = estimateEconomicLoss({ dailyEconomicLoss: 100_000_000, durationDays: 3, basis: 'net' });
+  const gross = estimateEconomicLoss({ dailyEconomicLoss: 100_000_000, durationDays: 3, basis: 'gross' });
+  assert.equal(net.value, 300_000_000);
+  assert.equal(gross.value, 300_000_000);
+  assert.match(net.trace, /net/);
+  assert.match(gross.trace, /gross/);
+  const nf = estimateEconomicLossNetFlow(
+    { value: 100, unit: 'IDR/day', area: 'a', period: 'p', factIds: ['f1'] },
+    { value: 20, unit: 'IDR/day', area: 'a', period: 'p', factIds: ['f2'] }, 3);
+  assert.equal(nf.value, 240);
+  assert.match(nf.trace, /net/);
+});
+
+test('unusable stock and unconfirmed incoming withhold the forecast', () => {
+  const unusable = estimateForecastGap({ demand: 100, additionalBacklog: 0, usableStock: 10, expectedIncoming: 0, usableStockConfirmed: false });
+  assert.equal(unusable.status, 'insufficient_data');
+  assert.equal(unusable.value, null);
+  assert.match(unusable.warnings.join(' '), /withheld/);
+  const unconf = estimateForecastGap({ demand: 100, additionalBacklog: 0, usableStock: 0, expectedIncoming: 40, incomingConfirmed: false });
+  assert.equal(unconf.status, 'insufficient_data');
+  assert.equal(unconf.value, null);
+  // Confirmed flags keep the calculated path.
+  const ok = estimateForecastGap({ demand: 100, additionalBacklog: 0, usableStock: 10, expectedIncoming: 0, usableStockConfirmed: true, incomingConfirmed: true });
+  assert.equal(ok.status, 'calculated');
+  assert.equal(ok.value, 90);
+});
+
+test('total loss auto-withholds on mismatched component scopes', () => {
+  const phys = estimatePhysicalDamage({ assetCount: 5, replacementCostPerAsset: 150_000_000, damageFraction: 0.5, area: 'SBD', period: '2026-10-04' });
+  const flow = estimateEconomicLoss({ dailyEconomicLoss: 100_000_000, durationDays: 3, area: 'SBD', period: '2026-10-07' });
+  const t = estimateTotalLoss(phys, flow);
+  assert.equal(t.status, 'insufficient_data');
+  assert.equal(t.value, null);
+  assert.match(t.warnings.join(' '), /differ/);
+  // Reconciled scopes still combine.
+  const flow2 = estimateEconomicLoss({ dailyEconomicLoss: 100_000_000, durationDays: 3, area: 'SBD', period: '2026-10-04' });
+  assert.equal(estimateTotalLoss(phys, flow2).value, 675_000_000);
+});
+
+test('results carry calculation ID, origin, and scope', () => {
+  const r = estimatePhysicalDamage({ assetCount: 5, replacementCostPerAsset: 150_000_000, damageFraction: 0.5, calculationId: 'calc-001', origin: 'live', area: 'SBD', period: '2026-10-04' });
+  assert.equal(r.id, 'calc-001');
+  assert.equal(r.origin, 'live');
+  assert.deepEqual(r.scope, { area: 'SBD', period: '2026-10-04' });
+  // Defaults: no ID, unknown origin, empty scope.
+  const d = estimateFundingGap({ requirement: 500, available: 100 });
+  assert.equal(d.id, null);
+  assert.equal(d.origin, 'unknown');
+  // Duplicate refs in one calculation warn without changing the value.
+  const pDup = estimatePhysicalDamage({ assetCount: 5, replacementCostPerAsset: 150_000_000, damageFraction: 0.5, sourceRefs: ['f-shared'] });
+  const eDup = estimateEconomicLoss({ dailyEconomicLoss: 100_000_000, durationDays: 3, sourceRefs: ['f-shared'] });
+  const tDup = estimateTotalLoss(pDup, eDup);
+  assert.equal(tDup.value, 675_000_000);
+  assert.match(tDup.warnings.join(' '), /duplicate evidence refs/);
 });

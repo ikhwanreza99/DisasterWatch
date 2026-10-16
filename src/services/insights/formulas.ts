@@ -49,9 +49,29 @@ export interface InputRef {
   observedAt:string|null;
 }
 
+/** Where the inputs came from. Explicit — never inferred from values. */
+export type CalculationOrigin='simulation'|'live'|'unknown';
+/** Geographic + reporting scope carried by a result for comparability checks. */
+export interface CalculationScope { area:string|null; period:string|null; }
+/** Shared caller-supplied provenance. All optional so legacy calls keep working. */
+export interface BaseCalculationInput {
+  sourceRefs?:string[];
+  observedAt?:string|null;
+  /** Correlation ID for tracing a run across logs/UI. Default null. */
+  calculationId?:string|null;
+  /** Explicit simulation-vs-live designation. Default 'unknown'. */
+  origin?:'simulation'|'live';
+}
+
 /** Typed deterministic result. Pure data — no React/Firestore/AI imports. */
 export interface CalculationResult {
   type:CalculationType;
+  /** Caller-supplied correlation ID (null when the caller did not set one). */
+  id:string|null;
+  /** Explicit simulation-vs-live designation. */
+  origin:CalculationOrigin;
+  /** Geographic + reporting scope when the inputs declared one. */
+  scope:CalculationScope;
   version:string;
   value:number|null;
   unit:string;
@@ -80,15 +100,21 @@ function calcInput(label:string,value:number|null,unit:string,sourceRefs:string[
   observedAt:string|null=null):InputRef{return{label,value,unit,sourceRefs,observedAt};}
 
 function makeResult(type:CalculationType,value:number|null,unit:string,inputs:InputRef[],
-  opts:{assumptions?:string[];exclusions?:string[];warnings?:string[];errors?:string[];trace?:string}={}):CalculationResult{
+  opts:{assumptions?:string[];exclusions?:string[];warnings?:string[];errors?:string[];trace?:string;id?:string|null;origin?:CalculationOrigin;scope?:CalculationScope}={}):CalculationResult{
   const errors=opts.errors??[];
   const hasMissing=inputs.some(i=>i.value===null||!Number.isFinite(i.value as number));
   const status:CalculationStatus=errors.length>0?'invalid_input':value===null||hasMissing&&value===null?'insufficient_data':value===null?'insufficient_data':'calculated';
   // invalid_input takes precedence; insufficient_data when value null without hard errors.
   const finalStatus:CalculationStatus=errors.length>0?'invalid_input':(value===null?'insufficient_data':status);
-  return {type,version:type==='priority_score'?PRIORITY_VERSION:CALCULATION_ENGINE_VERSION,
+  // Central duplicate-evidence guard: the same source ref feeding two inputs of
+  // one calculation is a double-count risk. Warning only — status unchanged.
+  const warnings=[...(opts.warnings??[])];
+  const dupRefs=duplicateFactIds(inputs.flatMap(i=>i.sourceRefs).filter(Boolean));
+  if(dupRefs.length>0)warnings.push(`duplicate source refs in one calculation: ${dupRefs.join(', ')} — verify the same evidence is not counted twice`);
+  return {type,id:opts.id??null,origin:opts.origin??'unknown',scope:opts.scope??{area:null,period:null},
+    version:type==='priority_score'?PRIORITY_VERSION:CALCULATION_ENGINE_VERSION,
     value,unit,status:finalStatus,inputs,assumptions:opts.assumptions??[],exclusions:opts.exclusions??[],
-    calculatedAt:new Date().toISOString(),warnings:opts.warnings??[],errors,trace:opts.trace??''};
+    calculatedAt:new Date().toISOString(),warnings,errors,trace:opts.trace??''};
 }
 
 const isMissing=(v:number|null|undefined):v is null|undefined=>v===null||v===undefined||!Number.isFinite(v as number);
@@ -123,51 +149,70 @@ export function duplicateFactIds(ids:string[]):string[]{
 
 // --- A. Disaster Loss Estimation -------------------------------------------
 
-export interface PhysicalDamageInput {
+export interface PhysicalDamageInput extends BaseCalculationInput {
   assetCount:number|null; replacementCostPerAsset:number|null; damageFraction:number|null;
+  /** Unit of damageFraction. 'percent' converts explicitly (50 → 0.5); a bare
+      value > 1 with 'fraction' is invalid, never silently rescaled. */
+  damageFractionUnit?:'fraction'|'percent';
   currency?:string; area?:string; period?:string;
-  sourceRefs?:string[]; observedAt?:string|null;
   evidenceTier?:DamageEvidenceTier;
+}
+/** Explicit severity conversion. Percent and fraction are never interchanged
+    silently: 50 with 'fraction' is an error, 50 with 'percent' is 0.5. */
+export function toDamageFraction(value:number|null,unit:'fraction'|'percent'):{fraction:number|null;error:string|null}{
+  if(value===null||value===undefined||!Number.isFinite(value))return{fraction:null,error:null};
+  if(unit==='percent'){
+    if(value<0||value>100)return{fraction:null,error:`damage percent must be between 0 and 100 (got ${value})`};
+    return{fraction:value/100,error:null};
+  }
+  if(value<0||value>1)return{fraction:null,error:`damage fraction must be between 0 and 1 (got ${value}); pass unit 'percent' for percentage inputs`};
+  return{fraction:value,error:null};
 }
 
 export function estimatePhysicalDamage(inp:PhysicalDamageInput):CalculationResult{
   const errors:string[]=[];const warnings:string[]=[];
   const {assetCount,replacementCostPerAsset,damageFraction}=inp;
+  const fracUnit=inp.damageFractionUnit??'fraction';
   if(assetCount!==null&&assetCount!==undefined&&!Number.isInteger(assetCount)&&Number.isFinite(assetCount))warnings.push('asset count should be an integer; fractional value kept as-is');
   if(assetCount!==null&&!isMissing(assetCount)&&!Number.isFinite(assetCount))errors.push('asset count is malformed');
   negErr('asset count',assetCount,errors);
   negErr('replacement cost',replacementCostPerAsset,errors);
-  if(damageFraction!==null&&damageFraction!==undefined){
-    if(!Number.isFinite(damageFraction))errors.push('damage fraction is malformed');
-    else if(damageFraction<0||damageFraction>1)errors.push(`damage fraction must be between 0 and 1 (got ${damageFraction})`);
-  }
-  const missing= isMissing(assetCount)||isMissing(replacementCostPerAsset)||isMissing(damageFraction);
+  // Explicit severity conversion: percent inputs declare their unit up front.
+  const conv=toDamageFraction(damageFraction,fracUnit);
+  if(conv.error)errors.push(conv.error);
+  const fraction=conv.fraction;
+  const missing= isMissing(assetCount)||isMissing(replacementCostPerAsset)||fraction===null;
   const currency=inp.currency??'IDR';
   let value:number|null=null;
   if(errors.length===0&&!missing){
-    const raw=assetCount!*replacementCostPerAsset!*damageFraction!;
+    const raw=assetCount!*replacementCostPerAsset!*fraction!;
     const rounded=roundIdr(raw);
     if(rounded===null)errors.push('damage result is unsafe (overflow/negative)');
     else value=rounded;
   }
   const inputs=[calcInput('affected_asset_count',assetCount,'asset',inp.sourceRefs??[],inp.observedAt??null),
     calcInput('replacement_cost_per_asset',replacementCostPerAsset,currency,[],null),
-    calcInput('damage_fraction',damageFraction,'fraction 0-1',[],null)];
+    calcInput('damage_fraction',fraction,'fraction 0-1',[],null)];
   const tier=inp.evidenceTier??'modeled';
+  const convNote=fracUnit==='percent'&&fraction!==null?`severity ${damageFraction}% → ${fraction} (explicit percent conversion)`:null;
   return makeResult('physical_damage',value,currency,inputs,{
+    id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},
     assumptions:[`damage = affected_asset_count × replacement_cost_per_asset × damage_fraction`,
+      `severity unit: ${fracUnit}${convNote?` (${convNote})`:''}`,
       `currency=${currency}; area=${inp.area??'unspecified'}; period=${inp.period??'unspecified'}`,
       `evidence tier: ${tier} (observed=direct count, official_assessment=assessor figure, modeled=assumption-driven)`],
     exclusions:['lost income excluded here (belongs to economic loss)','other economic components excluded to avoid double-counting'],
     warnings,errors,
     trace: value===null?'damage: insufficient/invalid inputs — no value asserted':
-      `${assetCount} × ${replacementCostPerAsset} × ${damageFraction} = ${value} ${currency}`});
+      `${assetCount} × ${replacementCostPerAsset} × ${fraction}${convNote?` [${convNote}]`:''} = ${value} ${currency}`});
 }
 
-export interface EconomicLossInput {
+export interface EconomicLossInput extends BaseCalculationInput {
   dailyEconomicLoss:number|null; durationDays:number|null;
+  /** 'net' = loss after coping/adaptation (guideline default); 'gross' = total
+      output lost. Recorded in assumptions/trace so the two are never confused. */
+  basis?:'net'|'gross';
   currency?:string; area?:string; period?:string;
-  sourceRefs?:string[]; observedAt?:string|null;
 }
 
 export function estimateEconomicLoss(inp:EconomicLossInput):CalculationResult{
@@ -179,6 +224,7 @@ export function estimateEconomicLoss(inp:EconomicLossInput):CalculationResult{
   if(inp.dailyEconomicLoss!==null&&inp.dailyEconomicLoss!==undefined&&Number.isFinite(inp.dailyEconomicLoss)&&!Number.isInteger(inp.durationDays as number)&&inp.durationDays!==null){}
   const missing=isMissing(inp.dailyEconomicLoss)||isMissing(inp.durationDays);
   const currency=inp.currency??'IDR';
+  const basis=inp.basis??'net';
   let value:number|null=null;
   if(errors.length===0&&!missing){
     const rounded=roundIdr(inp.dailyEconomicLoss!*inp.durationDays!);
@@ -186,16 +232,19 @@ export function estimateEconomicLoss(inp:EconomicLossInput):CalculationResult{
     else value=rounded;
   }
   return makeResult('economic_loss',value,currency,
-    [calcInput('daily_economic_loss',inp.dailyEconomicLoss,`${currency}/day`,inp.sourceRefs??[],inp.observedAt??null),
+    [calcInput(basis==='gross'?'gross_daily_economic_loss':'net_daily_economic_loss',inp.dailyEconomicLoss,`${currency}/day`,inp.sourceRefs??[],inp.observedAt??null),
      calcInput('duration_days',inp.durationDays,'days',[],null)],
-    {assumptions:[`economic_loss = daily_economic_loss × duration_days`,`currency=${currency}; area=${inp.area??'unspecified'}; period=${inp.period??'unspecified'}; duration defines the loss window`],
+    {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},
+     assumptions:[`economic_loss (${basis}) = daily_${basis}_economic_loss × duration_days`,
+      basis==='net'?'net = loss after coping/adaptation (guideline default)':'gross = total output lost (kept distinct from net)',
+      `currency=${currency}; area=${inp.area??'unspecified'}; period=${inp.period??'unspecified'}; duration defines the loss window`],
      exclusions:['physical damage excluded here (belongs to damage estimate)'],
-     errors,trace:value===null?'economic_loss: insufficient/invalid inputs':`${inp.dailyEconomicLoss}/day × ${inp.durationDays} days = ${value} ${currency}`});
+     errors,trace:value===null?'economic_loss: insufficient/invalid inputs':`${basis} ${inp.dailyEconomicLoss}/day × ${inp.durationDays} days = ${value} ${currency}`});
 }
 
 /** Net-flow variant (normal − actual) × days — preserves legacy economicLoss semantics. */
 export function estimateEconomicLossNetFlow(normal:Measure|null,actual:Measure|null,days:number|null,
-  opts:{area?:string;period?:string}={}):CalculationResult{
+  opts:{area?:string;period?:string;calculationId?:string|null;origin?:'simulation'|'live'}={}):CalculationResult{
   const errors:string[]=[];
   if(days!==null&&Number.isFinite(days as number)&&(days as number)<=0)errors.push(`duration must be > 0 days (got ${days})`);
   const compat=compatible(normal,actual);
@@ -211,47 +260,57 @@ export function estimateEconomicLossNetFlow(normal:Measure|null,actual:Measure|n
   const inputs=[calcInput('normal_net_daily_flow',normal?.value??null,normal?.unit??'IDR/day',normal?.factIds??[],null),
     calcInput('actual_net_daily_flow',actual?.value??null,actual?.unit??'IDR/day',actual?.factIds??[],null),
     calcInput('duration_days',days,'days',[],null)];
+  const nfScope={area:opts.area??normal?.area??null,period:opts.period??normal?.period??null};
   if(value===null&&errors.length===0)return makeResult('economic_loss',null,'IDR',inputs,
-    {assumptions:['economic_loss = max(0, normal − actual) × days'],exclusions:['physical damage excluded'],warnings:[],errors,trace:'economic_loss (net-flow): insufficient inputs'});
+    {id:opts.calculationId??null,origin:opts.origin??'unknown',scope:nfScope,assumptions:['economic_loss (net) = max(0, normal − actual) × days','net derivation from comparable daily flows; kept distinct from gross daily-loss variant'],exclusions:['physical damage excluded'],warnings:[],errors,trace:'economic_loss (net-flow): insufficient inputs'});
   return makeResult('economic_loss',value,'IDR',inputs,
-    {assumptions:['economic_loss = max(0, normal − actual) × days',`area=${opts.area??normal?.area??'unspecified'}; period=${opts.period??normal?.period??'unspecified'}`],
+    {id:opts.calculationId??null,origin:opts.origin??'unknown',scope:nfScope,
+     assumptions:['economic_loss (net) = max(0, normal − actual) × days','net derivation from comparable daily flows; kept distinct from gross daily-loss variant',`area=${opts.area??normal?.area??'unspecified'}; period=${opts.period??normal?.period??'unspecified'}`],
      exclusions:['physical damage excluded'],errors,
-     trace:value===null?`economic_loss (net-flow): ${errors.join('; ')||'insufficient inputs'}`:`max(0, ${normal!.value} − ${actual!.value}) × ${days} = ${value} IDR`});
+     trace:value===null?`economic_loss (net-flow): ${errors.join('; ')||'insufficient inputs'}`:`net max(0, ${normal!.value} − ${actual!.value}) × ${days} = ${value} IDR`});
 }
 
 export function estimateTotalLoss(physical:CalculationResult,flow:CalculationResult,
-  opts:{inputsOverlap?:boolean}={}):CalculationResult{
+  opts:{inputsOverlap?:boolean;calculationId?:string|null}={}):CalculationResult{
   const warnings=[...physical.warnings,...flow.warnings];
   const errors=[...physical.errors,...flow.errors];
   if(opts.inputsOverlap){warnings.push('physical and economic inputs may overlap — combined total withheld (double-counting risk)');}
   const allRefs=[...physical.inputs.flatMap(i=>i.sourceRefs),...flow.inputs.flatMap(i=>i.sourceRefs)];
   const dups=duplicateFactIds(allRefs.filter(Boolean));
   if(dups.length>0)warnings.push(`duplicate evidence refs detected: ${dups.join(', ')} — verify no double-count`);
+  // Automatic scope guard: components with explicitly different areas/periods
+  // are not comparable — withhold instead of asserting a combined total.
+  // (Matches the guideline: total only when scopes reconcile.)
+  const pScope=physical.scope, fScope=flow.scope;
+  const scopeClash=(pScope.area&&fScope.area&&pScope.area!==fScope.area)||(pScope.period&&fScope.period&&pScope.period!==fScope.period);
+  if(scopeClash)warnings.push(`component scopes differ (damage ${pScope.area??'?'} / ${pScope.period??'?'} vs economic ${fScope.area??'?'} / ${fScope.period??'?'} — combined total withheld until reconciled)`);
+  const blocked=!!opts.inputsOverlap||!!scopeClash;
+  const scope={area:pScope.area??fScope.area??null,period:pScope.period??fScope.period??null};
   let value:number|null=null;
-  if(errors.length===0&&!opts.inputsOverlap&&physical.value!==null&&flow.value!==null){
+  if(errors.length===0&&!blocked&&physical.value!==null&&flow.value!==null){
     const sum=physical.value+flow.value;
     value=Number.isSafeInteger(Math.round(sum))?Math.round(sum):null;
     if(value===null)errors.push('combined total is unsafe');
   }
-  const finalErrors=errors.length>0?errors:(value===null&&!opts.inputsOverlap?[]:errors);
-  // When overlap is flagged we deliberately withhold the total: insufficient_data + warning.
-  return {type:'total_loss',version:CALCULATION_ENGINE_VERSION,value,unit:'IDR',
+  const finalErrors=errors.length>0?errors:(value===null&&!blocked?[]:errors);
+  // Withheld totals stay insufficient_data (blocker in warnings), never errors.
+  const origin:CalculationOrigin=physical.origin==='live'&&flow.origin==='live'?'live':physical.origin==='simulation'&&flow.origin==='simulation'?'simulation':'unknown';
+  return {type:'total_loss',id:opts.calculationId??null,origin,scope,version:CALCULATION_ENGINE_VERSION,value,unit:'IDR',
     status:finalErrors.length>0?'invalid_input':value===null?'insufficient_data':'calculated',
     inputs:[...physical.inputs,...flow.inputs],
     assumptions:['total_loss = damage + economic_loss (only when scopes reconcile and no overlap)'],
-    exclusions:['withheld when physical/economic components overlap'],
+    exclusions:['withheld when physical/economic components overlap or scopes differ'],
     calculatedAt:new Date().toISOString(),warnings,
-    errors:opts.inputsOverlap?[]:finalErrors,
-    trace: value===null?(opts.inputsOverlap?'total withheld: overlapping inputs — resolve double-count before combining':'total_loss: insufficient inputs — both damage and economic loss required'):`${physical.value} + ${flow.value} = ${value} IDR`};
+    errors:blocked?[]:finalErrors,
+    trace: value===null?(blocked?'total withheld: overlapping inputs or mismatched scopes — resolve before combining':'total_loss: insufficient inputs — both damage and economic loss required'):`${physical.value} + ${flow.value} = ${value} IDR`};
 }
 
 // --- B. Recovery Gap Estimation --------------------------------------------
 
-export interface FundingGapInput {
+export interface FundingGapInput extends BaseCalculationInput {
   requirement:number|null; available:number|null; currency?:string;
   area?:string; period?:string; programScope?:string;
   requirementStage?:FundingStage; availableStage?:FundingStage;
-  sourceRefs?:string[]; observedAt?:string|null;
 }
 
 function fundingScopeCheck(inp:FundingGapInput):{errors:string[];warnings:string[]}{
@@ -277,7 +336,7 @@ export function estimateFundingGap(inp:FundingGapInput):CalculationResult{
   return makeResult('funding_gap',value,currency,
     [calcInput('recovery_requirement',inp.requirement,currency,inp.sourceRefs??[],inp.observedAt??null),
      calcInput('available_funding',inp.available,currency,[],null)],
-    {assumptions:[`funding_gap = max(0, requirement − available)`,`currency=${currency}; area=${inp.area??'unspecified'}; period=${inp.period??'unspecified'}; program=${inp.programScope??'unspecified'}`,
+    {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},assumptions:[`funding_gap = max(0, requirement − available)`,`currency=${currency}; area=${inp.area??'unspecified'}; period=${inp.period??'unspecified'}; program=${inp.programScope??'unspecified'}`,
         `stages: requirement=${inp.requirementStage??'unspecified'}, available=${inp.availableStage??'unspecified'}`],
      exclusions:['physical gap kept separate — never averaged with financial gap'],
      warnings,errors,
@@ -291,7 +350,7 @@ export function estimateFundingGapPercent(inp:FundingGapInput):CalculationResult
     return {...makeResult('funding_gap_percent',null,'%',
       [calcInput('recovery_requirement',inp.requirement,inp.currency??'IDR',inp.sourceRefs??[],inp.observedAt??null),
        calcInput('available_funding',inp.available,inp.currency??'IDR',[],null)],
-      {assumptions:['funding_gap_percent = funding_gap / requirement × 100'],
+      {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},assumptions:['funding_gap_percent = funding_gap / requirement × 100'],
        warnings:zeroDenom?[...base.warnings,'denominator requirement must be > 0 — percentage withheld (no division by zero)']:base.warnings,
        errors:base.errors,
        trace:'funding_gap_percent: denominator zero/missing — no division by zero'}),
@@ -301,11 +360,11 @@ export function estimateFundingGapPercent(inp:FundingGapInput):CalculationResult
   return {...makeResult('funding_gap_percent',pct,'%',
     [calcInput('recovery_requirement',inp.requirement,inp.currency??'IDR',inp.sourceRefs??[],inp.observedAt??null),
      calcInput('available_funding',inp.available,inp.currency??'IDR',[],null)],
-    {assumptions:['funding_gap_percent = funding_gap / requirement × 100'],warnings:base.warnings,errors:[],
+    {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},assumptions:['funding_gap_percent = funding_gap / requirement × 100'],warnings:base.warnings,errors:[],
      trace:`${base.value} / ${inp.requirement} × 100 = ${pct}%`}),warnings:base.warnings};
 }
 
-export interface PhysicalGapInput {
+export interface PhysicalGapInput extends BaseCalculationInput {
   affectedUnits:number|null; recoveredUnits:number|null; unit?:string;
   area?:string; period?:string; sourceRefs?:string[]; observedAt?:string|null;
 }
@@ -323,7 +382,7 @@ export function estimatePhysicalGapCount(inp:PhysicalGapInput):CalculationResult
   return makeResult('physical_gap_count',value,unit,
     [calcInput('affected_units',inp.affectedUnits,unit,inp.sourceRefs??[],inp.observedAt??null),
      calcInput('recovered_units',inp.recoveredUnits,unit,[],null)],
-    {assumptions:[`physical_gap_count = affected − recovered`,`cohort: ${inp.area??'unspecified'} / ${inp.period??'unspecified'}; requires 0 ≤ recovered ≤ affected`],
+    {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},assumptions:[`physical_gap_count = affected − recovered`,`cohort: ${inp.area??'unspecified'} / ${inp.period??'unspecified'}; requires 0 ≤ recovered ≤ affected`],
      exclusions:['financial gap kept separate'],warnings,errors,
      trace:value===null?`physical_gap: ${errors.join('; ')||'insufficient inputs'}`:`${inp.affectedUnits} − ${inp.recoveredUnits} = ${value} ${unit} unrecovered`});
 }
@@ -336,7 +395,7 @@ export function estimatePhysicalGapPercent(inp:PhysicalGapInput):CalculationResu
     return makeResult('physical_gap_percent',null,'%',
       [calcInput('affected_units',inp.affectedUnits,unit,inp.sourceRefs??[],inp.observedAt??null),
        calcInput('recovered_units',inp.recoveredUnits,unit,[],null)],
-      {assumptions:['physical_gap_percent = gap_count / affected × 100'],
+      {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},assumptions:['physical_gap_percent = gap_count / affected × 100'],
        errors:count.errors,
        warnings:zeroDenom?[...count.warnings,'affected denominator must be > 0 — percentage withheld (no division by zero)']:count.warnings,
        trace:'physical_gap_percent: denominator zero/missing — no division by zero'});
@@ -345,13 +404,13 @@ export function estimatePhysicalGapPercent(inp:PhysicalGapInput):CalculationResu
   return makeResult('physical_gap_percent',pct,'%',
     [calcInput('affected_units',inp.affectedUnits,unit,inp.sourceRefs??[],inp.observedAt??null),
      calcInput('recovered_units',inp.recoveredUnits,unit,[],null)],
-    {assumptions:['physical_gap_percent = gap_count / affected × 100'],warnings:count.warnings,errors:[],
+    {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},assumptions:['physical_gap_percent = gap_count / affected × 100'],warnings:count.warnings,errors:[],
      trace:`${count.value} / ${inp.affectedUnits} × 100 = ${pct}%`});
 }
 
 // --- C. Utility Recovery Percentage -----------------------------------------
 
-export interface UtilityRecoveryInput {
+export interface UtilityRecoveryInput extends BaseCalculationInput {
   service:'water'|'electricity'|'access'|'telecom';
   affected:number|null; recovered:number|null;
   area?:string; period?:string; sourceRefs?:string[]; observedAt?:string|null;
@@ -380,7 +439,7 @@ export function estimateUtilityRecovery(inp:UtilityRecoveryInput):CalculationRes
   return makeResult('utility_recovery',value,'%',
     [calcInput(`affected_${inp.service}`,inp.affected,expectedUnit,inp.sourceRefs??[],inp.observedAt??null),
      calcInput(`recovered_${inp.service}`,inp.recovered,expectedUnit,[],null)],
-    {assumptions:[`recovery_percent = recovered / affected × 100`,`service=${inp.service}; unit=${expectedUnit} (never mixed across services)`,
+    {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},assumptions:[`recovery_percent = recovered / affected × 100`,`service=${inp.service}; unit=${expectedUnit} (never mixed across services)`,
         `cohort/boundary/period: ${inp.area??'unspecified'} / ${inp.period??'unspecified'}`,
         `operational = ${inp.operationalDefinition??'source-defined (unstated)'}`],
      exclusions:['other services excluded (no cross-service numerator/denominator)','partial/inconsistent samples excluded from regional claims'],
@@ -390,10 +449,9 @@ export function estimateUtilityRecovery(inp:UtilityRecoveryInput):CalculationRes
 
 // --- D. Disaster Needs Intelligence ------------------------------------------
 
-export interface NeedsDemandInput {
+export interface NeedsDemandInput extends BaseCalculationInput {
   targetPopulation:number|null; dailyRequirementPerPerson:number|null; durationDays:number|null;
   commodity?:string; unit?:string; area?:string; period?:string;
-  sourceRefs?:string[]; observedAt?:string|null;
 }
 
 export function estimateNeedsDemand(inp:NeedsDemandInput):CalculationResult{
@@ -415,21 +473,26 @@ export function estimateNeedsDemand(inp:NeedsDemandInput):CalculationResult{
     [calcInput('target_population',inp.targetPopulation,'people',inp.sourceRefs??[],inp.observedAt??null),
      calcInput('daily_requirement_per_person',inp.dailyRequirementPerPerson,`${unit}/person/day`,[],null),
      calcInput('duration_days',inp.durationDays,'days',[],null)],
-    {assumptions:[`demand = population × daily_rate × days`,`commodity=${inp.commodity??'unspecified'}; unit=${unit}; area=${inp.area??'unspecified'}; period=${inp.period??'unspecified'}`,
+    {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},assumptions:[`demand = population × daily_rate × days`,`commodity=${inp.commodity??'unspecified'}; unit=${unit}; area=${inp.area??'unspecified'}; period=${inp.period??'unspecified'}`,
         'constant population over horizon; single commodity+unit'],
      exclusions:['backlog handled in forecast gap, not here'],
      errors,trace:value===null?`demand: ${errors.join('; ')||'insufficient inputs — target population/commodity/unit/duration/source required'}`:`${inp.targetPopulation} × ${inp.dailyRequirementPerPerson} × ${inp.durationDays} = ${value} ${unit}`});
 }
 
-export interface ForecastGapInput {
+export interface ForecastGapInput extends BaseCalculationInput {
   demand:number|null; additionalBacklog:number|null;
   usableStock:number|null; expectedIncoming:number|null;
   unit?:string; area?:string; period?:string;
-  sourceRefs?:string[]; observedAt?:string|null;
   /** True when the backlog window overlaps the demand window (double-count). */
   backlogOverlapsDemand?:boolean;
   /** Distribution history for this commodity/period (never counted as stock). */
   distributedHistory?:number|null;
+  /** Explicit usability confirmation. false withholds the forecast (blocker);
+      null/undefined keeps the stated value (backward compatible). */
+  usableStockConfirmed?:boolean|null;
+  /** Explicit incoming-supply confirmation (scoped, committed supply). false
+      withholds the forecast (blocker). */
+  incomingConfirmed?:boolean|null;
 }
 
 export function estimateForecastGap(inp:ForecastGapInput):CalculationResult{
@@ -441,18 +504,27 @@ export function estimateForecastGap(inp:ForecastGapInput):CalculationResult{
   if(inp.backlogOverlapsDemand===true)errors.push('backlog overlaps the demand window — same demand would be counted twice; reconcile windows first');
   if(inp.distributedHistory!==null&&inp.distributedHistory!==undefined&&Number.isFinite(inp.distributedHistory)&&inp.distributedHistory>0)
     warnings.push(`distribution history (${inp.distributedHistory}) is reported movement, not available stock — excluded from usable stock`);
+  // Usability blockers: uncertain stock/incoming withholds the forecast rather
+  // than letting an unusable or unconfirmed figure complete the calculation.
+  if(inp.usableStockConfirmed===false)
+    warnings.push('usable stock not confirmed usable (expired/inaccessible/unscoped) — forecast withheld until usability is evidenced');
+  if(inp.incomingConfirmed===false)
+    warnings.push('incoming supply unconfirmed or out of scope (location/category/period) — forecast withheld until confirmed');
+  const usabilityBlocked=inp.usableStockConfirmed===false||inp.incomingConfirmed===false;
   const missing=isMissing(inp.demand)||isMissing(inp.additionalBacklog)||isMissing(inp.usableStock)||isMissing(inp.expectedIncoming);
-  if(missing&&errors.length===0){
+  if((missing||usabilityBlocked)&&errors.length===0){
     // Per spec: incomplete inputs -> insufficient_data, never assume zero.
+    // Uncertain usability likewise withholds (blocker shown, not invented).
     return makeResult('needs_forecast_gap',null,inp.unit??'units',
       [calcInput('demand',inp.demand,inp.unit??'units',inp.sourceRefs??[],inp.observedAt??null),
        calcInput('additional_backlog',inp.additionalBacklog,inp.unit??'units',[],null),
        calcInput('usable_stock',inp.usableStock,inp.unit??'units',[],null),
        calcInput('expected_incoming',inp.expectedIncoming,inp.unit??'units',[],null)],
-      {assumptions:['forecast_gap = max(0, demand + backlog − usable_stock − incoming)','only usable/unexpired/accessible stock; only scoped incoming supply'],
+      {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},
+       assumptions:['forecast_gap = max(0, demand + backlog − usable_stock − incoming)','only usable/unexpired/accessible stock; only scoped incoming supply'],
        exclusions:['distribution history excluded from stock','requested/committed/received/distributed stages never conflated with remaining stock'],
        warnings,errors,
-       trace:'forecast_gap: insufficient inputs — explicit backlog/stock/incoming required (no silent zero)'});
+       trace:usabilityBlocked?'forecast_gap: withheld — stock usability or incoming confirmation uncertain (see blockers)':'forecast_gap: insufficient inputs — explicit backlog/stock/incoming required (no silent zero)'});
   }
   let value:number|null=null;
   if(errors.length===0)value=Math.max(0,inp.demand!+inp.additionalBacklog!-inp.usableStock!-inp.expectedIncoming!);
@@ -461,7 +533,8 @@ export function estimateForecastGap(inp:ForecastGapInput):CalculationResult{
      calcInput('additional_backlog',inp.additionalBacklog,inp.unit??'units',[],null),
      calcInput('usable_stock',inp.usableStock,inp.unit??'units',[],null),
      calcInput('expected_incoming',inp.expectedIncoming,inp.unit??'units',[],null)],
-    {assumptions:['forecast_gap = max(0, demand + backlog − usable_stock − incoming)','backlog = unmet demand OUTSIDE the current demand window'],
+    {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},
+     assumptions:['forecast_gap = max(0, demand + backlog − usable_stock − incoming)','backlog = unmet demand OUTSIDE the current demand window'],
      exclusions:['distribution history excluded from stock'],
      warnings,errors,
      trace:value===null?`forecast_gap: ${errors.join('; ')}`:`max(0, ${inp.demand} + ${inp.additionalBacklog} − ${inp.usableStock} − ${inp.expectedIncoming}) = ${value} ${inp.unit??'units'}`});
@@ -496,7 +569,8 @@ export function scorePriority(c:PriorityComponents):CalculationResult{
       [calcInput('S_severity',c.S,'0-1',[],null),calcInput('G_gap',c.G,'0-1',[],null),
        calcInput('V_vulnerability',c.V,'0-1',[],null),calcInput('T_time_urgency',c.T,'0-1',[],null),
        calcInput('A_access',c.A,'0-1',[],null)],
-      {assumptions:[`score = 100 × (0.30·S + 0.25·G + 0.20·V + 0.15·T + 0.10·A)`,`version=${PRIORITY_VERSION}`,
+      {id:null,origin:'unknown',scope:{area:null,period:null},
+       assumptions:[`score = 100 × (0.30·S + 0.25·G + 0.20·V + 0.15·T + 0.10·A)`,`version=${PRIORITY_VERSION}`,
           ...Object.entries(PRIORITY_SCALES).map(([k,v])=>`${k}: ${v}`)],
        exclusions:['missing components withheld, never zero-filled'],
        warnings:[...warnings,`missing components (${missing.join(', ')}) — score withheld (never zero-filled)`],
@@ -516,7 +590,8 @@ export function scorePriority(c:PriorityComponents):CalculationResult{
     [calcInput('S_severity',c.S,'0-1',[],null),calcInput('G_gap',c.G,'0-1',[],null),
      calcInput('V_vulnerability',c.V,'0-1',[],null),calcInput('T_time_urgency',c.T,'0-1',[],null),
      calcInput('A_access',c.A,'0-1',[],null)],
-    {assumptions:[`score = 100 × (0.30·S + 0.25·G + 0.20·V + 0.15·T + 0.10·A)`,`version=${PRIORITY_VERSION}; weights sum=${sum}`,
+    {id:null,origin:'unknown',scope:{area:null,period:null},
+     assumptions:[`score = 100 × (0.30·S + 0.25·G + 0.20·V + 0.15·T + 0.10·A)`,`version=${PRIORITY_VERSION}; weights sum=${sum}`,
         ...Object.entries(PRIORITY_SCALES).map(([k,v])=>`${k}: ${v}`)],
      exclusions:['missing components withheld, never zero-filled'],
      warnings,errors:hardErrors,

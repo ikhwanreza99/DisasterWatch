@@ -47,7 +47,7 @@ test('reference outcomes match the approved formulas', () => {
 test('safety invariants are verified, not assumed', () => {
   const r = runCalculationVerification();
   const byId = new Map(r.outcomes.map((o) => [o.id, o]));
-  for (const id of ['loss-total-overlap', 'gap-stage-mismatch', 'gap-recovered-exceeds', 'gap-zero-denominator', 'needs-forecast-incomplete', 'needs-backlog-overlap', 'needs-distribution-excluded', 'needs-priority-missing', 'needs-override-scope', 'valid-negative', 'valid-scope-mismatch', 'valid-need-tiers', 'valid-duplicates', 'int-empty-snapshot', 'int-unquantified-withheld']) {
+  for (const id of ['loss-total-overlap', 'loss-severity-percent-ref', 'loss-severity-ambiguous', 'loss-econ-basis', 'loss-total-period-mismatch', 'gap-stage-mismatch', 'gap-recovered-exceeds', 'gap-zero-denominator', 'needs-forecast-incomplete', 'needs-forecast-unusable-stock', 'needs-forecast-unconfirmed-incoming', 'needs-backlog-overlap', 'needs-distribution-excluded', 'needs-priority-missing', 'needs-override-scope', 'valid-negative', 'valid-scope-mismatch', 'valid-need-tiers', 'valid-duplicates', 'int-empty-snapshot', 'int-unquantified-withheld']) {
     assert.equal(byId.get(id)?.status, 'PASS', id);
   }
 });
