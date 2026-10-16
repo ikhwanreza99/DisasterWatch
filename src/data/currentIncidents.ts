@@ -1,4 +1,4 @@
-import { inRecentWindow } from '../services/recentWindow';
+import { inRecentWindow, RECENT_WINDOW_DAYS } from '../services/recentWindow';
 import { locationValidation } from '../services/locationValidation';
 import { currentMedia } from './currentMedia';
 import nationalSnapshot from './nationalIncidents.json';
@@ -34,7 +34,7 @@ export function recentRecords(records: CurrentRecord[], now = Date.now()): Curre
     const reports = record.reports.filter(report => inRecentWindow(report.date, now));
     if (!reports.length) return [];
     const dates = reports.map(report => report.date).sort();
-    return [{ ...record, reports, startDate: dates[0], date: dates[dates.length - 1], summary: `${reports.length} laporan ${record.disasterLabel ?? record.category} di ${record.name} dalam 7 hari terakhir.` }];
+    return [{ ...record, reports, startDate: dates[0], date: dates[dates.length - 1], summary: `${reports.length} laporan ${record.disasterLabel ?? record.category} di ${record.name} dalam ${RECENT_WINDOW_DAYS} hari terakhir.` }];
   });
 }
 export const currentRecords = recentRecords(allCurrentRecords);

@@ -1,10 +1,11 @@
-// Seven calendar days including today, in WIB.
+// Fourteen calendar days including today, in WIB.
+export const RECENT_WINDOW_DAYS = 14;
 const DAY = 86_400_000;
 const WIB = 7 * 3_600_000;
 export function recentWindow(now = Date.now()) {
   const today = new Date(now + WIB).toISOString().slice(0, 10);
   const midnight = Date.parse(`${today}T00:00:00+07:00`);
-  const startMs = midnight - 6 * DAY;
+  const startMs = midnight - (RECENT_WINDOW_DAYS - 1) * DAY;
   const endMs = midnight + DAY;
   return { startMs, endMs, startDate: new Date(startMs + WIB).toISOString().slice(0, 10), endDate: today,
     afterDate: new Date(startMs - DAY + WIB).toISOString().slice(0, 10), beforeDate: new Date(endMs + WIB).toISOString().slice(0, 10) };

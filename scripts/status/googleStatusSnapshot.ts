@@ -7,7 +7,7 @@ import { searchSerpNews } from '../providers/serpapiNews.ts';
 import type { ServiceCheck, StatusSnapshot } from '../../src/services/status/model.ts';
 import { safeStatusError } from '../../src/services/status/model.ts';
 import { isCrawlDue } from '../../src/domain/humanitarian.ts';
-import { recentWindow } from '../../src/services/recentWindow.ts';
+import { recentWindow, RECENT_WINDOW_DAYS } from '../../src/services/recentWindow.ts';
 import { currentRecords } from '../../src/data/currentIncidents.ts';
 
 const now = new Date().toISOString();
@@ -18,7 +18,7 @@ const searchKey = process.env.DISASTERWATCH_GEMINI_SEARCH_KEY || process.env.DIS
 const model = process.env.DISASTERWATCH_GOOGLE_SEARCH_MODEL || 'gemini-3.8-flash';
 const window = recentWindow();
 add('threads-config', 'Threads · pencarian sosial media', process.env.THREADS_ACCESS_TOKEN ? 'configured':'disabled', process.env.THREADS_ACCESS_TOKEN ? 'Token backend tersedia. Request dan hasil publik belum dibuktikan oleh konfigurasi; crawler menjalankan satu pencarian per titik saat gate harian lolos.' : 'Tambahkan THREADS_ACCESS_TOKEN dari OAuth Meta dengan threads_basic dan threads_keyword_search.');
-add('dataset-window', 'Dataset · 7 hari terakhir', 'ok', `Rentang ${window.startDate}–${window.endDate} WIB (termasuk hari ini). BNPB snapshot tersaring: ${currentRecords.length} wilayah, ${currentRecords.reduce((n, r) => n + (r.reports?.length ?? 0), 0)} laporan. Snapshot BNPB masih memerlukan impor sumber terbaru; filter bukan bukti pengambilan data baru.`);
+add('dataset-window', `Dataset · ${RECENT_WINDOW_DAYS} hari terakhir`, 'ok', `Rentang ${window.startDate}–${window.endDate} WIB (termasuk hari ini). BNPB snapshot tersaring: ${currentRecords.length} wilayah, ${currentRecords.reduce((n, r) => n + (r.reports?.length ?? 0), 0)} laporan. Snapshot BNPB masih memerlukan impor sumber terbaru; filter bukan bukti pengambilan data baru.`);
 add('google-search-config', 'Gemini · Google Search', !enabled ? 'disabled' : searchKey ? 'configured' : 'error', !enabled ? 'DISASTERWATCH_GOOGLE_SEARCH_ENABLED belum true.' : !searchKey ? 'Key backend belum tersedia.' : `Aktif; model ${model}. Key tersedia di backend.`);
 
 let previous: StatusSnapshot | null = null;
