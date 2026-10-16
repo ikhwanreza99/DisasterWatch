@@ -8,7 +8,7 @@ export const CategoryFilterBar:React.FC<Props>=({mobile=false,activeCategory,onS
  const visible=choices.filter(c=>!['landslide','other'].includes(c.id)||availableCategories.includes(c.id as DisasterCategory));
  useEffect(()=>{if((activeCategory==='landslide'||activeCategory==='other')&&!availableCategories.includes(activeCategory))onSelectCategory('all');},[activeCategory,availableCategories,onSelectCategory]);
  const id=mobile?'mobile-disaster-options':'desktop-disaster-options';
- return <div className={mobile?'relative sm:hidden pointer-events-auto':'hidden sm:block absolute left-[84px] top-[72px] z-30 pointer-events-auto'} data-purpose={mobile?'mobile-category-filter':'category-filter-bar'}>
+ return <div className={mobile?'relative sm:hidden pointer-events-auto':'hidden sm:block absolute left-[140px] top-4 z-40 pointer-events-auto'} data-purpose={mobile?'mobile-category-filter':'category-filter-bar'}>
  <button type="button" aria-expanded={open} aria-controls={id} aria-label={open?'Minimalkan jenis bencana':'Buka jenis bencana'} onClick={()=>setOpen(!open)} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-lg dark:bg-slate-900 dark:text-slate-100">
  {open?<X size={18}/>:<ListFilter size={18}/>}<span className="hidden sm:inline">{activeCategory==='all'?'Jenis bencana':choices.find(c=>c.id===activeCategory)?.label}</span></button>
  {open&&<div id={id} role="group" aria-label="Jenis bencana" className={`absolute top-[52px] ${mobile?'right-0':'left-0'} grid grid-cols-2 gap-1 w-[244px] max-w-[calc(100vw-96px)] rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:bg-slate-900`}>
