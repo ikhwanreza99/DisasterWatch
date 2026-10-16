@@ -11,41 +11,63 @@ export interface ExtractionResult {
   note: string;
 }
 
-const NEED_KEYWORDS: Array<[RegExp, string]> = [
-  [/air\s*bersih|air\s*minum|air/i, 'clean_water'],
-  [/makan|sembako|beras|logistik/i, 'food'],
-  [/obat|medis|ispa|masker|respirator/i, 'medicine'],
-  [/masker/i, 'mask'],
-  [/tenda|pengungs|selimut|pakaian/i, 'shelter'],
-  [/perahu|kano|evakuasi|boat/i, 'boat'],
-  [/genset|listrik/i, 'genset'],
+const NEED_KEYWORDS: Array<[RegExp, string, string]> = [
+  [/\bair\s*(?:bersih|minum)\b/i, 'clean_water', 'liter|litre|l'],
+  [/makanan|makan|sembako|beras|logistik/i, 'food', 'kg|kilogram|paket|porsi|karung|ton'],
+  [/obat|medis|ispa/i, 'medicine', 'kotak|paket|tablet|botol|strip'],
+  [/masker|respirator/i, 'mask', 'buah|lembar|kotak|box|unit'],
+  [/tenda|pengungs|selimut/i, 'shelter', 'tenda|unit|buah|lembar'],
+  [/pakaian|baju/i, 'clothing', 'paket|potong|stel|buah'],
+  [/perahu|kano|boat/i, 'boat', 'unit|buah|perahu'],
+  [/genset/i, 'genset', 'unit|buah'],
 ];
+const NUMBER = '(?:\\d{1,3}(?:\\.\\d{3})+|\\d+)(?:[.,]\\d+)?';
+function reportedNumber(value: string): number {
+  return Number((/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(value) ? value.replaceAll('.', '') : value).replace(',', '.'));
+}
+
+/** Only explicit amounts with a compatible unit are quantities; household counts are not supply quantities. */
+function explicitNeeds(text: string): AIExtraction['needs'] {
+  return NEED_KEYWORDS.flatMap(([keyword, category, units]) => {
+    const hit = keyword.exec(text);
+    if (!hit) return [];
+    const before = text.slice(Math.max(0, hit.index - 40), hit.index);
+    const after = text.slice(hit.index + hit[0].length, hit.index + hit[0].length + 40);
+    const following = after.match(new RegExp(`^\\s*(?:sebanyak|sejumlah|:)?\\s*(${NUMBER})\\s*(${units})\\b`, 'i'));
+    const preceding = before.match(new RegExp(`(${NUMBER})\\s*(${units})\\s*$`, 'i'));
+    const amount = following ?? preceding;
+    return [{ category, quantity: amount ? reportedNumber(amount[1]) : null, unit: amount ? amount[2].toLowerCase() : null }];
+  });
+}
 
 const DAMAGE_KEYWORDS: Array<[RegExp, string]> = [
-  [/jembatan/i, 'jembatan tidak bisa dilewati'],
+  [/jembatan[^.\n]*(?:putus|rusak|tidak bisa dilewati|roboh)/i, 'jembatan tidak bisa dilewati'],
   [/jalan.*(putus|tutup|tidak bisa|terendam)|akses.*terputus/i, 'akses jalan terputus'],
-  [/tanggul.*jebol|tanggul/i, 'tanggul jebol'],
+  [/tanggul[^.\n]*jebol/i, 'tanggul jebol'],
   [/rumah.*(terendam|masuk|rusak)|air masuk/i, 'rumah terdampak genangan'],
   [/listrik.*(padam|mati)/i, 'listrik padam'],
   [/longsor/i, 'longsor'],
-  [/api|kebakaran|asap/i, 'titik api / asap'],
+  [/\bapi\b|kebakaran|\basap\b/i, 'titik api / asap'],
 ];
 
-function heuristicExtract(rawText: string, locationHint?: string): AIExtraction {
-  const t = rawText.toLowerCase();
-  const disasterType = /api|kebakar|asap|gambut|karhutla/.test(t)
+export function heuristicExtract(rawText: string, locationHint?: string, categoryHint?: string): AIExtraction {
+  // Original notes are retained for review, but cannot override the confirmed form.
+  const text = rawText.split('KETERANGAN AWAL (referensi saja;')[0];
+  const t = text.toLowerCase();
+  const categoryText = categoryHint?.trim().toLowerCase() || t;
+  const disasterType = /\bapi\b|kebakar|\basap\b|gambut|karhutla/.test(categoryText)
     ? 'fire'
-    : /gempa|sesar|magnitudo|retak/.test(t)
+    : /gempa|sesar|magnitudo|retak/.test(categoryText)
       ? 'earthquake'
-      : /longsor/.test(t)
+      : /longsor/.test(categoryText)
         ? 'landslide'
-        : 'flood';
-  const hh = t.match(/(\d+)\s*(kk|keluarga|rumah)/);
-  const jiwa = t.match(/(\d+)\s*(jiwa|orang|warga)/);
-  const households = hh ? parseInt(hh[1], 10) : null;
-  const population = jiwa ? parseInt(jiwa[1], 10) : households ? households * 4 : null;
-  const needs = NEED_KEYWORDS.filter(([re]) => re.test(rawText)).map(([, c]) => ({ category: c, quantity: null, unit: null }));
-  const infra = DAMAGE_KEYWORDS.filter(([re]) => re.test(rawText)).map(([, s]) => s);
+        : /banjir|genangan|terendam/.test(categoryText) ? 'flood' : 'other';
+  const hh = t.match(new RegExp(`(${NUMBER})\\s*(?:kk|keluarga)\\b`));
+  const jiwa = t.match(new RegExp(`(${NUMBER})\\s*(?:jiwa|orang|warga)\\b`));
+  const households = hh ? reportedNumber(hh[1]) : null;
+  const population = jiwa ? reportedNumber(jiwa[1]) : null;
+  const needs = explicitNeeds(text);
+  const infra = DAMAGE_KEYWORDS.filter(([re]) => re.test(text)).map(([, s]) => s);
   const urgency = /tidak bisa dilewati|terisolir|korban|darurat|air masuk|jebol/.test(t) ? 'high' : /butuh|mendesak|rusak/.test(t) ? 'medium' : 'low';
   // Dedupe needs by category
   const seen = new Set<string>();
@@ -89,7 +111,7 @@ export async function extractDisasterInfo(
     // fall through to heuristic
   }
   return {
-    extraction: heuristicExtract(text, opts?.locationHint),
+    extraction: heuristicExtract(text, opts?.locationHint, opts?.categoryHint),
     engine: 'heuristic',
     note: translate('Gemini tidak tersedia — memakai ekstraksi heuristik lokal (jelas berlabel).'),
   };

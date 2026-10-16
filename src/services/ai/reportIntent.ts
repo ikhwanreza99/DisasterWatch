@@ -1,6 +1,9 @@
 /** Recognise an intention to submit first-hand information, rather than ask about reports. */
 export function detectReportIntent(text: string): 'report-disaster' | 'report-needs' | null {
-  const value = text.toLowerCase();
+  const value = text.toLowerCase().trim();
+  // Questions about reporting and explicit refusals must remain informational chat.
+  if (/^(?:apa|apakah|bagaimana|gimana|kenapa|mengapa|kapan|berapa|siapa|di mana)\b/.test(value)) return null;
+  if (/\b(?:tidak|nggak|enggak|gak|ga|belum)\s+(?:(?:ingin|mau|akan)\s+)?(?:lapor|melapor|melaporkan|laporkan|buat laporan|kirim laporan)\b/.test(value)) return null;
   if (/^(?:bagaimana|gimana|apa)\b.*(?:cara|prosedur|syarat)\b.*(?:lapor|melaporkan)/.test(value)) return null;
   const explicit = /^laporan\b/.test(value) || /\b(laporkan|melaporkan)\b|\b(?:saya|aku|kami)\s+(?:ingin\s+|mau\s+|akan\s+)?(?:buat|membuat|kirim|mengirim)\s+laporan\b/.test(value);
   const firsthand = /\b(di sini|disini|di tempat saya|di lokasi saya|di desa kami|kami membutuhkan|kami butuh|saya butuh)\b/.test(value);
