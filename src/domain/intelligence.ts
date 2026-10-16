@@ -61,6 +61,7 @@ export interface IntelligenceReport {
 }
 
 export interface AidRecord {
+  itemName?: string;
   id: string;
   disasterId: string;
   needCategory: string;

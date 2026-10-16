@@ -26,6 +26,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
   onAidAdded,
 }) => {
   const [selectedAid, setSelectedAid] = useState<string>('Masker N95');
+  const [customAid,setCustomAid]=useState('');
   const [donorName, setDonorName] = useState('');
   const [donorPhone, setDonorPhone] = useState('');
   const [amountOrQuantity, setAmountOrQuantity] = useState('100 Pcs');
@@ -39,7 +40,8 @@ export const DonationModal: React.FC<DonationModalProps> = ({
     const record: AidRecord = {
       id: newId('AID'),
       disasterId: disaster.id,
-      needCategory: AID_CATEGORY_MAP[selectedAid] ?? 'food',
+      needCategory: AID_CATEGORY_MAP[selectedAid] ?? 'other',
+      itemName: selectedAid==='Lainnya'?customAid.trim():selectedAid,
       quantity: Number.isFinite(qty) && qty > 0 ? qty : 1,
       unit: /liter|l\b/i.test(amountOrQuantity) ? 'L' : /pcs|box/i.test(amountOrQuantity) ? 'pcs' : 'paket',
       sourceName: donorName || 'Donatur',
@@ -56,6 +58,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
   };
 
   const aidOptions = [
+    { name: 'Lainnya', icon: <Package className="w-4 h-4 text-slate-500" /> },
     { name: 'Masker N95', icon: <Shield className="w-4 h-4 text-rose-500" /> },
     { name: 'Tangki Air Bersih', icon: <Droplets className="w-4 h-4 text-blue-500" /> },
     { name: 'Paket Obat ISPA', icon: <Pill className="w-4 h-4 text-emerald-500" /> },
@@ -109,6 +112,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
                 </div>
               </div>
 
+              {selectedAid==='Lainnya'&&<label className="block font-semibold text-slate-700 text-[11px]">Nama bantuan lainnya<input required maxLength={200} value={customAid} onChange={e=>setCustomAid(e.target.value)} placeholder="Contoh: pompa sedot, perahu karet, perlengkapan bayi" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"/></label>}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1 text-[11px]">
                   Jumlah / Kuantitas Bantuan
@@ -181,7 +185,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
             </div>
             <h4 className="text-base font-bold text-slate-900">Komitmen Bantuan Diterima!</h4>
             <p className="text-xs text-slate-600 leading-relaxed max-w-xs">
-              Terima kasih <strong>{donorName}</strong>. Penyaluran bantuan <strong>{selectedAid}</strong> ({amountOrQuantity}) untuk <strong>{disaster.name}</strong> telah terdata di sistem logistik.
+              Terima kasih <strong>{donorName}</strong>. Penyaluran bantuan <strong>{selectedAid==='Lainnya'?customAid:selectedAid}</strong> ({amountOrQuantity}) untuk <strong>{disaster.name}</strong> telah terdata di sistem logistik.
             </p>
             <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-left w-full text-[10px] text-slate-500">
               Kode Konfirmasi: <strong className="text-slate-800">#DON-2026-{Math.floor(1000 + Math.random() * 9000)}</strong>
