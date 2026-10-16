@@ -1194,6 +1194,11 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   // Major-city air quality (UAQI), merged into the same chip. Fetched only while
   // the CUACA layer is visible so Air Quality API usage tracks the weather layer.
   const cityAirWx = useCityAirQuality(showWeather);
+  const cityAirById = useMemo(() => {
+    const rec: Record<string, AirQualityNow | undefined> = {};
+    for (const a of cityAirWx.cities) rec[a.id] = a.air;
+    return rec;
+  }, [cityAirWx.cities]);
   // MAGMA (PVMBG): always fetched; visibility follows the API layer toggle.
   // MAGMA legend is collapsed by default; (i) button next to zoom controls toggles it.
   const [showMagmaLegend, setShowMagmaLegend] = useState(false);
@@ -2108,12 +2113,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 cityWx.cities.map((c) => {
                   const isSel = c.id === selectedCityId;
                   const w = c.weather;
+                  const air = cityAirById[c.id] ?? null;
                   return (
                     <AdvancedMarker
                       key={`city-${c.id}`}
                       position={{ lat: c.lat, lng: c.lng }}
                       zIndex={isSel ? 10005 : 25}
-                      title={t('Cuaca {name}', { name: c.name })}
+                      title={air ? t('Cuaca & kualitas udara {name}', { name: c.name }) : t('Cuaca {name}', { name: c.name })}
                       onClick={() => setSelectedCityId(isSel ? null : c.id)}
                     >
                       <div className="relative flex items-center justify-center" data-purpose="city-weather-marker">
@@ -2143,8 +2149,15 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                             <div className="text-[11px]">
                               {t('Hujan:')} <b>{w.rainProbability}%</b> • {t('Lembap:')} <b>{w.humidity}%</b> • {t('Angin:')} <b>{Math.round(w.windSpeed)} {t('km/j')}</b>
                             </div>
+                            {air && (
+                              <div className="text-[11px]">
+                                🌫 {t('Kualitas udara (UAQI):')} <b style={{ color: air.color }}>{air.aqiDisplay}</b>
+                                {air.category ? ` ${air.category}` : ''}
+                                {air.dominantPollutant ? ` • ${t('polutan dominan')}: ${air.dominantPollutant.toUpperCase()}` : ''}
+                              </div>
+                            )}
                             <div className="text-[10px] text-slate-400">
-                              Source: Google Weather
+                              Source: Google Weather{air ? ' · Google Air Quality' : ''}
                             </div>
                           </div>
                         )}
@@ -2152,6 +2165,15 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                           <img src={w.iconUrl} alt="" className="w-5 h-5" />
                           <span className="text-[11px] font-black text-slate-900">{Math.round(w.temperature)}°</span>
                           <span className="text-[10px] font-semibold text-slate-600">{c.name}</span>
+                          {air && (
+                            <span
+                              className="ml-0.5 rounded-full px-1.5 py-[1px] text-[10px] font-black text-white"
+                              style={{ background: air.color }}
+                              title={`AQI: ${air.aqiDisplay}${air.category ? ` — ${air.category}` : ''}`}
+                            >
+                              {air.aqiDisplay}
+                            </span>
+                          )}
                         </span>
                       </div>
                     </AdvancedMarker>
