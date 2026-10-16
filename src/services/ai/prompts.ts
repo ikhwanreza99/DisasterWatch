@@ -4,6 +4,8 @@ export const EXTRACTION_SYSTEM = `Kamu adalah ekstraktor intelijen bencana untuk
 Tugas: ubah laporan warga berbahasa Indonesia menjadi JSON TERSTRUKTUR.
 Jangan mengarang fakta. Jika info tidak ada, pakai null atau array kosong.
 Jangan menghitung kebutuhan aritmetika — cukup ekstrak apa yang disebut warga.
+Pertahankan jumlah dan satuan eksplisit. Jangan mengubah jumlah keluarga menjadi jumlah orang.
+Jika ada ISIAN TERKONFIRMASI, gunakan isian itu sebagai versi akhir; KETERANGAN AWAL hanya referensi dan tidak boleh menggantikan koreksi pengguna.
 Jawab HANYA dengan JSON valid, tanpa markdown.`;
 
 export function buildExtractionPrompt(rawText: string, locationHint?: string, categoryHint?: string): string {

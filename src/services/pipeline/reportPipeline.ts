@@ -13,6 +13,7 @@ export interface SubmitReportInput {
   sourceName: string;
   rawText: string;
   locationName: string;
+  categoryHint?: string;
   lat?: number;
   lng?: number;
   mediaUrl?: string;
@@ -36,6 +37,7 @@ export async function submitReportPipeline(input: SubmitReportInput): Promise<Pi
   if (isFirebaseConfigured() && (!user || !user.providerData.some(provider => provider.providerId === 'google.com'))) throw new Error('Login Google diperlukan sebelum mengirim laporan bencana.');
   const { extraction, engine, note } = await extractDisasterInfo(input.rawText, {
     locationHint: input.locationName,
+    categoryHint: input.categoryHint,
   });
 
   const candidate: IntelligenceReport = {
