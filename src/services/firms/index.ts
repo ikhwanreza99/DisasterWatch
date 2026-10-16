@@ -1,3 +1,4 @@
+import {t} from '../../i18n';
 // NASA FIRMS active-fire hotspots, fetched via backend proxy (MAP_KEY stays server-side, see vite.config.ts).
 // Follows the app's date selector: Today / 24 jam / 7 hari / 30 hari / custom range (<=31 days).
 // FIRMS area API allows max 5 days per request, so longer ranges are split into dated chunks.
@@ -124,25 +125,46 @@ function planChunks(start: Date, end: Date): { days: number; start: string }[] {
   return chunks;
 }
 
-// Dev: Vite proxy injects the server-side NASA_FIRMS_MAP_KEY (see vite.config.ts).
-// Production (static Firebase Hosting, no server): call FIRMS directly (it sends CORS *)
-// with VITE_NASA_FIRMS_MAP_KEY. NOTE: VITE_* is inlined into the public bundle.
-const PROD_FIRMS_KEY = import.meta.env?.VITE_NASA_FIRMS_MAP_KEY || '';
-
-function firmsUrl(source: FirmsSource, days: number, start: string): string {
-  const path = `${source}/${INDONESIA_BBOX}/${days}/${start}`;
-  if (import.meta.env?.DEV || !PROD_FIRMS_KEY) return `/api/firms/${path}`;
-  return `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${encodeURIComponent(PROD_FIRMS_KEY)}/${path}`;
+// The NASA FIRMS MAP_KEY must stay server-side: it is injected by the dev proxy
+// (vite.config.ts) and by the Express proxy (server/firmsProxy.ts). The client
+// always tries the same-origin proxy first, and only falls back to a direct call
+// when a build-time key is explicitly provided (static hosting without a backend).
+let proxyFirmsDown = false;
+interface FirmsSnapshot {version:number;generatedAt:string;start:string;end:string;sources:Record<string,string>}
+let snapshotRequest:Promise<FirmsSnapshot>|null=null;
+async function snapshotChunk(source:FirmsSource,days:number,start:string){
+ snapshotRequest??=fetch('/data/firms.json',{cache:'no-store',signal:AbortSignal.timeout(20000)}).then(async r=>{if(!r.ok)throw new Error('FIRMS snapshot unavailable');return r.json();});
+ const snapshot=await snapshotRequest.catch(e=>{snapshotRequest=null;throw e;});
+ const last=new Date(Date.parse(start+'T00:00:00Z')+(days-1)*DAY_MS).toISOString().slice(0,10);
+ if(snapshot.version!==1||Date.now()-Date.parse(snapshot.generatedAt)>2*DAY_MS||start<snapshot.start||last>snapshot.end||!snapshot.sources[source])throw new Error(t('FIRMS: rentang arsip belum tersedia pada hosting statis.'));
+ return parseFirmsCsv(snapshot.sources[source],SOURCE_LABEL[source]).filter(h=>h.acquiredAt.slice(0,10)>=start&&h.acquiredAt.slice(0,10)<=last);
 }
+function firmsUrls(source:FirmsSource,days:number,start:string):string[]{return proxyFirmsDown?[]:[`/api/firms/${source}/${INDONESIA_BBOX}/${days}/${start}`];}
 
 async function fetchChunk(source: FirmsSource, days: number, start: string, signal?: AbortSignal) {
   // NASA may take longer than 45 seconds. Only cancel when the caller changes
   // the date range, retries, or unmounts; progress must not truncate the data.
-  const res = await fetch(firmsUrl(source, days, start), { signal });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`FIRMS HTTP ${res.status}`);
-  if (!text.startsWith('latitude')) throw new Error('Respons FIRMS tidak valid');
-  return parseFirmsCsv(text, SOURCE_LABEL[source]);
+  const urls = firmsUrls(source, days, start);
+  if (!urls.length) return snapshotChunk(source,days,start);
+  let lastError: unknown = null;
+  for (const [index, url] of urls.entries()) {
+    try {
+      const res = await fetch(url, { signal });
+      const text = await res.text();
+      if (!res.ok) throw new Error(`FIRMS HTTP ${res.status}`);
+      if (!text.startsWith('latitude')) {
+        // Same-origin proxy missing (rewritten to index.html). Stop trying it.
+        if (index === 0 && !url.startsWith('https://')) proxyFirmsDown = true;
+        throw new Error('Respons FIRMS tidak valid');
+      }
+      return parseFirmsCsv(text, SOURCE_LABEL[source]);
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      lastError = e;
+    }
+  }
+  if(!signal?.aborted)return snapshotChunk(source,days,start);
+  throw lastError instanceof Error ? lastError : new Error('FIRMS tidak tersedia');
 }
 
 function aggregate(list: FireHotspot[]): FireHotspot[] {

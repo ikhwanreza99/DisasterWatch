@@ -3,17 +3,26 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
 import { createAdminApi } from './server/admin';
+import {createFirmsProxy} from './server/firmsProxy';
+import { createAiProxy } from './server/aiProxy';
 export default defineConfig(({mode}) => {
   // Server-only secrets (no VITE_ prefix) — never bundled into client code.
   const env = loadEnv(mode, process.cwd(), '');
   const firmsKey = env.NASA_FIRMS_MAP_KEY || '';
+  const geminiKey = env.GEMINI_API_KEY || env.GEMINI_DIRECT_API_KEY || env.DISASTERWATCH_GEMINI_SEARCH_KEY || '';
   return {
+    // Exact allowlist: dynamically reading import.meta.env must not inline arbitrary VITE secrets.
+    envPrefix: ['VITE_FIREBASE_API_KEY','VITE_FIREBASE_AUTH_DOMAIN','VITE_FIREBASE_PROJECT_ID','VITE_FIREBASE_APP_ID','VITE_FIREBASE_STORAGE_BUCKET','VITE_FIREBASE_MESSAGING_SENDER_ID','VITE_FIREBASE_MEASUREMENT_ID','VITE_FIREBASE_APPCHECK_SITE_KEY','VITE_GOOGLE_MAPS_API_KEY','VITE_GEMINI_MODEL','VITE_GEMINI_FALLBACK_MODELS'],
+    build: {sourcemap:false},
     plugins: [react(), tailwindcss(), {
       name: 'disasterwatch-admin-api',
       configureServer(server) {
         server.middlewares.use('/api/admin', createAdminApi({
-          demo: env.ADMIN_DEMO_MODE !== 'false', password: env.ADMIN_PASSWORD,
+          demo: env.ADMIN_DEMO_MODE === 'true', password: env.ADMIN_PASSWORD,
         }));
+        // Gemini direct-key proxy: key stays server-side, never in the bundle.
+        server.middlewares.use('/api/ai', createAiProxy({ key: geminiKey }));
+        server.middlewares.use('/api/firms', createFirmsProxy({key:firmsKey}));
       },
     }],
     resolve: {
@@ -50,11 +59,7 @@ export default defineConfig(({mode}) => {
             });
           },
         },
-        '/api/firms': {
-          target: 'https://firms.modaps.eosdis.nasa.gov',
-          changeOrigin: true,
-          rewrite: (p) => p.replace(/^\/api\/firms/, `/api/area/csv/${encodeURIComponent(firmsKey)}`),
-        },
+
       },
     },
   };

@@ -18,7 +18,7 @@ export function initialChecks(): ServiceCheck[] {
     ['auth', 'Firebase Auth · Google Login', firebase], ['firestore', 'Cloud Firestore · baca dari web', firebase],
     ['storage', 'Firebase Storage · lampiran laporan', !!env.storageBucket],
     ['appcheck', 'Firebase App Check · token', firebase && appCheckPresent],
-    ['firebase-ai', 'Firebase AI Logic · Gemini', firebase], ['gemini-direct', 'Gemini Developer API · fallback', !!import.meta.env.VITE_GEMINI_API_KEY],
+    ['firebase-ai', 'Firebase AI Logic · Gemini', firebase], ['gemini-direct', 'Gemini Developer API · fallback', true],
   ].map(([id, name, configured]) => ({ id: String(id), name: String(name), state: configured ? 'configured' : 'disabled', detail: configured ? 'Konfigurasi tersedia; belum ada bukti request berhasil dari halaman ini.' : 'Konfigurasi browser belum tersedia.', checkedAt: null, scope: 'browser' }));
 }
 async function checkedJson(url: string, init?: RequestInit) {
@@ -84,9 +84,27 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
           // One retry for transient overload (HTTP 503/429) before moving on.
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
-              const data = await checkedJson(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': import.meta.env.VITE_GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ parts: [{ text: 'Jawab satu kata: OK' }] }], generationConfig: { maxOutputTokens: 64 } }) });
+              // The API key lives server-side; probe the same-origin proxy instead.
+              const {getAuth}=await import('firebase/auth');const app=getFirebaseApp();const user=app?getAuth(app).currentUser:null;
+              if(!user||user.isAnonymous)return {...base,checkedAt,state:'disabled',detail:translate('Login Google diperlukan untuk menguji proxy AI server.')};
+              const token=await user.getIdToken();
+              const response = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json',Authorization:`Bearer ${token}` },
+                body: JSON.stringify({ model, prompt: 'Jawab satu kata: OK' }),
+                signal: AbortSignal.timeout(20_000),
+              });
+              const contentType = response.headers.get('content-type') || '';
+              if (!contentType.includes('application/json')) {
+                return { ...base, checkedAt, state: 'disabled', detail: translate('Proxy Gemini server tidak tersedia di origin ini — kunci tidak lagi disertakan di bundle browser.') };
+              }
+              const data = await response.json();
+              if (response.status === 503) {
+                return { ...base, checkedAt, state: 'disabled', detail: translate('Proxy Gemini server tidak dikonfigurasi (tanpa GEMINI_API_KEY) — kunci tidak lagi disertakan di bundle browser.') };
+              }
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
               if (!hasValidGeminiCandidates(data)) throw new Error('Empty model response');
-              recordTokenUsage(data.usageMetadata, model, 'Status · Gemini Direct');
+              recordTokenUsage(data.usageMetadata, model, 'Status · Gemini Direct (proxy)');
               used = model;
               break;
             } catch (e) {

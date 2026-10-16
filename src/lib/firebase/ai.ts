@@ -1,10 +1,12 @@
 import { recordTokenUsage } from '../../admin/tokenUsage';
 // Firebase AI Logic (Gemini) accessor with safe fallback.
-// Transport order: Firebase AI Logic first, direct Gemini Developer API key second,
-// local heuristic last. Never throws when unconfigured — callers must handle `available === false`.
+// Transport order: Firebase AI Logic first, server-side Gemini proxy second
+// (POST /api/ai/generate), local heuristic last. Never throws when unconfigured —
+// callers must handle `available === false`.
 // Model name lives ONLY in ./geminiConfig.ts (single source of truth).
-// The direct key is read ONLY from VITE_GEMINI_API_KEY (local .env, never committed,
-// never hardcoded). No additional SDK is used — direct transport is plain fetch.
+// SECURITY: the Gemini Developer API key is NEVER inlined into the client.
+// It lives server-side (server/aiProxy.ts) and is reached through the same-origin
+// proxy, so no API key ships in the public bundle. No extra SDK — plain fetch.
 import { isFirebaseConfigured } from './config';
 import { resolveGeminiCandidates, resolveGeminiModel } from './geminiConfig';
 
@@ -47,8 +49,6 @@ export function aiBackendStatus(): AIBackendStatus {
 export async function getGeminiModel(): Promise<{ generateContent: (prompt: string) => Promise<string> } | null> {
   const candidates = resolveGeminiCandidates();
   const aiLogic = await tryAILogicTransport();
-  const directKey = readEnvKey('VITE_GEMINI_API_KEY');
-  if (!aiLogic && !directKey) return null;
   let lastError: unknown = null;
   return {
     generateContent: async (prompt: string) => {
@@ -61,13 +61,14 @@ export async function getGeminiModel(): Promise<{ generateContent: (prompt: stri
           }
         }
       }
-      // Approved fallback (Phase 18): direct Gemini Developer API when AI Logic is
-      // blocked (e.g. App Check enforcement) or its model is overloaded.
-      // Same interface, same candidates, same callers.
-      if (directKey) {
+      // Approved fallback (Phase 18, hardened): the Gemini Developer API is reached
+      // through the server-side proxy so the API key is never part of the bundle.
+      // When no proxy is deployed (e.g. static hosting without a backend) this throws
+      // and the caller uses its deterministic fallback — the feature degrades, never breaks.
+      if (proxyState !== 'down') {
         for (const model of candidates) {
           try {
-            return await directGenerate(prompt, model, directKey);
+            return await proxyGenerate(prompt, model);
           } catch (e) {
             lastError = e;
           }
@@ -76,15 +77,6 @@ export async function getGeminiModel(): Promise<{ generateContent: (prompt: stri
       throw lastError instanceof Error ? lastError : new Error('Gemini unavailable on all transports and models.');
     },
   };
-}
-
-function readEnvKey(key: string): string {
-  try {
-    const v = (import.meta as unknown as { env?: Record<string, string> })?.env?.[key];
-    return typeof v === 'string' ? v.trim() : '';
-  } catch {
-    return '';
-  }
 }
 
 interface AILogicTransport {
@@ -129,45 +121,57 @@ async function tryAILogicTransport(): Promise<AILogicTransport | null> {
 }
 
 /**
- * Direct Gemini Developer API transport (plain fetch, no extra SDK).
- * Key comes ONLY from VITE_GEMINI_API_KEY env — never hardcoded, never logged.
- * Response parsing tolerates the standard candidates[0].content.parts shape.
+ * Server-side Gemini proxy transport (plain fetch, no extra SDK, no API key in
+ * the browser). Calls the same-origin `/api/ai/generate` endpoint implemented in
+ * server/aiProxy.ts (dev middleware + Express server). The key never leaves the
+ * server. Response parsing tolerates the standard candidates[0].content.parts shape.
+ *
+ * Once the proxy is proven absent (static hosting rewrites unknown paths to
+ * index.html, or the endpoint returns 503/404) we stop retrying it for this
+ * session so callers fall straight through to the deterministic fallback.
  */
-async function directGenerate(prompt: string, model: string, key: string): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  const res = await fetch(url, {
+let proxyState: 'unknown' | 'down' = 'unknown';
+
+async function proxyGenerate(prompt: string, model: string): Promise<string> {
+  if (proxyState === 'down') throw new Error('Gemini proxy unavailable.');
+  const {getAuth}=await import('firebase/auth');
+  const {getFirebaseApp}=await import('./config');
+  const app=getFirebaseApp();const user=app?getAuth(app).currentUser:null;
+  if(!user||user.isAnonymous)throw new Error('Sign in required for the server AI fallback.');
+  const token=await user.getIdToken();
+  const res = await fetch('/api/ai/generate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt.slice(0, 8000) }] }],
-      generationConfig: { maxOutputTokens: 512 },
-    }),
+    headers: { 'Content-Type': 'application/json', Authorization:`Bearer ${token}` },
+    signal:AbortSignal.timeout(25000),
+    body: JSON.stringify({ model, prompt: prompt.slice(0, 8000) }),
   });
-  if (!res.ok) {
-    throw new Error(`Gemini Direct ${res.status} ${res.statusText}${await safeBodySnippet(res)}`);
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    // Static hosting serves index.html for unknown paths — no proxy here.
+    proxyState = 'down';
+    throw new Error(`Gemini proxy ${res.status} (unexpected response type).`);
   }
   const data = (await res.json()) as {
     usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-    error?: { message?: string };
+    error?: { message?: string } | string;
   };
-  if (data?.error?.message) throw new Error(`Gemini Direct error: ${data.error.message.slice(0, 200)}`);
+  if (!res.ok) {
+    if (res.status === 503 || res.status === 404) proxyState = 'down';
+    const message =
+      typeof data?.error === 'string' ? data.error : data?.error?.message;
+    throw new Error(`Gemini proxy ${res.status}${message ? `: ${message.slice(0, 200)}` : ''}`);
+  }
+  if (typeof data?.error === 'string' && data.error) {
+    throw new Error(`Gemini proxy error: ${data.error.slice(0, 200)}`);
+  }
+  if (data?.error && typeof data.error === 'object' && data.error.message) {
+    throw new Error(`Gemini proxy error: ${data.error.message.slice(0, 200)}`);
+  }
   const text = (data?.candidates?.[0]?.content?.parts ?? [])
     .map((p) => (typeof p?.text === 'string' ? p.text : ''))
     .join('');
-  if (!text.trim()) throw new Error('Gemini Direct returned empty text.');
-  recordTokenUsage(data.usageMetadata, model, 'Gemini Direct');
+  if (!text.trim()) throw new Error('Gemini proxy returned empty text.');
+  recordTokenUsage(data.usageMetadata, model, 'Gemini Direct (server)');
   return text;
-}
-
-/** Short, key-safe snippet of an error response body for diagnostics. */
-async function safeBodySnippet(res: Response): Promise<string> {
-  try {
-    const body = await res.text();
-    if (!body) return '';
-    const snippet = body.replace(/AIza[0-9A-Za-z\-_]{10,}/g, '[KEY]').slice(0, 200);
-    return `: ${snippet}`;
-  } catch {
-    return '';
-  }
 }

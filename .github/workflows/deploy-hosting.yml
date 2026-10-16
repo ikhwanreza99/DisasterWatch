@@ -12,9 +12,11 @@
 #
 # Build config: Vite inlines VITE_* at build time, so values come from
 # GitHub Secrets (NOT committed files, NOT .env.local).
-# NOTE: VITE_GEMINI_API_KEY is browser-exposed after build — it is NOT a
-# server secret. Restrict the production key to Generative Language API
-# only + appropriate HTTP referrers. Never log or print its value.
+# NOTE: every VITE_* value is browser-exposed after build. The Gemini Developer
+# API key is NOT injected here anymore — it is served only by the server-side
+# proxy (server/aiProxy.ts, POST /api/ai/generate). Without a backend the direct
+# Gemini fallback is unavailable and Firebase AI Logic (primary) is used.
+# Never log or print any secret value.
 name: Deploy to Firebase Hosting (production)
 
 on:
@@ -140,6 +142,12 @@ jobs:
           path: public/data/google-status.json
           key: google-status-v1-${{ github.run_id }}-${{ github.run_attempt }}
 
+      - name: Snapshot FIRMS without exposing the backend key
+        continue-on-error: true
+        run: node --import tsx scripts/fetchFirmsSnapshot.ts
+        env:
+          NASA_FIRMS_MAP_KEY: ${{ secrets.NASA_FIRMS_MAP_KEY || secrets.VITE_NASA_FIRMS_MAP_KEY }}
+
       - name: Build (Vite production)
         run: npm run build
         env:
@@ -150,12 +158,20 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
           VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_SITE_KEY }}
           VITE_GEMINI_MODEL: ${{ secrets.VITE_GEMINI_MODEL }}
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
-          # Browser-exposed (static Hosting has no proxy). Free, read-only NASA FIRMS key.
-          VITE_NASA_FIRMS_MAP_KEY: ${{ secrets.VITE_NASA_FIRMS_MAP_KEY }}
+
+      - name: Guard — no server-only secret in the published bundle
+        run: npm run check:bundle-secrets
+        env:
+          NASA_FIRMS_MAP_KEY: ${{ secrets.NASA_FIRMS_MAP_KEY || secrets.VITE_NASA_FIRMS_MAP_KEY }}
+          DISASTERWATCH_GEMINI_SEARCH_KEY: ${{ secrets.DISASTERWATCH_GEMINI_SEARCH_KEY }}
+          VITE_GEMINI_DIRECT_API_KEY: ${{ secrets.VITE_GEMINI_DIRECT_API_KEY }}
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          BNPB_DRIVE_API_KEY: ${{ secrets.BNPB_DRIVE_API_KEY }}
+          FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT }}
 
       - name: Deploy Hosting only (live channel)
         uses: FirebaseExtended/action-hosting-deploy@v0

@@ -1,5 +1,10 @@
 /** English translations — services slice. Keys are the Indonesian source strings. */
 const services: Record<string, string> = {
+  'Proxy Gemini server tidak tersedia di origin ini — kunci tidak lagi disertakan di bundle browser.': 'The Gemini server proxy is unavailable on this origin; the key is not included in the browser bundle.',
+  'Proxy Gemini server tidak dikonfigurasi (tanpa GEMINI_API_KEY) — kunci tidak lagi disertakan di bundle browser.': 'The Gemini server proxy is not configured; the key is not included in the browser bundle.',
+  'Login Google diperlukan untuk menguji proxy AI server.': 'Sign in with Google to test the server AI proxy.',
+  'FIRMS: rentang arsip belum tersedia pada hosting statis.': 'FIRMS: this archive range is unavailable on static hosting.',
+
   // ----- services/status/model.ts -----
   'menggunakan {model}, tanpa fallback.': 'using {model}, no fallback.',
   'menggunakan {model}. Model utama dilewati; fallback berhasil digunakan.':
