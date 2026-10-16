@@ -7,6 +7,7 @@ import { useI18n } from '../../i18n';
 import type { DisasterIncident } from '../../types';
 import type { AidRecord, IntelligenceReport } from '../../domain/intelligence';
 import { AidGapCard } from '../AidGapCard';
+import { InsightCalculator } from './InsightCalculator';
 import { IncidentOverviewCard } from './IncidentOverviewCard';
 import { RecoveryStatusCards } from './RecoveryStatusCards';
 import { IncidentNewsPanel } from './IncidentNewsPanel';
@@ -89,6 +90,11 @@ export const DisasterDetailView: React.FC<Props> = ({
               <h4 className="text-[14px] font-bold text-slate-900">{t('Kesenjangan Bantuan')}</h4>
             </div>
             <AidGapCard hazard={disaster.category} disasterId={disaster.id} reports={intelReports} aid={aidRecords} />
+            {/* 02 Recovery Gap · 03 Utility Recovery · 04 Needs Intelligence.
+                Same engine + location as the legacy sidebar template. */}
+            <div className="mt-4">
+              <InsightCalculator incidentId={disaster.id} />
+            </div>
             <button
               type="button"
               onClick={onOpenDonationModal}

@@ -94,6 +94,24 @@
         ]
       },
       {
+        "source": "/calculation",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/calculation/",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
         "source": "/data/google-status.json",
         "headers": [
           {

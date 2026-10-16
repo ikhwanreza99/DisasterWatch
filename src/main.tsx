@@ -24,9 +24,11 @@ console.error = (...args: unknown[]) => {
 };
 
 const GoogleStatusPage = lazy(() => import('./components/GoogleStatusPage'));
+const CalculationVerificationPage = lazy(() => import('./components/CalculationVerificationPage'));
 const AdminPage = lazy(() => import('./admin/AdminPage'));
 const isAdminPage = /^\/admin(?:\/|$)/.test(window.location.pathname);
 const isStatusPage = ['/status', '/status/'].includes(window.location.pathname);
+const isCalculationPage = ['/calculation', '/calculation/'].includes(window.location.pathname);
 
 const LoadingFallback: FC = () => {
   const { t } = useI18n();
@@ -36,7 +38,7 @@ const LoadingFallback: FC = () => {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LanguageProvider>
-      <Suspense fallback={<LoadingFallback />}>{isAdminPage ? <AdminPage /> : isStatusPage ? <GoogleStatusPage /> : <App />}</Suspense>
+      <Suspense fallback={<LoadingFallback />}>{isAdminPage ? <AdminPage /> : isStatusPage ? <GoogleStatusPage /> : isCalculationPage ? <CalculationVerificationPage /> : <App />}</Suspense>
     </LanguageProvider>
   </StrictMode>,
 );

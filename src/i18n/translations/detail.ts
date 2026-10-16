@@ -154,6 +154,10 @@ const detail: Record<string, string> = {
   'Skor:': 'Score:',
   'Ancaman keselamatan memerlukan asesmen segera, terlepas dari kelengkapan skor.': 'Safety threats require immediate assessment regardless of score completeness.',
   'Metode {version} · Area: {area} · Cakupan/waktu seluruh input harus sama. Baseline draft tidak otomatis diterapkan. Financial gap dan physical gap tidak dijumlahkan. Hasil simulasi bukan bukti lapangan.': 'Method {version} · Area: {area} · Coverage/period of all inputs must match. Draft baseline is not applied automatically. Financial gap and physical gap are not summed. Simulation results are not field evidence.',
+  'Dihitung': 'Calculated',
+  'Input tidak valid': 'Invalid input',
+  'Data kurang': 'Insufficient data',
+  'Data kejadian (Firestore)': 'Incident data (Firestore)',
 
   // NarrativeImpact
   'Angka dari narasi berita': 'Figures from news narratives',

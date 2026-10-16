@@ -183,6 +183,44 @@ const status: Record<string, string> = {
     'Static snapshots and caching: FIRMS, VAAC, news and status stay available when upstream is down.',
   'Antarmuka dua bahasa (Indonesia/Inggris) dengan pilihan tersimpan.':
     'Bilingual interface (Indonesian/English) with a saved preference.',
+
+  // Calculation Verification Center (/calculation) — internal evidence page.
+  'Verifikasi Perhitungan': 'Calculation Verification',
+  'Setiap cek mengeksekusi fungsi perhitungan asli dan membandingkan aktual vs ekspektasi. Status tidak pernah diberikan hanya karena fungsi atau komponen ada. Contoh berlabel simulasi; bukan data resmi.':
+    'Each check executes the real calculation function and compares actual vs expected. Status is never granted merely because a function or component exists. Examples are labelled simulation; not official data.',
+  'Lolos verifikasi': 'Passed verification',
+  'Gagal — perlu perbaikan': 'Failed — needs a fix',
+  'Sebagian terverifikasi': 'Partially verified',
+  'Belum diverifikasi (butuh sesi live)': 'Not verified (needs a live session)',
+  'Belum diimplementasikan': 'Not implemented',
+  'Data kurang': 'Insufficient data',
+  'Lolos': 'Pass',
+  'Sebagian': 'Partial',
+  'Belum diverifikasi': 'Not verified',
+  'Simulasi — bukan data resmi': 'Simulation — not official data',
+  'Live — read-only': 'Live — read-only',
+  'uji kode': 'code test',
+  'integrasi sintetis': 'synthetic integration',
+  'baca-live': 'live read',
+  'Estimasi Kerugian Bencana': 'Disaster Loss Estimation',
+  'Estimasi Kesenjangan Pemulihan': 'Recovery Gap Estimation',
+  'Persentase Pemulihan Utilitas': 'Utility Recovery Percentage',
+  'Intelijen Kebutuhan & Skor Prioritas': 'Needs Intelligence & Priority Score',
+  'Validasi Input & Provenans Data': 'Input Validation & Data Provenance',
+  'Integrasi Firestore → UI': 'Firestore → UI Integration',
+  '{pass} dari {total} cek lolos': '{pass} of {total} checks passed',
+  'Provenans & versi': 'Provenance & versions',
+  'Sumber kebenaran tunggal dan versi formula yang diverifikasi.':
+    'Single source of truth and the verified formula versions.',
+  'Probe live read-only (Firestore)': 'Live read-only probe (Firestore)',
+  'Baca saja untuk insiden padang via repository yang ada. Tanpa tulis produksi.':
+    'Read-only probe for the padang incident via the existing repository. No production writes.',
+  'Memeriksa akses baca…': 'Checking read access…',
+  'Registry live tetap NOT_VERIFIED; tidak ada angka yang diinventarisasi.':
+    'The live registry check stays NOT_VERIFIED; no numbers are invented.',
+  'Diperiksa {at}': 'Checked {at}',
+  'Halaman internal untuk verifikasi implementasi. Bukan klaim kesiapan produksi. Cek live membutuhkan sesi browser dengan akses Firestore; selebihnya halaman ini deterministik dan dapat diuji ulang.':
+    'Internal page for verifying the implementation. Not a production-readiness claim. Live checks need a browser session with Firestore access; the rest of this page is deterministic and re-runnable.',
 };
 
 export default status;
