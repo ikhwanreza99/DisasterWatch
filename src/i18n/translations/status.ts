@@ -140,6 +140,8 @@ const status: Record<string, string> = {
   'API server berjalan di Cloud Run': 'API server running on Cloud Run',
   'Proxy /api/ai menjawab uji dari layanan server.':
     'The /api/ai proxy answered a test from the server service.',
+  'Endpoint /api/health menjawab JSON dari layanan server.':
+    'The /api/health endpoint answered JSON from the server service.',
   'Belum aktif. Aplikasi tetap berfungsi lewat Firebase AI Logic (jalur utama) dan snapshot statis FIRMS.':
     'Not active yet. The app still works through Firebase AI Logic (primary) and the static FIRMS snapshot.',
   'Gemini dipakai minimal untuk reasoning': 'Gemini used at least for reasoning',

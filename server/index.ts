@@ -39,6 +39,15 @@ app.use(
   createFirmsProxy(),
 );
 
+// Public liveness probe. Deliberately unauthenticated and outside the origin
+// guard: it exposes nothing but a boolean, and /status uses it to tell whether
+// the Cloud Run proxy behind the /api/** rewrite is actually live. Without it a
+// missing rewrite returns index.html, which is indistinguishable from a 404.
+app.get("/api/health", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json({ ok: true, service: "disasterwatch-api" });
+});
+
 // Serve the built frontend when present (self-hosted `npm start`). On Cloud Run
 // the frontend is served by Firebase Hosting, so dist/ may not exist.
 const distDir = path.resolve("dist");

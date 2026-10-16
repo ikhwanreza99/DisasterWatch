@@ -26,6 +26,7 @@ export default function GoogleStatusPage({ embedded = false }: { embedded?: bool
   const [backendNotice,setBackendNotice]=useState('');
   const [recheck, setRecheck] = useState(0);
   const [security, setSecurity] = useState<{ generatedAt: string; bundleSecrets?: { filesScanned?: number } } | null>(null);
+  const [apiProxy, setApiProxy] = useState<boolean | null>(null);
   const update = (result: ServiceCheck) => setChecks(current => current.map(c => c.id === result.id ? result : c));
   useEffect(() => {
     const controller = new AbortController();
@@ -49,6 +50,17 @@ export default function GoogleStatusPage({ embedded = false }: { embedded?: bool
       .then(async r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(d => { if (d?.version === 1 && d?.bundleSecrets?.clean) setSecurity(d); })
       .catch(() => { /* The panel is optional; stay silent when absent. */ });
+    return () => controller.abort();
+  }, []);
+  // Is the Cloud Run API proxy live behind the /api/** rewrite? A dedicated
+  // health endpoint answers JSON only when the service and rewrite are active;
+  // otherwise Hosting serves index.html. The gemini-direct check can no longer
+  // answer this because the browser-key path is permanently disabled.
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/health', { cache: 'no-store', signal: controller.signal })
+      .then(r => { const type = r.headers.get('content-type') || ''; setApiProxy(r.ok && type.includes('application/json')); })
+      .catch(() => { if (!controller.signal.aborted) setApiProxy(false); });
     return () => controller.abort();
   }, []);
   useEffect(() => {
@@ -92,12 +104,12 @@ export default function GoogleStatusPage({ embedded = false }: { embedded?: bool
   // evidence this page can actually observe (live checks + the build guard).
   const checkById = (id: string) => checks.find(c => c.id === id);
   const defaultFirebaseUrl = /\.(web\.app|firebaseapp\.com)$/.test(window.location.hostname);
-  const proxyLive = checkById('gemini-direct')?.state === 'ok';
+  const proxyLive = apiProxy === true;
   const geminiLive = checkById('firebase-ai')?.state === 'ok';
   const firestoreLive = checkById('firestore')?.state === 'ok';
   const compliance: { id: string; rule: string; title: string; state: 'met' | 'pending' | 'untested'; detail: string }[] = [
     { id: 'hosting', rule: 'B1', title: t('Deploy di Firebase atau Cloud Run'), state: 'met', detail: t('Situs ini dilayani dari produksi (Firebase Hosting) pada origin ini.') },
-    { id: 'cloudrun', rule: 'B1 · B2', title: t('API server berjalan di Cloud Run'), state: proxyLive ? 'met' : 'pending', detail: proxyLive ? t('Proxy /api/ai menjawab uji dari layanan server.') : t('Belum aktif. Aplikasi tetap berfungsi lewat Firebase AI Logic (jalur utama) dan snapshot statis FIRMS.') },
+    { id: 'cloudrun', rule: 'B1 · B2', title: t('API server berjalan di Cloud Run'), state: proxyLive ? 'met' : 'pending', detail: proxyLive ? t('Endpoint /api/health menjawab JSON dari layanan server.') : t('Belum aktif. Aplikasi tetap berfungsi lewat Firebase AI Logic (jalur utama) dan snapshot statis FIRMS.') },
     { id: 'gemini', rule: 'B4', title: t('Gemini dipakai minimal untuk reasoning'), state: geminiLive ? 'met' : 'untested', detail: geminiLive ? t('Firebase AI Logic menjawab uji generateContent.') : t('Uji langsung perlu login Google di halaman ini. Fitur analisis memakai Firebase AI Logic (Gemini).') },
     { id: 'firestore', rule: 'C9', title: t('Cloud Firestore untuk data dokumen'), state: firestoreLive ? 'met' : 'untested', detail: firestoreLive ? t('Baca Firestore dari server berhasil pada sesi ini.') : t('Belum ada bukti baca Firestore pada sesi ini.') },
     { id: 'keys', rule: 'C4', title: t('Kunci API di server, tidak ada di bundel browser'), state: security ? 'met' : 'pending', detail: security ? t('Guard build memindai {count} file bundel; tidak ada kunci server.', { count: security.bundleSecrets?.filesScanned ?? 0 }) : t('Bukti build belum tersedia.') },
