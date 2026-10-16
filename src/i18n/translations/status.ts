@@ -124,6 +124,60 @@ const status: Record<string, string> = {
     'The Google Maps and Firebase web API keys are restricted by referrer, API restriction, and App Check.',
   'Bukti build: {date} · {count} file bundel dipindai · guard otomatis lulus.':
     'Build evidence: {date} · {count} bundle files scanned · automatic guard passed.',
+
+  // Technical compliance checklist (GoogleStatusPage) — AI Builder Cup 2026.
+  'Kesesuaian teknis · AI Builder Cup 2026': 'Technical compliance · AI Builder Cup 2026',
+  'Ringkasan aturan teknis (bagian B & C) berbasis bukti nyata halaman ini dan bukti build. Tanpa klaim yang tidak terverifikasi.':
+    'Technical rules summary (sections B & C) based on real evidence from this page and the build evidence. No unverified claims.',
+  'Terpenuhi': 'Met',
+  'Perlu tindakan': 'Action needed',
+  'Deploy di Firebase atau Cloud Run': 'Deployed on Firebase or Cloud Run',
+  'Situs ini dilayani dari produksi (Firebase Hosting) pada origin ini.':
+    'This site is served from production (Firebase Hosting) on this origin.',
+  'API server berjalan di Cloud Run': 'API server running on Cloud Run',
+  'Proxy /api/ai menjawab uji dari layanan server.':
+    'The /api/ai proxy answered a test from the server service.',
+  'Belum aktif. Aplikasi tetap berfungsi lewat Firebase AI Logic (jalur utama) dan snapshot statis FIRMS.':
+    'Not active yet. The app still works through Firebase AI Logic (primary) and the static FIRMS snapshot.',
+  'Gemini dipakai minimal untuk reasoning': 'Gemini used at least for reasoning',
+  'Firebase AI Logic menjawab uji generateContent.':
+    'Firebase AI Logic answered a generateContent test.',
+  'Uji langsung perlu login Google di halaman ini. Fitur analisis memakai Firebase AI Logic (Gemini).':
+    'A direct test requires Google sign-in on this page. Analysis features use Firebase AI Logic (Gemini).',
+  'Belum diuji': 'Not tested yet',
+  'Cloud Firestore untuk data dokumen': 'Cloud Firestore for document data',
+  'Baca Firestore dari server berhasil pada sesi ini.':
+    'A server-side Firestore read succeeded in this session.',
+  'Belum ada bukti baca Firestore pada sesi ini.':
+    'No Firestore read evidence in this session yet.',
+  'Kunci API di server, tidak ada di bundel browser':
+    'API keys on the server, not in the browser bundle',
+  'Guard build memindai {count} file bundel; tidak ada kunci server.':
+    'The build guard scanned {count} bundle files; no server key found.',
+  'Bukti build belum tersedia.': 'Build evidence is not available yet.',
+  'URL bawaan Firebase (bukan custom domain)': 'Default Firebase URL (no custom domain)',
+  'Origin ini memakai domain bawaan Firebase.':
+    'This origin uses a default Firebase domain.',
+  'Origin ini bukan domain bawaan Firebase; pertimbangkan memakai URL bawaan saat submission.':
+    'This origin is not a default Firebase domain; consider submitting the default URL.',
+  'Prototipe tetap online selama penjurian': 'Prototype stays online throughout judging',
+  'Halaman ini dimuat dari produksi. Laporan build: {date}.':
+    'This page loaded from production. Build report: {date}.',
+  'Nilai plus': 'Bonus points',
+  'Solusi teknis nyata yang bisa ditonjolkan saat penjurian.':
+    'Genuine technical solutions worth highlighting during judging.',
+  'Kunci API dipindahkan ke proxy server; bundel browser tidak lagi memuat kunci Gemini/FIRMS.':
+    'API keys moved to a server proxy; the browser bundle no longer contains the Gemini/FIRMS keys.',
+  'Guard otomatis anti-bocor: build gagal bila kunci server terdeteksi di bundel.':
+    'Automatic leak guard: the build fails if a server key is detected in the bundle.',
+  'Rate limit per IP dan allowlist origin pada proxy publik.':
+    'Per-IP rate limiting and an origin allow-list on the public proxy.',
+  'Transport AI bertingkat: Firebase AI Logic → proxy server → fallback deterministik (tidak pernah crash).':
+    'Layered AI transport: Firebase AI Logic → server proxy → deterministic fallback (never crashes).',
+  'Snapshot statis dan cache: FIRMS, VAAC, berita, dan status tetap tersedia saat upstream down.':
+    'Static snapshots and caching: FIRMS, VAAC, news and status stay available when upstream is down.',
+  'Antarmuka dua bahasa (Indonesia/Inggris) dengan pilihan tersimpan.':
+    'Bilingual interface (Indonesian/English) with a saved preference.',
 };
 
 export default status;

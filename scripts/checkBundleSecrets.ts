@@ -47,6 +47,26 @@ try {
 const hits: string[] = [];
 for(const file of files){const body=readFileSync(file,'utf8');if(/-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/.test(body)||/"private_key"\s*:\s*"-----BEGIN/.test(body))hits.push(`PRIVATE_KEY → ${file}`);}
 
+// Shape-based scan: catches a key even when CI never sees its value. The original
+// incident shipped an `AQ.…` Gemini key that no value comparison could detect.
+// Keys that are public by design are allow-listed by exact value.
+const PUBLIC_ALLOWED = [process.env.VITE_GOOGLE_MAPS_API_KEY, process.env.VITE_FIREBASE_API_KEY]
+  .map((value) => (value || "").trim())
+  .filter((value) => value.length >= 8);
+const KEY_SHAPES: { label: string; pattern: RegExp }[] = [
+  { label: "Google API key (AIza…)", pattern: /AIza[0-9A-Za-z_-]{35}/g },
+  { label: "Google AI key (AQ.…)", pattern: /AQ\.[0-9A-Za-z_-]{20,}/g },
+];
+for (const file of files) {
+  const body = readFileSync(file, "utf8");
+  for (const { label, pattern } of KEY_SHAPES) {
+    for (const found of body.match(pattern) || []) {
+      if (PUBLIC_ALLOWED.includes(found)) continue;
+      hits.push(`${label} → ${file}`);
+    }
+  }
+}
+
 const namesChecked: string[] = [];
 for (const name of SERVER_ONLY) {
   const value = (process.env[name] || "").trim();

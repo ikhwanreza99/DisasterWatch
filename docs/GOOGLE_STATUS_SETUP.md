@@ -34,3 +34,17 @@ Ini bukan hasil gagal. Halaman status belum melakukan upload lampiran. Aktifkan 
 Crawler kejadian menjadi due 24 jam setelah SUCCESS/SUCCESS_EMPTY terakhir. Workflow memeriksanya setiap hari pukul 05.00 UTC (12.00 WIB). Bila pemeriksaan jadwal terjadi sebelum batas 24 jam, crawl menunggu pemeriksaan berikutnya. Workflow dapat dijalankan manual setelah jatuh tempo.
 
 Snapshot berita nasional terpisah masih memakai interval 5 hari. Mengubah interval crawler tidak menghapus kebutuhan klasifikasi/review artikel Gemini tanpa tanggal publikasi.
+
+## Panel "Keamanan kunci API"
+
+Panel ini hanya menampilkan ringkasan kebijakan berbasis bukti build (`/data/security.json` yang diterbitkan `npm run check:bundle-secrets`): jumlah file bundel yang dipindai dan status guard. Panel tidak pernah menampilkan nilai kunci, nama secret, atau URL layanan. Guard kini juga mencocokkan *pola* kredensial (`AIza…`, `AQ.…`, blok PEM) sehingga kunci bocor tetap tertangkap walau CI tidak pernah melihat nilainya; hanya dua kunci publik (Maps, Firebase web) yang di-allowlist berdasarkan nilai persis.
+
+## Panel "Kesesuaian teknis · AI Builder Cup 2026"
+
+Checklist kepatuhan aturan teknis (bagian B & C) yang dihitung dari bukti nyata halaman: hasil pemeriksaan langsung (Firebase AI Logic, Firestore, proxy `/api/ai`), laporan guard build, dan origin yang melayani halaman. Tiga status dipakai secara jujur:
+
+- `Terpenuhi` — ada bukti pada sesi ini.
+- `Perlu tindakan` — belum ada infrastruktur/bukti (mis. Cloud Run belum ter-deploy, origin bukan domain bawaan Firebase).
+- `Belum diuji` — butuh login Google untuk menguji (mis. `generateContent`).
+
+Bagian "Nilai plus" memuat solusi teknis nyata yang bisa ditonjolkan saat penjurian (pemindahan kunci ke proxy server, guard anti-bocor, rate limit + allowlist origin, transport AI bertingkat, snapshot statis/cache, antarmuka dua bahasa). Tidak ada klaim yang tidak dapat diverifikasi di halaman ini.
