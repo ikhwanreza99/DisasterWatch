@@ -1,4 +1,3 @@
-import { RegionalAllocation } from './detail/RegionalAllocation';
 import { AutomaticImpact } from './detail/AutomaticImpact';
 import React from 'react';
 import {
@@ -218,7 +217,7 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
               <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
                 <span className="text-[11px] font-medium text-slate-400 block">Estimasi Dampak</span>
                 <div className="mt-1 text-[18px] font-bold text-slate-900 block">
-                  <AutomaticImpact incidentId={disaster.id} fallback={disaster.cost}/><RegionalAllocation incidentId={disaster.id}/>
+                  <AutomaticImpact incidentId={disaster.id} fallback={disaster.cost}/>
                 </div>
                 <span className="mt-2 text-[11px] font-medium text-slate-400 block">
                   {disaster.impact}
