@@ -36,10 +36,10 @@ async function main(){
     // which carry the figures the narrative card surfaces. Fetchable publishers and
     // impact-titled reports come first: a slot spent on a blocked domain, or on a
     // report with no figures, yields nothing.
-    const impactTitle=/terdampak|mengungsi|pengungsi|terjebak|evakuasi|kerusakan|rumah|korban/i;
+    const impactTitle=/terdampak|dampak|mengungsi|pengungsi|terjebak|evakuasi|kerusakan|rumah|korban/i;
     const rank=(url:string,title:string)=>Number(!isNarrativePublisher(url))*10+Number(!impactTitle.test(title));
     const eligible=stored.docs.map(doc=>doc.data())
-      .filter(r=>r.relevance?.status==='MATCHED'&&r.discoveredBy!=='threads:keyword-search'&&inRecentWindow(r.publishedAt)&&typeof r.url==='string'&&/bantuan|kebutuhan|kerugian|pemulihan|terdampak|mengungsi|pengungsi|terjebak|evakuasi|kerusakan/i.test(r.title??''))
+      .filter(r=>r.relevance?.status==='MATCHED'&&r.discoveredBy!=='threads:keyword-search'&&inRecentWindow(r.publishedAt)&&typeof r.url==='string'&&/bantuan|kebutuhan|kerugian|pemulihan|dampak|terdampak|mengungsi|pengungsi|terjebak|evakuasi|kerusakan/i.test(r.title??''))
       .sort((a,b)=>rank(a.url,b.title??'')-rank(b.url,a.title??''));
     for(const row of eligible.slice(0,8)){
       if(!candidates.some(s=>s.url===row.url))candidates.push({url:row.url,sourceName:row.sourceName??'Media berita',publishedAt:row.publishedAt,title:row.title});
