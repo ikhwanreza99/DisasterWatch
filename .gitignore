@@ -52,3 +52,7 @@ public/data/disaster-photos.json
 public/data/incident-narratives.json
 
 public/data/bnpb-regional.json
+
+public/data/firms.json
+.env.*
+!.env.example
