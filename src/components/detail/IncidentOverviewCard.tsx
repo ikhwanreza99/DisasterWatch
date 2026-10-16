@@ -1,3 +1,4 @@
+import { RegionalAllocation } from './RegionalAllocation';
 import { AutomaticImpact } from './AutomaticImpact';
 import { NarrativeImpact } from './NarrativeImpact';
 import { BnpbImpactCard } from './BnpbImpactCard';
@@ -76,7 +77,7 @@ export const IncidentOverviewCard: React.FC<Props> = ({ disaster, detail, onOpen
 
       <div className="mb-3 rounded-xl bg-slate-50 p-3 text-xs"><span className="text-slate-400">Estimasi Dampak</span><AutomaticImpact incidentId={disaster.id} fallback={disaster.cost}/></div>
       <NarrativeImpact incidentId={disaster.id}/>
-      <BnpbImpactCard incidentId={disaster.id} />
+      <BnpbImpactCard incidentId={disaster.id} /><RegionalAllocation incidentId={disaster.id}/>
 
       {disaster.photoUrl ? (
         <div className="mb-4 relative rounded-xl overflow-hidden border border-slate-200/80 shadow-inner group">

@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {allocateAggregate} from '../src/services/insights/proportionalAllocation';
+test('weighted proportions preserve province total after rounding',()=>{const rows=allocateAggregate(14,[{id:'a',weight:3},{id:'b',weight:1}])!;assert.equal(rows.reduce((s,r)=>s+r.value,0),14);assert.equal(rows[0].share,.75);assert.equal(rows[0].value,11);});
+test('unknown or invalid aggregates never become zero',()=>{assert.equal(allocateAggregate(null,[{id:'a',weight:1}]),null);assert.equal(allocateAggregate(5,[{id:'a',weight:0}]),null);assert.equal(allocateAggregate(5,[]),null);});

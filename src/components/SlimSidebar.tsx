@@ -1,3 +1,4 @@
+import { RegionalAllocation } from './detail/RegionalAllocation';
 import { AutomaticImpact } from './detail/AutomaticImpact';
 import { NarrativeImpact } from './detail/NarrativeImpact';
 import { BnpbImpactCard } from './detail/BnpbImpactCard';
@@ -230,7 +231,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
             </div>
           </div>
 
-          <BnpbImpactCard incidentId={disaster.id} />
+          <BnpbImpactCard incidentId={disaster.id} /><RegionalAllocation incidentId={disaster.id}/>
 
           <div className="grid grid-cols-2 gap-3 mt-3 mb-3">
             <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
