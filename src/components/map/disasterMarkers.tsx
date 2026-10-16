@@ -4,6 +4,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import type { DisasterIncident } from '../../types';
+import { useI18n } from '../../i18n';
 
 type Category = DisasterIncident['category'];
 
@@ -108,11 +109,13 @@ export const DisasterCallout: React.FC<{
   onViewDetail?: () => void;
   className?: string;
   style?: React.CSSProperties;
-}> = ({ incident, onClose, onViewDetail, className = '', style }) => (
+}> = ({ incident, onClose, onViewDetail, className = '', style }) => {
+  const { t } = useI18n();
+  return (
   <div
     id="activeCallout"
     role="dialog"
-    aria-label={`Info bencana ${incident.name}`}
+    aria-label={t('Info bencana {name}', { name: incident.name })}
     style={{
       ...style,
       background:
@@ -135,8 +138,8 @@ export const DisasterCallout: React.FC<{
           </span>
           <button
             type="button"
-            aria-label="Tutup popup"
-            title="Tutup"
+            aria-label={t('Tutup popup')}
+            title={t('Tutup')}
             onClick={(e) => {
               e.stopPropagation();
               onClose();
@@ -151,7 +154,7 @@ export const DisasterCallout: React.FC<{
       <div className="mt-3 flex items-center justify-between gap-3">
         <span className="text-xs font-semibold text-amber-300">{incident.fullName}</span>
         <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-200 border border-rose-400/35">
-          {incident.urgency}
+          {t(incident.urgency)}
         </span>
       </div>
       <div className="my-3 h-px bg-gradient-to-r from-white/20 via-white/10 to-transparent" />
@@ -160,11 +163,12 @@ export const DisasterCallout: React.FC<{
         <span>{incident.timestamp}</span>
       </div>
     </div>
-    {onViewDetail && <button type="button" onClick={event => { event.stopPropagation(); onViewDetail(); }} className="sm:hidden relative z-10 mt-3 min-h-11 w-full rounded-xl bg-white/15 px-4 text-xs font-bold hover:bg-white/25">Lihat detail</button>}
+    {onViewDetail && <button type="button" onClick={event => { event.stopPropagation(); onViewDetail(); }} className="sm:hidden relative z-10 mt-3 min-h-11 w-full rounded-xl bg-white/15 px-4 text-xs font-bold hover:bg-white/25">{t('Lihat detail')}</button>}
     {/* pointer */}
     <div
       className="absolute -bottom-[7px] left-1/2 -translate-x-1/2 w-3.5 h-3.5 rotate-45 border-r border-b border-white/20"
       style={{ background: 'rgba(15,35,64,.70)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
     />
   </div>
-);
+  );
+};

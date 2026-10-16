@@ -11,6 +11,7 @@ import {
   type TimelineEvent,
 } from '../domain/nttCase';
 import { nttArticlesSeed, nttCaseSeed, nttClaimsSeed } from '../data/nttCase';
+import { translate } from '../i18n';
 
 const LS_KEY = 'dw:ntt-case-v1';
 
@@ -99,7 +100,7 @@ export async function loadNttCase(): Promise<NttCaseState> {
       articles,
       claims: merged,
       mode: 'live',
-      notice: `Memuat ${articles.length} artikel kasus NTT dari Firestore.`,
+      notice: translate('Memuat {count} artikel kasus NTT dari Firestore.', { count: articles.length }),
     };
   }
   if (local) {
@@ -108,7 +109,7 @@ export async function loadNttCase(): Promise<NttCaseState> {
       articles: baseArticles,
       claims: baseClaims,
       mode: 'local',
-      notice: `Menampilkan ${baseArticles.length} artikel NTT tersimpan lokal (Firestore tidak tersedia).`,
+      notice: translate('Menampilkan {count} artikel NTT tersimpan lokal (Firestore tidak tersedia).', { count: baseArticles.length }),
     };
   }
   writeLocal(baseArticles, baseClaims, nttCaseSeed.lastCrawlAt);
@@ -117,7 +118,7 @@ export async function loadNttCase(): Promise<NttCaseState> {
     articles: baseArticles,
     claims: baseClaims,
     mode: 'seed',
-    notice: `Menampilkan ${baseArticles.length} artikel NTT hasil retrieval nyata 11 Okt 2026.`,
+    notice: translate('Menampilkan {count} artikel NTT hasil retrieval nyata 11 Okt 2026.', { count: baseArticles.length }),
   };
 }
 
@@ -138,8 +139,8 @@ export async function refreshNttCase(prev: NttCaseState): Promise<NttCaseState> 
     claims: prev.claims,
     mode: saved ? 'live' : prev.mode === 'live' ? 'live' : 'local',
     notice: saved
-      ? `Refresh ${now.slice(0, 16).replace('T', ' ')}: ${merged.length} artikel (tidak ada duplikat). Tersimpan ke Firestore.`
-      : `Refresh ${now.slice(0, 16).replace('T', ' ')}: ${merged.length} artikel (tidak ada duplikat). Crawler ZAPI tidak tersedia (tanpa key) — data lokal dipertahankan.`,
+      ? translate('Refresh {time}: {count} artikel (tidak ada duplikat). Tersimpan ke Firestore.', { time: now.slice(0, 16).replace('T', ' '), count: merged.length })
+      : translate('Refresh {time}: {count} artikel (tidak ada duplikat). Crawler ZAPI tidak tersedia (tanpa key) — data lokal dipertahankan.', { time: now.slice(0, 16).replace('T', ' '), count: merged.length }),
   };
 }
 
@@ -169,24 +170,24 @@ export function buildNttTimeline(state: Pick<NttCaseState, 'articles' | 'kase'>)
       id: 'ev-origin',
       kind: 'EVENT_OCCURRED',
       at: '2026-10-04T05:55:52+07:00',
-      label: 'Gempa terjadi',
-      detail: 'M6,1 (parameter awal) — barat daya Sumba Barat Daya. Waktu kejadian, bukan waktu publikasi.',
+      label: translate('Gempa terjadi'),
+      detail: translate('M6,1 (parameter awal) — barat daya Sumba Barat Daya. Waktu kejadian, bukan waktu publikasi.'),
       sourceUrl: state.kase.sourceUrl,
     },
     {
       id: 'ev-release',
       kind: 'SOURCE_PUBLISHED',
       at: '2026-10-04T05:58:34+07:00',
-      label: 'BMKG merilis parameter awal',
-      detail: 'M6,1 / 10 km / 9,70 LS–118,92 BT. Tidak berpotensi tsunami.',
+      label: translate('BMKG merilis parameter awal'),
+      detail: translate('M6,1 / 10 km / 9,70 LS–118,92 BT. Tidak berpotensi tsunami.'),
       sourceUrl: state.kase.sourceUrl,
     },
     {
       id: 'ev-update',
       kind: 'PARAM_UPDATE',
       at: null,
-      label: 'BMKG menerbitkan parameter update',
-      detail: 'M5,9 / 30 km / 9,84 LS–118,90 BT (±59 km barat daya Kodi). Revisi dipertahankan terpisah dari parameter awal.',
+      label: translate('BMKG menerbitkan parameter update'),
+      detail: translate('M5,9 / 30 km / 9,84 LS–118,90 BT (±59 km barat daya Kodi). Revisi dipertahankan terpisah dari parameter awal.'),
       sourceUrl: state.kase.sourceUrl,
     },
   ];
@@ -196,7 +197,7 @@ export function buildNttTimeline(state: Pick<NttCaseState, 'articles' | 'kase'>)
       id: `pub-${a.id.slice(0, 8)}`,
       kind: 'SOURCE_PUBLISHED',
       at: a.publishedAt,
-      label: `Sumber terbit: ${a.sourceName}`,
+      label: translate('Sumber terbit: {name}', { name: a.sourceName }),
       detail: a.title,
       sourceUrl: a.url,
     });
@@ -204,8 +205,8 @@ export function buildNttTimeline(state: Pick<NttCaseState, 'articles' | 'kase'>)
       id: `ret-${a.id.slice(0, 8)}`,
       kind: 'SYSTEM_RETRIEVED',
       at: a.retrievedAt,
-      label: `Sistem mengambil: ${a.sourceName}`,
-      detail: a.contentStatus === 'FULL' ? 'Konten penuh diambil.' : 'Hanya metadata (isi penuh tidak diambil).',
+      label: translate('Sistem mengambil: {name}', { name: a.sourceName }),
+      detail: a.contentStatus === 'FULL' ? translate('Konten penuh diambil.') : translate('Hanya metadata (isi penuh tidak diambil).'),
       sourceUrl: a.url,
     });
   }

@@ -3,6 +3,7 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { BMKG_SOURCE_URL, type BmkgStatus, type EarthquakeEvent } from '../services/bmkg';
+import { useI18n, localeFor } from '../i18n';
 
 interface Props {
   latest: EarthquakeEvent | null;
@@ -16,13 +17,14 @@ function formatTime(iso: string): string {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return iso;
   try {
-    return new Date(t).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return new Date(t).toLocaleString(localeFor(), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   } catch {
     return iso;
   }
 }
 
 export const BmkgSignalCard: React.FC<Props> = ({ latest, count, status, refreshing, onRefresh }) => {
+  const { t } = useI18n();
   return (
     <div
       className="px-6 sm:px-8 pb-1"
@@ -43,7 +45,7 @@ export const BmkgSignalCard: React.FC<Props> = ({ latest, count, status, refresh
               Latest: M{latest.magnitude} • {latest.region} • {latest.depthKm} km • {formatTime(latest.eventTime)}
             </div>
           ) : status.state === 'loading' || status.state === 'idle' ? (
-            <div className="text-xs text-slate-500 dark:text-slate-400">Memuat data resmi BMKG…</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">{t('Memuat data resmi BMKG…')}</div>
           ) : (
             <div className="text-xs text-slate-500 dark:text-slate-400">BMKG data temporarily unavailable</div>
           )}
@@ -63,10 +65,10 @@ export const BmkgSignalCard: React.FC<Props> = ({ latest, count, status, refresh
           onClick={onRefresh}
           disabled={refreshing}
           className="flex shrink-0 items-center gap-1 rounded-full border border-cyan-300/60 bg-white/80 px-2.5 py-1 text-[11px] font-bold text-cyan-700 transition-all hover:bg-white active:scale-95 disabled:opacity-50 dark:bg-slate-900/60 dark:text-cyan-300"
-          title="Refresh data BMKG (manual)"
+          title={t('Refresh data BMKG (manual)')}
         >
           <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
-          <span>{refreshing ? 'Memuat…' : 'Refresh'}</span>
+          <span>{refreshing ? t('Memuat…') : 'Refresh'}</span>
         </button>
       </div>
     </div>

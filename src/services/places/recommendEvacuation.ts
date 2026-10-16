@@ -2,6 +2,7 @@ import {currentRecords} from '../../data/currentIncidents';
 import {nearbyFacilities,findReportedArea} from './placeSearch';
 import {facilityCandidates,rankCandidates,placeInRegion} from './evacuationCandidates';
 import {getGeminiModel} from '../../lib/firebase/ai';
+import {translate} from '../../i18n';
 import type {DisasterIncident,DisasterCheckpoint} from '../../types';
 interface Recommendation {posts:DisasterCheckpoint[];method:'gemini'|'distance';radius:number;anchorNote:string|null}
 type Listener=(posts:DisasterCheckpoint[])=>void;
@@ -24,7 +25,7 @@ export function recommendEvacuation(disaster:DisasterIncident,onCandidates?:List
       if(area){
         const query=`${area.replace(/Kecamatan:|Kec\.|Ds\./g,' ').replace(/\s+/g,' ').trim()}, ${disaster.name}, ${disaster.province}`;
         const found=(await findReportedArea(query)).find(p=>placeInRegion(p,disaster.name)&&Number.isFinite(p.location?.latitude)&&Number.isFinite(p.location?.longitude));
-        if(found?.location){centre={lat:found.location.latitude!,lng:found.location.longitude!};anchorNote=`Acuan wilayah laporan: ${area.replace(/\s+/g,' ')}. Lokasi dicocokkan melalui Google Places.`;posts=await search();}
+        if(found?.location){centre={lat:found.location.latitude!,lng:found.location.longitude!};anchorNote=translate('Acuan wilayah laporan: {area}. Lokasi dicocokkan melalui Google Places.', {area: area.replace(/\s+/g,' ')});posts=await search();}
       }
     }
     if(posts.length<3){radius=15000;posts=await search();}

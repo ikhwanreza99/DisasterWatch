@@ -1,5 +1,6 @@
 // Maps Firebase Auth error codes to Indonesian user-facing messages.
-// Pure module: no `firebase` or `import.meta` imports, so node:test can load it.
+// Pure string table: no `firebase` or `import.meta` imports, so node:test can load it.
+import { translate } from '../../i18n';
 
 export const AUTH_UNAVAILABLE_MESSAGE =
   'Login belum tersedia. Silakan coba lagi setelah layanan login diaktifkan.';
@@ -34,7 +35,7 @@ export function mapAuthError(code: string | undefined, fallbackMessage?: string)
   if (Object.prototype.hasOwnProperty.call(AUTH_ERROR_MESSAGES, code)) {
     return AUTH_ERROR_MESSAGES[code];
   }
-  return `Login Google belum berhasil (kode: ${code}). Silakan coba lagi.`;
+  return translate('Login Google belum berhasil (kode: {code}). Silakan coba lagi.', { code });
 }
 
 /** Safely reads a non-empty string `code` from a thrown value. */

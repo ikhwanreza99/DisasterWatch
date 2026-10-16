@@ -1,3 +1,5 @@
+import { translate } from '../../i18n';
+
 export type ServiceState = 'ok' | 'error' | 'configured' | 'disabled' | 'unknown' | 'empty' | 'checking';
 export interface ServiceCheck {
   id: string; name: string; state: ServiceState; detail: string;
@@ -42,8 +44,8 @@ export function redactStatusText(input: string): string {
  * note WITHOUT the primary model's raw error payload.
  */
 export function fallbackNote(used: string, primary: string): string {
-  if (used === primary) return `menggunakan ${used}, tanpa fallback.`;
-  return `menggunakan ${used}. Model utama dilewati; fallback berhasil digunakan.`;
+  if (used === primary) return translate('menggunakan {model}, tanpa fallback.', { model: used });
+  return translate('menggunakan {model}. Model utama dilewati; fallback berhasil digunakan.', { model: used });
 }
 
 /** True only for non-empty, non-whitespace model text. Empty output is never success. */

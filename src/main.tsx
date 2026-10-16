@@ -1,6 +1,7 @@
-import {StrictMode, Suspense, lazy} from 'react';
+import {StrictMode, Suspense, lazy, type FC} from 'react';
 import {createRoot} from 'react-dom/client';
 const App = lazy(() => import('./App.tsx'));
+import { LanguageProvider, useI18n } from './i18n';
 import 'leaflet/dist/leaflet.css';
 import './index.css';
 
@@ -27,8 +28,15 @@ const AdminPage = lazy(() => import('./admin/AdminPage'));
 const isAdminPage = /^\/admin(?:\/|$)/.test(window.location.pathname);
 const isStatusPage = ['/status', '/status/'].includes(window.location.pathname);
 
+const LoadingFallback: FC = () => {
+  const { t } = useI18n();
+  return <div className="p-8 text-slate-500">{t('Memuat DisasterWatch...')}</div>;
+};
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Suspense fallback={<div className="p-8 text-slate-500">Memuat DisasterWatch...</div>}>{isAdminPage ? <AdminPage /> : isStatusPage ? <GoogleStatusPage /> : <App />}</Suspense>
+    <LanguageProvider>
+      <Suspense fallback={<LoadingFallback />}>{isAdminPage ? <AdminPage /> : isStatusPage ? <GoogleStatusPage /> : <App />}</Suspense>
+    </LanguageProvider>
   </StrictMode>,
 );

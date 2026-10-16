@@ -4,6 +4,8 @@ import type { DisasterIncident } from '../types';
 import type { UserIdentity } from '../domain/intelligence';
 import { isGoogleUser } from '../lib/firebase/auth';
 import { useMobileLayout } from './useMobileLayout';
+import { useI18n } from '../i18n';
+import { LanguageToggle } from '../i18n/LanguageToggle';
 import { Calendar, ChevronDown, Sparkles, Radio, UserRound, Activity } from 'lucide-react';
 import {
   DATE_PRESETS,
@@ -45,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSignOut,
 }) => {
   const mobile = useMobileLayout();
+  const { t, locale } = useI18n();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const isSignedIn = isGoogleUser(user);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
@@ -52,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
   const accountRef = useRef<HTMLDivElement>(null);
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
   const firstMenuItemRef = useRef<HTMLButtonElement>(null);
-  const accountName = user.displayName || 'Pengguna Google';
+  const accountName = user.displayName || t('Pengguna Google');
   const accountInitial = (user.displayName || user.email || 'P').trim().charAt(0).toUpperCase() || 'P';
   useEffect(() => {
     if (!isSignedIn) setIsAccountOpen(false);
@@ -86,6 +89,12 @@ export const Header: React.FC<HeaderProps> = ({
   }, [isAccountOpen]);
 
   const presets = DATE_PRESETS;
+  const presetShortLabel = (preset: string) => {
+    if (preset.startsWith('Hari')) return t('Hari ini');
+    if (preset.startsWith('7')) return t('7 hari');
+    if (preset.startsWith('30')) return t('30 hari');
+    return preset;
+  };
   // Which layer the picker edits: FIRMS (last 60 days) or MAGMA (archive since 2018).
   const [target, setTarget] = useState<DateTarget>('bmkg');
   const selectedDate = dates[target];
@@ -159,15 +168,15 @@ export const Header: React.FC<HeaderProps> = ({
           {isCalendarOpen && (
             <div className="fixed left-3 right-3 top-16 sm:absolute sm:left-auto sm:top-auto sm:right-0 mt-2 max-h-[calc(100dvh-8rem)] overflow-y-auto w-auto sm:w-72 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#0b1329] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 p-4 z-50 text-xs transition-all">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 font-semibold text-slate-700 dark:text-slate-200">
-                <span>Pilih Rentang Waktu</span>
+                <span>{t('Pilih Rentang Waktu')}</span>
                 <span className="text-[10px] text-slate-400 dark:text-cyan-400">
-                  {now.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}
+                  {now.toLocaleDateString(locale, { month: 'short', year: 'numeric' })}
                 </span>
               </div>
               {/* Which layer this selection applies to */}
               <div className="mb-2">
-                <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Berlaku untuk</div>
-                <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80" role="radiogroup" aria-label="Layer tanggal">
+                <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('Berlaku untuk')}</div>
+                <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80" role="radiogroup" aria-label={t('Layer tanggal')}>
                   {(
                     [
                       ['bmkg', '🌐 BMKG', bmkgLabel],
@@ -207,7 +216,7 @@ export const Header: React.FC<HeaderProps> = ({
                         : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200/60 dark:border-slate-700/50'
                     }`}
                   >
-                    {preset.split(' ')[0]}
+                    {presetShortLabel(preset)}
                   </button>
                 ))}
               </div>
@@ -221,10 +230,10 @@ export const Header: React.FC<HeaderProps> = ({
                   setIsCalendarOpen(false);
                 }}
               >
-                <div className="font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Rentang khusus</div>
+                <div className="font-semibold text-slate-700 dark:text-slate-200 mb-1.5">{t('Rentang khusus')}</div>
                 <div className="grid grid-cols-2 gap-1.5">
                   <label className="flex flex-col gap-0.5 text-[10px] text-slate-500 dark:text-slate-400">
-                    Dari
+                    {t('Dari')}
                     <input
                       type="date"
                       value={customFrom}
@@ -236,7 +245,7 @@ export const Header: React.FC<HeaderProps> = ({
                     />
                   </label>
                   <label className="flex flex-col gap-0.5 text-[10px] text-slate-500 dark:text-slate-400">
-                    Sampai
+                    {t('Sampai')}
                     <input
                       type="date"
                       value={customTo}
@@ -254,7 +263,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 ) : (
                   <div className="mt-1 text-[10px] text-slate-400">
-                    {limits.hint}
+                    {t(limits.hint)}
                   </div>
                 )}
                 <button
@@ -262,15 +271,15 @@ export const Header: React.FC<HeaderProps> = ({
                   disabled={!!customError}
                   className="mt-2 w-full py-1.5 rounded-lg font-bold bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950 disabled:opacity-40 transition-all active:scale-95"
                 >
-                  Terapkan
+                  {t('Terapkan')}
                 </button>
               </form>
               <div className="text-[11px] text-slate-400 text-center py-1 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-100 dark:border-slate-800">
                 {target === 'magma'
-                  ? 'Erupsi & gerakan tanah MAGMA. Laporan gerakan tanah tersedia Jun 2022 – Mei 2023.'
+                  ? t('Erupsi & gerakan tanah MAGMA. Laporan gerakan tanah tersedia Jun 2022 – Mei 2023.')
                   : target === 'bmkg'
-                    ? 'Gempa BMKG di peta (M5+ & gempa dirasakan).'
-                    : 'Titik panas NASA FIRMS.'}
+                    ? t('Gempa BMKG di peta (M5+ & gempa dirasakan).')
+                    : t('Titik panas NASA FIRMS.')}
               </div>
             </div>
           )}
@@ -283,11 +292,14 @@ export const Header: React.FC<HeaderProps> = ({
           className="hidden sm:flex shrink-0 items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 hover:brightness-110 text-white rounded-full text-xs font-bold shadow-md shadow-violet-500/25 transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
         >
           <Sparkles className="w-4 h-4" aria-hidden="true" />
-          <span>Laporkan Bencana</span>
+          <span>{t('Laporkan Bencana')}</span>
         </button>
 
+        {/* Language toggle (ID / EN) — next to the Google service status */}
+        <LanguageToggle />
+
         {/* Officer Avatar */}
-        <a href="/status" aria-label="Status layanan Google" title="Status layanan Google" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><Activity className="h-4 w-4" /></a>
+        <a href="/status" aria-label={t('Status layanan Google')} title={t('Status layanan Google')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><Activity className="h-4 w-4" /></a>
         <div ref={accountRef} className="relative flex items-center pl-2 border-l border-slate-200 dark:border-slate-800">
           <button
             type="button"
@@ -295,7 +307,7 @@ export const Header: React.FC<HeaderProps> = ({
             ref={accountTriggerRef}
             aria-haspopup={isSignedIn ? 'menu' : 'dialog'}
             aria-expanded={isSignedIn ? isAccountOpen : undefined}
-            aria-label={isSignedIn ? `Akun ${user.displayName || user.email || 'pengguna'}` : 'Masuk dengan Google'}
+            aria-label={isSignedIn ? t('Akun {name}', { name: user.displayName || user.email || t('pengguna') }) : t('Masuk dengan Google')}
             className="flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
           >
             {isSignedIn && user.photoURL && !photoFailed ? (
@@ -313,9 +325,9 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
           {isSignedIn && isAccountOpen && (
-            <div role="menu" aria-label="Menu akun" className="absolute right-0 top-full mt-2 w-60 bg-white dark:bg-[#0b1329] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 p-4 z-50 text-xs transition-all">
+            <div role="menu" aria-label={t('Menu akun')} className="absolute right-0 top-full mt-2 w-60 bg-white dark:bg-[#0b1329] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/80 p-4 z-50 text-xs transition-all">
               <div className="pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
-                <div className="font-semibold text-slate-700 dark:text-slate-200 truncate">{user.displayName || 'Pengguna Google'}</div>
+                <div className="font-semibold text-slate-700 dark:text-slate-200 truncate">{user.displayName || t('Pengguna Google')}</div>
                 {user.email && <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user.email}</div>}
               </div>
               <button
@@ -328,7 +340,7 @@ export const Header: React.FC<HeaderProps> = ({
                 }}
                 className="w-full py-1.5 rounded-lg font-bold bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950 transition-all active:scale-95"
               >
-                Keluar
+                {t('Keluar')}
               </button>
             </div>
           )}

@@ -1,3 +1,4 @@
+import { translate } from '../../i18n';
 import { recordTokenUsage } from '../../admin/tokenUsage';
 import { createCheckRunner } from './automaticChecks';
 import { appCheckStatus, firebaseEnv, getFirebaseApp, firebaseStatus, hasAppCheckSiteKey, probeAppCheckToken } from '../../lib/firebase/config';
@@ -53,11 +54,11 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       const { getAuthInstance } = await import('../../lib/firebase/auth');
       const auth = getAuthInstance();
       if (auth) await auth.authStateReady();
-      firestoreSession = auth?.currentUser ? 'Sesi login dipulihkan' : 'Tidak ada sesi login';
+      firestoreSession = auth?.currentUser ? translate('Sesi login dipulihkan') : translate('Tidak ada sesi login');
       const { getDocsFromServer, query, collection, limit } = await import('firebase/firestore');
       const db = getDb(); if (!db) throw new Error('No database');
       const snap = await getDocsFromServer(query(collection(db, 'incidentArticles'), limit(1)));
-      detail = `Baca Firestore dari server berhasil; sampel ${snap.size} artikel.`;
+      detail = translate('Baca Firestore dari server berhasil; sampel {count} artikel.', { count: snap.size });
     } else if (id === 'auth') {
       const data = await checkedJson(`https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${encodeURIComponent(env.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'google.com', continueUri: window.location.origin }) });
       if (!data.authUri) throw new Error('No OAuth URL');
@@ -67,7 +68,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       const places = await autocompletePlaces('Jakarta', token, AbortSignal.timeout(20_000));
       if (!places.length) return { ...base, checkedAt, state: 'empty', detail: 'Autocomplete berhasil; tidak ada saran lokasi.' };
       await getPlace(places[0].placeId, token, AbortSignal.timeout(20_000));
-      detail = `Autocomplete dan Place Details berhasil; ${places.length} saran.`;
+      detail = translate('Autocomplete dan Place Details berhasil; {count} saran.', { count: places.length });
     } else if (id === 'weather' || id === 'forecast') {
       const endpoint = id === 'weather' ? 'currentConditions:lookup' : 'forecast/days:lookup';
       const data = await checkedJson(`https://weather.googleapis.com/v1/${endpoint}?key=${encodeURIComponent(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)}&location.latitude=-6.2&location.longitude=106.8&languageCode=id`);
@@ -99,7 +100,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
         } catch (e) { lastError = e; }
       }
       if (!used) throw lastError instanceof Error ? lastError : new Error('Gemini Direct gagal pada semua model kandidat');
-      detail = `GenerateContent berhasil ${fallbackNote(used, primary)}`;
+      detail = translate('GenerateContent berhasil {note}', { note: fallbackNote(used, primary) });
     } else if (id === 'appcheck') {
       const app = getFirebaseApp(); if (!app) throw new Error('No Firebase app');
       const status = appCheckStatus();
@@ -107,7 +108,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       if (!status.initialized) throw new Error(status.error ?? status.skippedReason ?? 'App Check belum terinisialisasi.');
       const probe = await probeAppCheckToken();
       if (!probe.ok) throw new Error(probe.detail);
-      detail = `${probe.detail} Init: terinisialisasi.`;
+      detail = translate('{detail} Init: terinisialisasi.', { detail: translate(probe.detail) });
     } else if (id === 'firebase-ai') {
       const { getAI, getGenerativeModel, GoogleAIBackend } = await import('firebase/ai');
       const app = getFirebaseApp(); if (!app) throw new Error('No Firebase app');
@@ -115,8 +116,8 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
       // Uses the same default Firebase app that configureAppCheck() initialized.
       const appCheck = appCheckStatus();
       const appCheckNote = appCheck.initialized
-        ? 'App Check: terinisialisasi.'
-        : `App Check: ${appCheck.error ?? appCheck.skippedReason ?? 'tidak terinisialisasi'}.`;
+        ? translate('App Check: terinisialisasi.')
+        : translate('App Check: {reason}.', { reason: translate(appCheck.error ?? appCheck.skippedReason ?? 'tidak terinisialisasi') });
       const candidates = resolveGeminiCandidates();
       const primary = candidates[0]!;
       let lastError: unknown = null;
@@ -135,7 +136,7 @@ export async function runBrowserCheck(id: string): Promise<ServiceCheck> {
         const cause = safeStatusError(lastError instanceof Error ? lastError : new Error('Firebase AI Logic gagal pada semua model kandidat'));
         throw new Error(`${cause} · ${appCheckNote}`);
       }
-      detail = `Firebase AI Logic berhasil ${fallbackNote(used, primary)} ${appCheckNote}`;
+      detail = translate('Firebase AI Logic berhasil {note} {appCheck}', { note: fallbackNote(used, primary), appCheck: appCheckNote });
     } else if (id === 'storage') {
       return { ...base, detail: 'Bucket terkonfigurasi. Upload/download membutuhkan pengguna login dan lampiran; tidak mengunggah file uji otomatis.' };
     } else if (id === 'maps') {
