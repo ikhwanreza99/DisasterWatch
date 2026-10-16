@@ -1,5 +1,6 @@
+import {fetchSnapshot} from './services/snapshotCache';
 import { applyDisasterDecisions } from './services/disasterModeration';
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { currentArticles, currentIncidents } from './data/currentIncidents';
 import { newsSourceUrl } from './services/newsSourceUrl';
 import { classifyRelevance } from './services/incidentNews';
@@ -14,11 +15,11 @@ import { Header } from './components/Header';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
 import { MapProvider } from './components/map/MapProvider';
 import { SlimSidebar } from './components/SlimSidebar';
-import { EvacuationPostView } from './components/EvacuationPostView';
-import { CitizenReportsView } from './components/CitizenReportsView';
-import { AIHelpdeskPanel } from './components/AIHelpdeskPanel';
-import { ReportModal } from './components/ReportModal';
-import { DonationModal } from './components/DonationModal';
+const EvacuationPostView = lazy(() => import('./components/EvacuationPostView').then(module => ({ default: module.EvacuationPostView })));
+const CitizenReportsView = lazy(() => import('./components/CitizenReportsView').then(module => ({ default: module.CitizenReportsView })));
+const AIHelpdeskPanel = lazy(() => import('./components/AIHelpdeskPanel').then(module => ({ default: module.AIHelpdeskPanel })));
+const ReportModal = lazy(() => import('./components/ReportModal').then(module => ({ default: module.ReportModal })));
+const DonationModal = lazy(() => import('./components/DonationModal').then(module => ({ default: module.DonationModal })));
 import { useBmkgEarthquakes, useBmkgWeatherWarnings } from './services/bmkg';
 import { firmsSensorsLabel, useFirmsHotspots } from './services/firms';
 import { RANGE_LIMITS, resolveDateRange } from './domain/dateRange';
@@ -46,8 +47,8 @@ function writeLoginIntent(v: LoginReason | null) {
     /* storage unavailable (private mode) — popup flow still works */
   }
 }
-import { LoginModal } from './components/LoginModal';
-import { NttCaseView } from './components/NttCaseView';
+const LoginModal = lazy(() => import('./components/LoginModal').then(module => ({ default: module.LoginModal })));
+const NttCaseView = lazy(() => import('./components/NttCaseView').then(module => ({ default: module.NttCaseView })));
 import { NTT_CASE_ID } from './domain/nttCase';
 import { loadNttCase, refreshNttCase, type NttCaseState } from './services/nttCaseStore';
 import { nttIncident } from './data/nttIncident';
@@ -97,8 +98,7 @@ export default function App() {
   },[]);
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/data/disaster-photos.json', { cache: 'no-cache', signal: controller.signal })
-      .then(response => { if (!response.ok) throw new Error('Photos unavailable'); return response.json(); })
+    fetchSnapshot<{ photos?: Record<string, DisasterPhoto> }>('/data/disaster-photos.json')
       .then((data: { photos?: Record<string, DisasterPhoto> }) => {
         if (controller.signal.aborted || !data.photos) return;
         setDisasters(previous => Object.fromEntries(Object.entries(previous).map(([id, incident]) => {
@@ -150,10 +150,11 @@ export default function App() {
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [isDonationModalOpen, setIsDonationModalOpen] = useState<boolean>(false);
   const [isWeatherOpen, setIsWeatherOpen] = useState<boolean>(false);
+  const [apiLayersEnabled, setApiLayersEnabled] = useState(false);
 
   // BMKG V1: official feed → React state → map/UI. No Firestore, no auto-disaster.
   // Fetch on load + manual refresh only (no aggressive polling).
-  const bmkg = useBmkgEarthquakes();
+  const bmkg = useBmkgEarthquakes({ enabled: apiLayersEnabled });
   // Earthquakes shown on the map follow the BMKG date selection (e.g. Today = only today's quakes).
   const bmkgRange = resolveDateRange(bmkgDate, RANGE_LIMITS.bmkg);
   const bmkgEventsInRange = bmkg.events.filter((e) => {
@@ -162,9 +163,9 @@ export default function App() {
   });
   // NASA FIRMS hotspots via server-side proxy (MAP_KEY never reaches the browser).
   // Range follows the header date selector (Today / 24 jam / 7 hari / 30 hari).
-  const firms = useFirmsHotspots(selectedDate);
+  const firms = useFirmsHotspots(selectedDate, apiLayersEnabled);
   // BMKG weather nowcast: RSS → CAP details → React state. Same constraints.
-  const bmkgWx = useBmkgWeatherWarnings();
+  const bmkgWx = useBmkgWeatherWarnings({ enabled: apiLayersEnabled });
 
   const activeDisaster = disasters[activeDisasterKey] || Object.values(disasters)[0];
 
@@ -547,6 +548,8 @@ export default function App() {
               handleOpenAI(false);
               setAiDraft({ message, file });
             }}
+            apiLayersEnabled={apiLayersEnabled}
+            onApiLayersChange={setApiLayersEnabled}
             disasters={moderationLoaded ? disasters : {}}
             activeDisasterKey={activeDisasterKey}
             onSelectDisaster={handleSelectDisaster}
@@ -627,7 +630,7 @@ export default function App() {
 
           {/* MODE 3: Dedicated Single-Window "Posko Evakuasi" (replaces Rute Distribusi, from feat/homepage-slicing) */}
           {activeDisaster && isRouteOpen && (
-            <EvacuationPostView
+            <Suspense fallback={<div role="status" className="absolute bottom-4 right-4 rounded-xl bg-white p-3 shadow">{t('Memuat DisasterWatch...')}</div>}><EvacuationPostView
               disaster={activeDisaster}
               onClose={() => setIsRouteOpen(false)}
               onOpenDonationModal={() => setIsDonationModalOpen(true)}
@@ -637,24 +640,24 @@ export default function App() {
               selectedPostId={selectedPostId}
               onSelectPost={setSelectedPostId}
               onSuggestedPosts={(id,posts)=>setDisasters(previous=>previous[id]?{...previous,[id]:{...previous[id],route:{...previous[id].route,checkpoints:posts}}}:previous)}
-            />
+            /></Suspense>
           )}
 
           {/* MODE 4: Dedicated Single-Window "Semua Laporan Warga" (Strictly single window, no dual window) */}
           {activeDisaster && isReportsOpen && (
-            <CitizenReportsView
+            <Suspense fallback={<div role="status" className="absolute bottom-4 right-4 rounded-xl bg-white p-3 shadow">{t('Memuat DisasterWatch...')}</div>}><CitizenReportsView
               disaster={activeDisaster}
               onClose={() => setIsReportsOpen(false)}
               onOpenReportModal={() => setIsReportModalOpen(true)}
               onViewDisasterDetail={handleOpenDetail}
               onViewRoute={handleOpenRoute}
               isDarkMode={isDarkMode}
-            />
+            /></Suspense>
           )}
 
           {/* MODE 5: Dedicated Single-Window "DisasterAI Helpdesk" */}
           {activeDisaster && isAIOpen && (
-            <AIHelpdeskPanel
+            <Suspense fallback={<div role="status" className="absolute bottom-4 right-4 rounded-xl bg-white p-3 shadow">{t('Memuat DisasterWatch...')}</div>}><AIHelpdeskPanel
               key={aiWorkflow}
               expanded={isAIExpanded}
               onToggleExpanded={() => setIsAIExpanded(value => !value)}
@@ -672,23 +675,23 @@ export default function App() {
               aidRecords={aidRecords}
               onIntelReport={handleIntelReport}
               nttCase={ntt}
-            />
+            /></Suspense>
           )}
 
           {/* MODE 6: Dedicated Single-Window "Kasus Gempa NTT" (real-data case, not demo) */}
           {isNttOpen && ntt && (
-            <NttCaseView
+            <Suspense fallback={<div role="status" className="absolute bottom-4 right-4 rounded-xl bg-white p-3 shadow">{t('Memuat DisasterWatch...')}</div>}><NttCaseView
               state={ntt}
               refreshing={nttRefreshing}
               onRefresh={handleRefreshNtt}
               onClose={() => setIsNttOpen(false)}
-            />
+            /></Suspense>
           )}
         </main>
 
         {/* Standalone Report Modal (pipeline: extraction → validation → store) */}
       {isLoginOpen && (
-        <LoginModal
+        <Suspense fallback={<div role="status" className="absolute bottom-4 right-4 rounded-xl bg-white p-3 shadow">{t('Memuat DisasterWatch...')}</div>}><LoginModal
           source={loginReason === 'account' ? 'avatar' : 'report'}
           initialError={loginError}
           onClose={() => {
@@ -703,23 +706,23 @@ export default function App() {
             writeLoginIntent(null);
             if (loginReason === 'report' && !isAIOpen) openReportForm();
           }}
-        />
+        /></Suspense>
       )}
-      {activeDisaster && <ReportModal
+      {activeDisaster && isReportModalOpen && <Suspense fallback={<div role="status" className="absolute bottom-4 right-4 rounded-xl bg-white p-3 shadow">{t('Memuat DisasterWatch...')}</div>}><ReportModal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         activeDisaster={activeDisaster}
         onReportSuccess={handleNewReportSuccess}
         onIntelReport={handleIntelReport}
-      />}
+      /></Suspense>}
 
       {/* Standalone Donation & Aid Distribution Modal */}
-      {activeDisaster && <DonationModal
+      {activeDisaster && isDonationModalOpen && <Suspense fallback={<div role="status" className="absolute bottom-4 right-4 rounded-xl bg-white p-3 shadow">{t('Memuat DisasterWatch...')}</div>}><DonationModal
         isOpen={isDonationModalOpen}
         onClose={() => setIsDonationModalOpen(false)}
         disaster={activeDisaster}
         onAidAdded={handleAidAdded}
-      />}
+      /></Suspense>}
     </div>
   );
 }
