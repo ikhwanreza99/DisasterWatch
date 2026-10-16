@@ -516,6 +516,7 @@ export default function App() {
         <main className="relative flex-1 grid grid-cols-12 overflow-hidden min-h-0 md:min-h-[60vh]">
           {/* Left Category Filter Dock */}
           <CategoryFilterBar
+            availableCategories={moderationLoaded ? Object.values(disasters).map(d => d.category) : []}
             activeCategory={activeCategory}
             onSelectCategory={handleSelectCategory}
             isDarkMode={isDarkMode}
@@ -537,7 +538,7 @@ export default function App() {
             </button>
             ) : null}
             onHighlightDisaster={setHighlightedDisasterKey}
-            mobileFilterSlot={<CategoryFilterBar mobile activeCategory={activeCategory} onSelectCategory={handleSelectCategory} isDarkMode={isDarkMode} />}
+            mobileFilterSlot={<CategoryFilterBar availableCategories={moderationLoaded ? Object.values(disasters).map(d => d.category) : []} mobile activeCategory={activeCategory} onSelectCategory={handleSelectCategory} isDarkMode={isDarkMode} />}
             onStartAIChat={isAIOpen ? undefined : (message, file) => {
               handleOpenAI(false);
               setAiDraft({ message, file });
