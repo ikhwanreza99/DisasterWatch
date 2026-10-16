@@ -9,3 +9,13 @@ The snapshot contains all 86 records in the downloaded BNPB table within this in
 - This is a reviewed, dated snapshot; no automatic national discovery job is claimed. Reimport and review the snapshot and update the range before publishing a new period.
 - Article publication dates remain null when unknown. Event dates are never substituted for publication dates.
 - Reviewed detik/RRI article metadata lives in `src/data/currentMedia.ts`. Paid crawler queries now include detik, RRI, ANTARA and Kompas, with exact location and date constraints; returned candidates still require relevance checks. Live paid crawling was not run during this update.
+
+## Pembaruan 17 Oktober 2026
+
+Rentang aktif: 14 hari kalender termasuk hari ini, WIB (4–17 Oktober pada saat pembaruan). Importer sekarang memakai 14 hari, bukan 7 hari.
+
+Sebanyak 27 laporan tambahan yang belum ada dalam snapshot sebelumnya ditambahkan dari tabel BNPB yang terindeks dan diakses 17 Oktober. Total arsip menjadi 113 laporan dalam 68 kelompok wilayah/jenis, ditambah dua lokasi dari sumber lain. Filter runtime tetap membuang laporan di luar 14 hari. Tanggal laporan terbaru yang tersedia adalah 14 Oktober, bukan klaim cakupan lengkap sampai 17 Oktober. Endpoint tabel langsung (GET dan POST) mengembalikan HTTP 500 saat pemeriksaan; tautan dokumentasi individual yang tidak tersedia tidak direka. `sourceEvidence=BNPB_INDEXED_TABLE` menandai bukti tabel resmi tersebut, bukan artikel berita buatan.
+
+Koordinat Pasuruan pada CSV berada di luar Jawa Timur sehingga ditolak. Titik representatif memakai tengah rentang astronomis Pemkab (-7.75, 112.85), dengan sumber dan pemberitahuan bahwa ini bukan lokasi kejadian: https://www.pasuruankab.go.id/halaman/gambaran-umum-kabupaten-pasuruan-2021 . Koordinat baru lainnya memakai dataset wilayah di atas dan lolos pemeriksaan batas provinsi; tetap membutuhkan pemeriksaan lokasi presisi.
+
+Helpdesk menjawab permintaan 14 hari secara deterministik dari daftar yang benar-benar tampil dan telah melewati moderasi, dengan tanggal, jenis, rentang WIB, dan batas cakupan sumber.

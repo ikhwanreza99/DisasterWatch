@@ -4,7 +4,7 @@ import csv,re,json,html,sys
 from datetime import date,datetime,timedelta
 from zoneinfo import ZoneInfo
 end=date.fromisoformat(sys.argv[3]) if len(sys.argv)>3 else datetime.now(ZoneInfo('Asia/Jakarta')).date()
-start=end-timedelta(days=6)
+start=end-timedelta(days=13)
 from pathlib import Path
 norm=lambda s: re.sub(r'[^a-z]','',re.sub(r'^kabupaten\s+','',s.lower()))
 coord_groups={}

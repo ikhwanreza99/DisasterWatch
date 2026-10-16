@@ -2,7 +2,7 @@ import { initialAiWorkflow } from './services/appEntry';
 import {fetchSnapshot} from './services/snapshotCache';
 import { applyDisasterDecisions } from './services/disasterModeration';
 import React, { lazy, Suspense, useEffect, useState } from 'react';
-import { currentArticles, currentIncidents } from './data/currentIncidents';
+import { currentArticles, currentIncidents, currentRecords } from './data/currentIncidents';
 import { newsSourceUrl } from './services/newsSourceUrl';
 import { classifyRelevance } from './services/incidentNews';
 import { descriptorFor } from './services/incidentRegistry';
@@ -78,6 +78,9 @@ export default function App() {
         return descriptor !== null && classifyRelevance(article, descriptor).status === 'MATCHED';
       })
       .map(article => article.incidentId!));
+    // Official table evidence also supports records whose documentation link
+    // cannot be recovered from the indexed BNPB table. Do not invent an article.
+    currentRecords.filter(record => record.sourceEvidence === 'BNPB_INDEXED_TABLE').forEach(record => covered.add(record.id));
     // Keep the dedicated NTT case accessible independently of the recent dataset.
     return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => id === NTT_CASE_ID || covered.has(id)));
   });

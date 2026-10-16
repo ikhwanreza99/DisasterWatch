@@ -6,7 +6,7 @@ import type { DisasterIncident, DisasterCategory } from '../types';
 import type { IncidentArticle } from '../domain/incidentDetail';
 
 // Reviewed snapshot, not a claim that these incidents are still active now.
-export const CURRENT_REVIEWED_AT = '2026-10-12';
+export const CURRENT_REVIEWED_AT = '2026-10-17';
 const bnpb = 'https://gis.bnpb.go.id/databencana/tabel/pencarian.php';
 const reviewedRecords = [
   { id: 'padang', name: 'Kota Padang', province: 'Sumatera Barat', category: 'flood', date: '2026-10-10', lat: -0.9471, lng: 100.4172, aliases: ['Kota Padang', 'Kuranji', 'Koto Tangah', 'Nanggalo'], source: 'BNPB', url: bnpb, summary: 'Banjir tercatat di Kuranji, Koto Tangah, dan Nanggalo.' },
@@ -20,6 +20,7 @@ const reviewedRecords = [
 export interface CurrentRecord {
   id: string; name: string; province: string; category: DisasterCategory; date: string;
   coordinateSource?: string; coordinateNotice?: string; coordinatePrecision?: string;
+  sourceEvidence?: string; reviewedAt?: string;
   startDate?: string; disasterLabel?: string; lat: number; lng: number; aliases: readonly string[];
   source: string; url: string; summary: string; reports?: {date: string; location: string; documentationUrl?: string | null; impact?: Record<string, number | null>}[];
 }
@@ -49,7 +50,7 @@ export const currentIncidents: Record<string, DisasterIncident> = Object.fromEnt
     urgencyClass: 'bg-blue-50 text-blue-700 border-blue-200',
     impact: 'Dampak belum diverifikasi', cost: 'Belum tersedia', gapRecovery: 'Belum tersedia',
     recoveryPct: 0, recoveryServices: [], coords: { lat: r.lat, lng: r.lng },
-    timestamp: `Laporan ${r.date} · Ditinjau 12 Okt 2026`,
+    timestamp: `Laporan ${r.date} · Ditinjau ${r.reviewedAt ?? '2026-10-12'}`,
     photoUrl: '', photoAlt: '', photoSource: r.source,
     stats: { hotspots: 'Belum tersedia', hotspotsChange: '', loss: 'Belum tersedia', lossChange: '', personnel: 'Belum tersedia', personnelChange: '' },
     guide: { title: 'Informasi kejadian', cause: r.summary, hazards: 'Ikuti pembaruan BPBD setempat.', safeRadius: 'Belum tersedia', protocols: [], evacRoute: 'Rute evakuasi belum diverifikasi.' },
