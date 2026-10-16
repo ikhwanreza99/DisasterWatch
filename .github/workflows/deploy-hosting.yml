@@ -142,11 +142,28 @@ jobs:
           path: public/data/google-status.json
           key: google-status-v1-${{ github.run_id }}-${{ github.run_attempt }}
 
+      # Keep the previous FIRMS snapshot so a NASA outage (or a missing key)
+      # never removes /data/firms.json from production: the client falls back to
+      # this file whenever the live proxy is unavailable.
+      - name: Restore last FIRMS snapshot
+        uses: actions/cache/restore@v4
+        with:
+          path: public/data/firms.json
+          key: firms-snapshot-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: firms-snapshot-v1-
+
+      # Server-side only: the MAP_KEY never reaches the browser bundle.
       - name: Snapshot FIRMS without exposing the backend key
         continue-on-error: true
         run: node --import tsx scripts/fetchFirmsSnapshot.ts
         env:
-          NASA_FIRMS_MAP_KEY: ${{ secrets.NASA_FIRMS_MAP_KEY || secrets.VITE_NASA_FIRMS_MAP_KEY }}
+          NASA_FIRMS_MAP_KEY: ${{ secrets.NASA_FIRMS_MAP_KEY }}
+
+      - name: Preserve FIRMS snapshot
+        uses: actions/cache/save@v4
+        with:
+          path: public/data/firms.json
+          key: firms-snapshot-v1-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Build (Vite production)
         run: npm run build
@@ -165,7 +182,7 @@ jobs:
       - name: Guard — no server-only secret in the published bundle
         run: npm run check:bundle-secrets
         env:
-          NASA_FIRMS_MAP_KEY: ${{ secrets.NASA_FIRMS_MAP_KEY || secrets.VITE_NASA_FIRMS_MAP_KEY }}
+          NASA_FIRMS_MAP_KEY: ${{ secrets.NASA_FIRMS_MAP_KEY }}
           DISASTERWATCH_GEMINI_SEARCH_KEY: ${{ secrets.DISASTERWATCH_GEMINI_SEARCH_KEY }}
           VITE_GEMINI_DIRECT_API_KEY: ${{ secrets.VITE_GEMINI_DIRECT_API_KEY }}
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
@@ -197,7 +214,7 @@ jobs:
         continue-on-error: true
         env:
           GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
-          FIRMS_KEY: ${{ secrets.NASA_FIRMS_MAP_KEY || secrets.VITE_NASA_FIRMS_MAP_KEY }}
+          FIRMS_KEY: ${{ secrets.NASA_FIRMS_MAP_KEY }}
         run: |
           upsert() {
             name="$1"; value="$2"

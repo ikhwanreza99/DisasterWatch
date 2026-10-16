@@ -46,9 +46,9 @@ Without any keys the app still runs: it uses demo data, Leaflet/OSM and local fa
 |---|---|
 | `VITE_GOOGLE_MAPS_API_KEY` | Google Maps + Google Weather. Restrict it by HTTP referrer. |
 | `VITE_FIREBASE_*` | Firestore, Auth and App Check (optional; demo data is used when empty) |
-| `VITE_GEMINI_API_KEY`, `VITE_GEMINI_MODEL` | AI helpdesk / report extraction (optional) |
-| `NASA_FIRMS_MAP_KEY` | FIRMS in local dev. Server-side only, injected by the Vite proxy. |
-| `VITE_NASA_FIRMS_MAP_KEY` | FIRMS in production (built into the browser bundle) |
+| `VITE_GEMINI_MODEL` | Gemini model name only (optional). No API key is bundled. |
+| `GEMINI_API_KEY` | Server-side only: Gemini proxy (`/api/ai/generate`). Never `VITE_`-prefixed. |
+| `NASA_FIRMS_MAP_KEY` | Server-side only: FIRMS proxy and the build-time snapshot. Never `VITE_`-prefixed. |
 
 A free FIRMS key is available at https://firms.modaps.eosdis.nasa.gov/api/map_key/.
 

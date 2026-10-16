@@ -105,6 +105,25 @@ const status: Record<string, string> = {
   // Snapshot load failure (GoogleStatusPage)
   'Laporan backend belum tersedia atau gagal dimuat. Jalankan workflow Deploy untuk menerbitkannya.':
     'The backend report is not available yet or failed to load. Run the Deploy workflow to publish it.',
+
+  // API key security panel (GoogleStatusPage) — build-time evidence only.
+  'Keamanan kunci API': 'API key security',
+  'Ringkasan kebijakan kunci. Tidak ada nilai kunci yang ditampilkan di halaman ini.':
+    'Key policy summary. No key value is shown on this page.',
+  'Kunci server di bundel browser': 'Server keys in the browser bundle',
+  'Tidak ditemukan: guard otomatis memindai bundel saat build.':
+    'None found: an automatic guard scans the bundle at build time.',
+  'Transport AI': 'AI transport',
+  'Firebase AI Logic; kunci Gemini tidak pernah dikirim ke browser.':
+    'Firebase AI Logic; the Gemini key is never sent to the browser.',
+  'Data titik panas FIRMS': 'FIRMS hotspot data',
+  'Lewat proxy server atau snapshot statis; MAP_KEY tidak ada di browser.':
+    'Served via a server proxy or a static snapshot; the MAP_KEY is not in the browser.',
+  'Kunci yang memang publik': 'Keys that are public by design',
+  'Google Maps dan Firebase web API key dibatasi referrer, API restriction, dan App Check.':
+    'The Google Maps and Firebase web API keys are restricted by referrer, API restriction, and App Check.',
+  'Bukti build: {date} · {count} file bundel dipindai · guard otomatis lulus.':
+    'Build evidence: {date} · {count} bundle files scanned · automatic guard passed.',
 };
 
 export default status;

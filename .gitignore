@@ -54,5 +54,8 @@ public/data/incident-narratives.json
 public/data/bnpb-regional.json
 
 public/data/firms.json
+
+# Build-time key-isolation evidence for the status page (no secret values).
+public/data/security.json
 .env.*
 !.env.example

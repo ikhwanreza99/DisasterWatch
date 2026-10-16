@@ -2,7 +2,7 @@ import 'dotenv/config';
 // Guard: fail if a server-only secret value ended up in the published bundle.
 // Vite inlines every VITE_* variable, so server-only secrets must never be
 // referenced with that prefix. Run after `vite build` (CI: after the Build step).
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 // Server-only env var names (never VITE_-prefixed). Only names whose value is
@@ -47,9 +47,11 @@ try {
 const hits: string[] = [];
 for(const file of files){const body=readFileSync(file,'utf8');if(/-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/.test(body)||/"private_key"\s*:\s*"-----BEGIN/.test(body))hits.push(`PRIVATE_KEY → ${file}`);}
 
+const namesChecked: string[] = [];
 for (const name of SERVER_ONLY) {
   const value = (process.env[name] || "").trim();
   if (value.length < 8) continue;
+  namesChecked.push(name);
   for (const file of files) {
     if (readFileSync(file, "utf8").includes(value)) hits.push(`${name} → ${file}`);
   }
@@ -60,4 +62,21 @@ if (hits.length) {
   for (const hit of hits) console.error(`  - ${hit}`);
   process.exit(1);
 }
+// Publish build-time evidence for the status page (/data/security.json).
+// Counts and a boolean only — never a secret value, and not the name list.
+const evidence = {
+  version: 1,
+  generatedAt: new Date().toISOString(),
+  revision: process.env.GITHUB_SHA || null,
+  bundleSecrets: { clean: true, filesScanned: files.length, namesChecked: namesChecked.length },
+};
+for (const dir of ["dist/data", "public/data"]) {
+  try {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "security.json"), `${JSON.stringify(evidence, null, 2)}\n`);
+  } catch {
+    // Non-fatal: this file only feeds the status page.
+  }
+}
+
 console.log(`checkBundleSecrets: clean (${files.length} files scanned).`);
