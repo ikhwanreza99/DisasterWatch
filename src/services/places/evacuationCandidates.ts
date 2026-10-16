@@ -5,7 +5,7 @@ export const FACILITY_TYPES = ['mosque','church','school','primary_school','seco
 export const MAX_CANDIDATES = 5;
 // Google often pins several distinct venues to one shared plus-code/coordinate. Two
 // "facilities" that close are one site on the map, so only the nearest is kept.
-const MIN_SEPARATION_METERS = 50;
+const MIN_SEPARATION_METERS = 250;
 // When every candidate sits this close to the reference, the reference is a plus-code
 // shared by many venues, not a real site: the caller should re-anchor to the reported area.
 export const AMBIGUOUS_ANCHOR_METERS = 25;

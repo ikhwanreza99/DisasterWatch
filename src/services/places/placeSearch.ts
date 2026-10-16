@@ -125,7 +125,7 @@ export async function nearbyFacilities(lat:number,lng:number,radius:number):Prom
   const {FACILITY_TYPES}=await import('./evacuationCandidates');
   if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)throw new Error('Koordinat bencana belum valid');
   const response=await call<{places?:import('./evacuationCandidates').FacilityPlace[]}>(`${API}/places:searchNearby`,{
-    method:'POST',body:JSON.stringify({includedTypes:FACILITY_TYPES,maxResultCount:20,rankPreference:'DISTANCE',languageCode:'id',locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius}}}),
+    method:'POST',body:JSON.stringify({includedTypes:FACILITY_TYPES,maxResultCount:20,rankPreference:'POPULARITY',languageCode:'id',locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius}}}),
   },'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.businessStatus,places.addressComponents',AbortSignal.timeout(30000));
   return response.places??[];
 }

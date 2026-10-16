@@ -455,12 +455,13 @@ const GoogleMapCameraController: React.FC<{
   activeDisaster: DisasterIncident | undefined;
   isRouteOpen: boolean;
   routePoints: google.maps.LatLngLiteral[];
+  selectedPostPoint?: google.maps.LatLngLiteral | null;
   zoomTrigger: { action: 'in' | 'out' | 'reset'; id: number } | null;
   mapType: GoogleMapType;
   onZoomChange: (zoom: number) => void;
   weatherFocusCoords?: { lat: number; lng: number } | null;
   focusTarget?: FocusTarget | null;
-}> = ({ activeDisaster, isRouteOpen, routePoints, zoomTrigger, mapType, onZoomChange, weatherFocusCoords, focusTarget }) => {
+}> = ({ activeDisaster, isRouteOpen, routePoints, selectedPostPoint, zoomTrigger, mapType, onZoomChange, weatherFocusCoords, focusTarget }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -494,11 +495,21 @@ const GoogleMapCameraController: React.FC<{
   }, [map, activeDisaster?.id]);
 
   useEffect(() => {
-    if (!map || !isRouteOpen || routePoints.length < 2) return;
+    if (!map || !isRouteOpen || routePoints.length === 0) return;
     const bounds = new google.maps.LatLngBounds();
     routePoints.forEach((pt) => bounds.extend(pt));
-    map.fitBounds(bounds, { top: 90, bottom: 90, left: 90, right: 90 });
-  }, [map, isRouteOpen, routePoints]);
+    if (typeof activeDisaster?.coords?.lat === 'number' && typeof activeDisaster?.coords?.lng === 'number') {
+      bounds.extend({ lat: activeDisaster.coords.lat, lng: activeDisaster.coords.lng });
+    }
+    const rightPad = window.matchMedia('(max-width: 639px)').matches ? 60 : 460;
+    map.fitBounds(bounds, { top: 90, bottom: 90, left: 90, right: rightPad });
+  }, [map, isRouteOpen, routePoints, activeDisaster?.coords?.lat, activeDisaster?.coords?.lng]);
+
+  useEffect(() => {
+    if (!map || !isRouteOpen || !selectedPostPoint) return;
+    map.panTo(selectedPostPoint);
+    if ((map.getZoom() || 12) < 14) map.setZoom(14);
+  }, [map, isRouteOpen, selectedPostPoint]);
 
   useEffect(() => {
     if (!map || !zoomTrigger) return;
@@ -1057,7 +1068,7 @@ const OSMMapRenderer: React.FC<{
     rGroup.clearLayers();
 
     if (!isRouteOpen || !activeData || !activeData.route) return;
-    const checkpoints = activeData.route.checkpoints || [];
+    const checkpoints = (activeData.route.checkpoints || []).slice(0, 5);
     const pts: [number, number][] = [];
 
     checkpoints.forEach((cp, idx) => {
@@ -1088,10 +1099,35 @@ const OSMMapRenderer: React.FC<{
       rGroup.addLayer(L.polyline(pts, { color: '#ea580c', weight: 8, opacity: 0.35 }));
       rGroup.addLayer(L.polyline(pts, { color: '#f97316', weight: 3.5, opacity: 0.95, dashArray: '8, 8' }));
     }
-    if(pts.length>0) {
-      map.fitBounds(L.latLngBounds(pts), { padding: [90, 90], animate: true, duration: 1.0 });
+  }, [isRouteOpen, activeData, selectedPostId, onSelectPost, t]);
+
+  useEffect(() => {
+    if (!mapRef.current || !isRouteOpen || !activeData || !activeData.route) return;
+    const checkpoints = (activeData.route.checkpoints || []).slice(0, 5);
+    const pts: [number, number][] = checkpoints
+      .filter((cp): cp is typeof cp & { lat: number; lng: number } => typeof cp.lat === 'number' && typeof cp.lng === 'number')
+      .map((cp) => [cp.lat, cp.lng]);
+    if (typeof activeData.coords.lat === 'number' && typeof activeData.coords.lng === 'number') {
+      pts.push([activeData.coords.lat, activeData.coords.lng]);
     }
-  }, [isRouteOpen, activeData, selectedPostId, onSelectPost]);
+    if (pts.length > 0) {
+      const rightPad = window.matchMedia('(max-width: 639px)').matches ? 60 : 460;
+      mapRef.current.fitBounds(L.latLngBounds(pts), {
+        paddingTopLeft: [90, 90],
+        paddingBottomRight: [rightPad, 90],
+        animate: true,
+        duration: 1.0,
+      });
+    }
+  }, [isRouteOpen, activeData]);
+
+  useEffect(() => {
+    if (!mapRef.current || !isRouteOpen || selectedPostId === null || !activeData?.route) return;
+    const cp = (activeData.route.checkpoints || []).slice(0, 5).find((item) => item.id === selectedPostId);
+    if (cp && typeof cp.lat === 'number' && typeof cp.lng === 'number') {
+      mapRef.current.flyTo([cp.lat, cp.lng], Math.max(mapRef.current.getZoom(), 14), { duration: 0.8 });
+    }
+  }, [isRouteOpen, selectedPostId, activeData]);
 
   return (
     <>
@@ -1427,10 +1463,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
   const activeData = disasters[activeDisasterKey];
 
-  // Route checkpoint points for Google Maps
+  // Route checkpoint points for Google Maps (max 5 per disaster)
   const googleRoutePoints = useMemo<google.maps.LatLngLiteral[]>(() => {
     if (!isRouteOpen || !activeData || !activeData.route) return [];
-    const checkpoints = activeData.route.checkpoints || [];
+    const checkpoints = (activeData.route.checkpoints || []).slice(0, 5);
     return checkpoints.map((cp, idx) => {
       if (typeof cp.lat === 'number' && typeof cp.lng === 'number') {
         return { lat: cp.lat, lng: cp.lng };
@@ -1443,6 +1479,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       };
     });
   }, [isRouteOpen, activeData]);
+
+  const selectedGooglePostPoint = useMemo<google.maps.LatLngLiteral | null>(() => {
+    if (!isRouteOpen || selectedPostId === null || !activeData?.route) return null;
+    const cp = (activeData.route.checkpoints || []).slice(0, 5).find((item) => item.id === selectedPostId);
+    return cp && typeof cp.lat === 'number' && typeof cp.lng === 'number' ? { lat: cp.lat, lng: cp.lng } : null;
+  }, [isRouteOpen, selectedPostId, activeData]);
 
   const handleZoomAction = (action: 'in' | 'out' | 'reset') => {
     setZoomTrigger({ action, id: Date.now() });
@@ -1540,6 +1582,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                 activeDisaster={activeData}
                 isRouteOpen={isRouteOpen}
                 routePoints={googleRoutePoints}
+                selectedPostPoint={selectedGooglePostPoint}
                 zoomTrigger={zoomTrigger}
                 mapType={googleMapType}
                 onZoomChange={handleZoomChange}
