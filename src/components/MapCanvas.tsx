@@ -238,7 +238,7 @@ function escHtml(s: string): string {
 function cityWeatherChipHtml(c: CityWeather, air?: AirQualityNow | null): string {
   const w = c.weather;
   const badge = air
-    ? `<span class="ml-0.5 rounded-full px-1.5 py-[1px] text-[10px] font-black text-white" style="background:${escHtml(air.color)}" title="AQI: ${escHtml(air.aqiDisplay)}${air.category ? ` — ${escHtml(air.category)}` : ''}">${escHtml(air.aqiDisplay)}</span>`
+    ? `<span class="ml-0.5 rounded-full px-1.5 py-[1px] text-[10px] font-black text-white" style="background:${escHtml(air.color)}" title="UAQI: ${escHtml(air.aqiDisplay)}${air.category ? ` — ${escHtml(air.category)}` : ''}">${escHtml(air.aqiDisplay)}</span>`
     : '';
   return (
     `<div class="flex items-center gap-1 pl-0.5 pr-2 py-0.5 rounded-full bg-white/95 border border-sky-300 shadow-md whitespace-nowrap cursor-pointer transform -translate-x-1/2 -translate-y-1/2">` +
@@ -258,7 +258,7 @@ function cityWeatherPopupHtml(c: CityWeather, air?: AirQualityNow | null): strin
     `<div><b>${Math.round(w.temperature)}°C</b> ${translate('(terasa {temp}°C)', { temp: Math.round(w.feelsLike) })} • ${escHtml(w.conditionText)}</div>` +
     `<div>${translate('Hujan:')} <b>${w.rainProbability}%</b> • ${translate('Kelembapan:')} <b>${w.humidity}%</b> • ${translate('Angin:')} <b>${Math.round(w.windSpeed)} ${translate('km/j')}</b></div>` +
     (air
-      ? `<div style="margin-top:2px">🌫 ${translate('Kualitas udara (UAQI):')} <b style="color:${escHtml(air.color)}">${escHtml(air.aqiDisplay)}</b>${air.category ? ` ${escHtml(air.category)}` : ''}` +
+      ? `<div style="margin-top:2px">🌫 ${translate('Kualitas udara (UAQI):')} <b style="color:${escHtml(air.color)}">${escHtml(air.aqiDisplay)}</b>${air.category ? ` ${escHtml(air.category)}` : ''} • ${translate('makin tinggi makin baik')}` +
         (air.dominantPollutant ? ` • ${translate('polutan dominan')}: <b>${escHtml(air.dominantPollutant.toUpperCase())}</b>` : '') +
         `</div>`
       : '') +
@@ -2153,6 +2153,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                               <div className="text-[11px]">
                                 🌫 {t('Kualitas udara (UAQI):')} <b style={{ color: air.color }}>{air.aqiDisplay}</b>
                                 {air.category ? ` ${air.category}` : ''}
+                                {` • ${t('makin tinggi makin baik')}`}
                                 {air.dominantPollutant ? ` • ${t('polutan dominan')}: ${air.dominantPollutant.toUpperCase()}` : ''}
                               </div>
                             )}
@@ -2169,7 +2170,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                             <span
                               className="ml-0.5 rounded-full px-1.5 py-[1px] text-[10px] font-black text-white"
                               style={{ background: air.color }}
-                              title={`AQI: ${air.aqiDisplay}${air.category ? ` — ${air.category}` : ''}`}
+                              title={`UAQI: ${air.aqiDisplay}${air.category ? ` — ${air.category}` : ''}`}
                             >
                               {air.aqiDisplay}
                             </span>

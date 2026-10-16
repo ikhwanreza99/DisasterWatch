@@ -90,6 +90,9 @@ const weather: Record<string, string> = {
   'Cuaca & kualitas udara {name}': 'Weather & air quality {name}',
   'Kualitas udara (UAQI):': 'Air quality (UAQI):',
   'polutan dominan': 'dominant pollutant',
+  // Google's Universal AQI runs opposite to conventional AQIs: 100 is cleanest
+  // and 0 is worst, so the UI has to say so or the number reads backwards.
+  'makin tinggi makin baik': 'higher is better',
 };
 
 export default weather;
