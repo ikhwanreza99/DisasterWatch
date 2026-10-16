@@ -25,9 +25,9 @@ const detail: Record<string, string> = {
   // AutomaticImpact
   'Belum tersedia': 'Not yet available',
   'Kerusakan fisik rumah · estimasi, bukan nilai resmi': 'Physical housing damage · estimate, not an official figure',
-  'rumah rusak tercatat × Rp100 juta/rumah × 30%.': 'damaged homes recorded × Rp100 million/home × 30%.',
+  'rumah rusak tercatat × Rp100 juta/rumah × 30%.': 'damaged homes recorded × IDR 100 million/home × 30%.',
   'Dasar estimasi': 'Estimation basis',
-  'Biaya dan severity ditetapkan pengguna: Rp100 juta/rumah dan 30%.': 'Cost and severity are user-defined: Rp100 million/home and 30%.',
+  'Biaya dan severity ditetapkan pengguna: Rp100 juta/rumah dan 30%.': 'Cost and severity are user-defined: IDR 100 million/home and 30%.',
   'Jumlah rumah memakai laporan BNPB {date} yang sama dengan kartu Dampak tercatat. Angka agregat provinsi tidak mengganti jumlah rumah kejadian ini. Biaya penggantian dan severity merupakan asumsi perhitungan, bukan hasil asesmen teknis.': "The number of homes uses the BNPB report {date}, the same as the Recorded impact card. Provincial aggregate figures do not replace this incident's home count. Replacement cost and severity are calculation assumptions, not the result of a technical assessment.",
   'Tanggal kejadian {date} · {days} hari berlalu (WIB). Durasi bukan bukti gangguan ekonomi masih berlangsung. Kerugian ekonomi harian dan total gabungan belum tersedia.': 'Incident date {date} · {days} days elapsed (WIB). Duration is not evidence that economic disruption is ongoing. Daily economic loss and the combined total are not yet available.',
   'Sumber BNPB': 'BNPB source',

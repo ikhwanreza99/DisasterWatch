@@ -1,3 +1,4 @@
+import { incidentText } from '../../i18n/incidentText';
 // Disaster incident marker + callout design (ported from feat/homepage-slicing prototype):
 // coloured circle with a white line icon per category, and a frosted-glass callout.
 // Used by both map engines: React components for Google AdvancedMarker, HTML strings for Leaflet.
@@ -150,9 +151,9 @@ export const DisasterCallout: React.FC<{
           </button>
         </span>
       </div>
-      <div className="mt-1 text-[11px] text-slate-300/90">{incident.province}</div>
+      <div className="mt-1 text-[11px] text-slate-300/90">{t(incident.province)}</div>
       <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold text-amber-300">{incident.fullName}</span>
+        <span className="text-xs font-semibold text-amber-300">{t(incident.fullName)}</span>
         <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-200 border border-rose-400/35">
           {t(incident.urgency)}
         </span>
@@ -160,7 +161,7 @@ export const DisasterCallout: React.FC<{
       <div className="my-3 h-px bg-gradient-to-r from-white/20 via-white/10 to-transparent" />
       <div className="flex items-center gap-2 text-[10px] font-medium text-slate-300">
         <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.65)]" />
-        <span>{incident.timestamp}</span>
+        <span>{incidentText(incident.timestamp)}</span>
       </div>
     </div>
     {onViewDetail && <button type="button" onClick={event => { event.stopPropagation(); onViewDetail(); }} className="sm:hidden relative z-10 mt-3 min-h-11 w-full rounded-xl bg-white/15 px-4 text-xs font-bold hover:bg-white/25">{t('Lihat detail')}</button>}

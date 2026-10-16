@@ -25,3 +25,17 @@ test('Indonesian renders immediately and saved English renders translated after 
   else Reflect.deleteProperty(globalThis, 'window');
  }
 });
+
+
+test('generated incident labels translate without changing Indonesian source data or location names', async () => {
+  const { incidentText } = await import('../src/i18n/incidentText.ts');
+  const recovery = '41.2% terpenuhi · estimasi bantuan (5/9 kategori)';
+  assert.equal(incidentText(recovery, 'en'), '41.2% fulfilled · estimated aid (5/9 categories)');
+  assert.equal(incidentText(recovery, 'id'), recovery);
+  assert.equal(incidentText('Laporan 2026-10-06 · Ditinjau 12 Okt 2026', 'en'), 'Reported 2026-10-06 · Reviewed 12 Oct 2026');
+  assert.equal(incidentText('Kecamatan: Kec. Watukumpul Ds. Tanah Merah', 'en'), 'Districts: Dist. Watukumpul Village Tanah Merah');
+  const { en } = await import('../src/i18n/translations.ts');
+  assert.equal(en['Tanah Longsor'], 'Landslide');
+  assert.equal(en['Jawa Tengah'], 'Central Java');
+  assert.equal(en['jiwa'], 'people');
+});

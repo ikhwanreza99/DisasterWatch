@@ -1,3 +1,4 @@
+import { incidentText } from '../i18n/incidentText';
 import { useAidRecovery } from '../services/useAidRecovery';
 import { AutomaticImpact } from './detail/AutomaticImpact';
 import React from 'react';
@@ -209,10 +210,10 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="text-[14px] font-bold text-slate-900 leading-snug break-words whitespace-normal">
-                  {disaster.name}, {disaster.province}
+                  {disaster.name}, {t(disaster.province)}
                 </h3>
                 <p className="text-xs font-semibold text-slate-500 mt-1">
-                  {disaster.fullTitleDisplay}
+                  {t(disaster.fullTitleDisplay)}
                 </p>
                 {mobile && <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
@@ -234,7 +235,7 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
               <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
                 <span className="text-[11px] font-medium text-slate-400 block">{t('Gap Recovery')}</span>
                 <strong className="mt-1 text-[18px] font-bold text-slate-900 block">
-                  {t(disaster.gapRecovery)}
+                  {incidentText(t(disaster.gapRecovery))}
                 </strong>
                 <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                   <div
@@ -313,7 +314,7 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
                       {config.label}
                     </span>
                     <span className="text-[9px] text-slate-400 font-medium">
-                      {type === 'water' && disaster.gapRecovery.includes('estimasi bantuan') ? 'Estimasi bantuan' : t('Status Recovery')}
+                      {type === 'water' && disaster.gapRecovery.includes('estimasi bantuan') ? t('Estimasi bantuan') : t('Status Recovery')}
                     </span>
                   </div>
 

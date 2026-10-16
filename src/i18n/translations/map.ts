@@ -141,6 +141,8 @@ const map: Record<string, string> = {
   'Tampilkan lokasi saya': 'Show my location',
   'Sembunyikan layer data API': 'Hide API data layers',
   'Tampilkan layer data API': 'Show API data layers',
+  'Ingin melihat bencana real-time dari API? Klik ikon mata ini.': 'Want to see real-time disaster data from APIs? Click this eye icon.',
+  'Tutup tips layer API': 'Dismiss API layer tip',
   'Sembunyikan legenda MAGMA': 'Hide MAGMA legend',
   'Tampilkan legenda MAGMA': 'Show MAGMA legend',
 

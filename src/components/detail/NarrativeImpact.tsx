@@ -9,7 +9,7 @@ export function NarrativeImpact({incidentId}:{incidentId:string}){
  // Reported impact rows keep the source's own label and unit; aid and loss rows
  // keep their fixed labels.
  const label=(f:NarrativeFact)=>f.kind==='IMPACT'?t(f.item):f.kind==='LOSS'?t('Kerugian dilaporkan'):f.kind==='BENEFICIARIES'?t('Perkiraan penerima manfaat bantuan'):t('Perkiraan nilai bantuan dilaporkan');
- const unit=(f:NarrativeFact)=>f.kind==='IMPACT'?t(f.unit):f.unit;
+ const unit=(f:NarrativeFact)=>t(f.unit);
  return <div className="mt-3 space-y-2 rounded-xl border border-cyan-100 bg-cyan-50/70 p-3 text-xs text-slate-700">
   <strong>{t('Angka dari narasi berita')}</strong>
   {facts.map((f,i)=><p key={i}>{label(f)}{f.organization?` · ${f.organization}`:''}: <b>{f.unit==='Rp'?'Rp ':''}{f.quantity.toLocaleString(locale)}{f.unit==='Rp'?'':` ${unit(f)}`}</b> <a className="text-blue-600 underline" href={f.sourceUrl} target="_blank" rel="noreferrer">{f.sourceName}</a></p>)}

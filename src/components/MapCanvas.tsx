@@ -1201,6 +1201,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
   // API layers load only after the user enables the eye control.
   const [localApiLayers, setLocalApiLayers] = useState(false);
+  const [showApiLayerTip, setShowApiLayerTip] = useState(true);
   const showApiLayers = apiLayersEnabled ?? localApiLayers;
   const showFlood = showApiLayers && (activeCategory === 'flood' || activeCategory === 'all');
   const flood = useFlood(showFlood);
@@ -2520,11 +2521,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             >
               {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
             </button>
-            <div className="flex gap-2">
+            <div className="relative flex gap-2">
               {/* Master on/off for all API data layers (BMKG, cuaca, FIRMS, MAGMA, VAAC) */}
               <button
                 type="button"
-                onClick={toggleApiLayers}
+                onClick={() => { setShowApiLayerTip(false); toggleApiLayers(); }}
+                aria-describedby={showApiLayerTip && !showApiLayers ? 'api-layer-tip' : undefined}
                 aria-pressed={showApiLayers}
                 aria-label={showApiLayers ? t('Sembunyikan layer data API') : t('Tampilkan layer data API')}
                 title={showApiLayers ? t('Sembunyikan layer data API') : t('Tampilkan layer data API')}
@@ -2533,6 +2535,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
               >
                 {showApiLayers ? <Eye className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4" aria-hidden="true" />}
               </button>
+              {showApiLayerTip && !showApiLayers && (
+                <div id="api-layer-tip" role="note" className="absolute bottom-0 left-[3.25rem] z-40 flex w-56 max-w-[calc(100vw-6rem)] items-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs leading-relaxed text-slate-700 shadow-lg">
+                  <span aria-hidden="true" className="absolute -left-1.5 bottom-4 h-2.5 w-2.5 rotate-45 border-b border-l border-slate-200 bg-white" />
+                  <p>{t('Ingin melihat bencana real-time dari API? Klik ikon mata ini.')}</p>
+                  <button type="button" onClick={() => setShowApiLayerTip(false)} aria-label={t('Tutup tips layer API')} className="-mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-500"><span aria-hidden="true">×</span></button>
+                </div>
+              )}
               {showMagma && (
                 <button
                   type="button"

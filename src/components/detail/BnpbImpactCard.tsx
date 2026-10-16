@@ -1,5 +1,6 @@
 import React from 'react';
 import { useI18n } from '../../i18n';
+import { incidentText } from '../../i18n/incidentText';
 import {incidentImpactBasis} from '../../services/insights/incidentImpactBasis';
 
 const fields = [
@@ -21,7 +22,7 @@ export function BnpbImpactCard({ incidentId }: { incidentId: string }) {
           <summary className="cursor-pointer text-xs font-semibold text-slate-700">
             {t('Laporan {date}', { date: new Date(report.date).toLocaleDateString(locale, {day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Jakarta'}) })}
           </summary>
-          <p className="mt-2 break-words text-[11px] text-slate-500">{report.location}</p>
+          <p className="mt-2 break-words text-[11px] text-slate-500">{incidentText(report.location)}</p>
           <dl className="mt-3 grid grid-cols-2 gap-2">
             {fields.map(([key,label]) => <div key={key} className="min-w-0 rounded-xl bg-white p-2">
               <dt className="text-[11px] text-slate-500">{t(label)}</dt>

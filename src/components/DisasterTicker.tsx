@@ -57,7 +57,7 @@ export function DisasterTicker({ disasters, onHighlight }: DisasterTickerProps) 
       <div className="min-w-0 flex-1 overflow-hidden">
         <div key={item.id} className="disaster-news-track text-xs font-semibold"
           style={{ animationDuration: `${duration}s`, animationPlayState: stopped ? 'paused' : 'running' }}>
-          {t(item.fullName)} — {item.name}, {item.province} • {lang==='en'?item.timestamp.replace(/Laporan /g,'Reported ').replace(/Ditinjau /g,'Reviewed ').replace(/Okt/g,'Oct').replace(/kasus nyata/g,'real case').replace(/hari/g,'days').replace(/jam/g,'hours').replace(/menit/g,'minutes'):item.timestamp} • {t(item.urgency)}
+          {t(item.fullName)} — {item.name}, {t(item.province)} • {lang==='en'?item.timestamp.replace(/Laporan /g,'Reported ').replace(/Ditinjau /g,'Reviewed ').replace(/Okt/g,'Oct').replace(/kasus nyata/g,'real case').replace(/hari/g,'days').replace(/jam/g,'hours').replace(/menit/g,'minutes'):item.timestamp} • {t(item.urgency)}
         </div>
       </div>
       <button type="button" onClick={() => setPaused(value => !value)}

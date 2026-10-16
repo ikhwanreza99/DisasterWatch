@@ -78,7 +78,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
       <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white/90 dark:bg-slate-900/85 backdrop-blur-md border border-slate-200 dark:border-slate-700/80 shadow-md text-xs">
         <img
           src={weather.iconUrl}
-          alt={weather.conditionText}
+          alt={t(weather.conditionText)}
           className="w-5 h-5 object-contain"
           onError={(e) => {
             (e.target as HTMLElement).style.display = 'none';
@@ -90,7 +90,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
           </span>
           <span className="text-slate-400">•</span>
           <span className="text-slate-600 dark:text-slate-300 font-medium truncate max-w-[120px]">
-            {weather.conditionText}
+            {t(weather.conditionText)}
           </span>
         </div>
         {weather.rainProbability > 30 && (
@@ -138,7 +138,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
           <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/60 flex items-center justify-center p-1.5 shadow-xs shrink-0">
             <img
               src={weather.iconUrl}
-              alt={weather.conditionText}
+              alt={t(weather.conditionText)}
               className="w-9 h-9 object-contain"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';
@@ -155,7 +155,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
               </span>
             </div>
             <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-snug">
-              {weather.conditionText}
+              {t(weather.conditionText)}
             </p>
           </div>
         </div>
@@ -249,7 +249,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
                   </span>
                   <img
                     src={day.iconUrl}
-                    alt={day.conditionText}
+                    alt={t(day.conditionText)}
                     className="w-6 h-6 object-contain mx-auto my-1"
                   />
                   <div className="font-bold text-slate-900 dark:text-white">

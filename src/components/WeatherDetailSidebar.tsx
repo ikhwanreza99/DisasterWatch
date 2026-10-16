@@ -296,7 +296,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1 capitalize">
-                    {weather.conditionText}
+                    {t(weather.conditionText)}
                   </h4>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
                     {t('Data satelit dan stasiun meteorologi terdekat')}
@@ -306,7 +306,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white/80 dark:bg-slate-800/80 border border-white/60 dark:border-slate-700/60 flex items-center justify-center p-3 shadow-md shrink-0">
                   <img
                     src={weather.iconUrl}
-                    alt={weather.conditionText}
+                    alt={t(weather.conditionText)}
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = 'none';
@@ -475,7 +475,7 @@ export const WeatherDetailSidebar: React.FC<WeatherDetailSidebarProps> = ({
                       <div className="w-8 h-8 mx-auto my-1">
                         <img
                           src={day.iconUrl}
-                          alt={day.conditionText}
+                          alt={t(day.conditionText)}
                           className="w-full h-full object-contain"
                         />
                       </div>

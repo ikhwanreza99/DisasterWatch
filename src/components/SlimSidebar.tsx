@@ -1,3 +1,4 @@
+import { incidentText } from '../i18n/incidentText';
 import { useAidRecovery } from '../services/useAidRecovery';
 import { AutomaticImpact } from './detail/AutomaticImpact';
 import { NarrativeImpact } from './detail/NarrativeImpact';
@@ -225,7 +226,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
 
             <div className="min-w-0 flex-1">
               <h3 className="text-[17px] font-bold text-slate-900 leading-tight">
-                {disaster.fullTitleDisplay}
+                {t(disaster.fullTitleDisplay)}
               </h3>
 
               <p className="mt-1 text-[13px] font-medium text-slate-500">
@@ -244,7 +245,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
             </div>
             <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
               <p className="text-[11px] font-medium text-slate-400">{t('Gap Recovery')}</p>
-              <p className="mt-1 text-[18px] font-bold text-slate-900">{disaster.gapRecovery ? t(disaster.gapRecovery) : t('Belum tersedia')}</p>
+              <p className="mt-1 text-[18px] font-bold text-slate-900">{disaster.gapRecovery ? incidentText(t(disaster.gapRecovery)) : t('Belum tersedia')}</p>
               <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-amber-500" style={{width: `${disaster.recoveryPct}%`}} /></div>
             </div>
           </div>

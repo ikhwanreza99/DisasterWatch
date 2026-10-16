@@ -1,3 +1,4 @@
+import { incidentText } from '../../i18n/incidentText';
 import { newsSourceUrl } from '../../services/newsSourceUrl';
 // Incident news panel: MATCHED articles by default, REVIEW_REQUIRED in a separate filter.
 // Freshness + crawl-error states never block the dashboard.
@@ -70,6 +71,10 @@ export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched: matc
       <div className={compact ? "mt-3 space-y-2" : "mt-3 flex-1 min-h-0 space-y-3 overflow-y-auto overscroll-contain pr-1"}>
         {selected.slice(0, compact && !expanded ? 2 : undefined).map((item) => {
           const report = { title: item.title, desc: item.summary || item.title };
+          const generated = item.discoveredBy === 'bnpb-documentation';
+          const prefix = ['Kebakaran Hutan Dan Lahan', 'Tanah Longsor', 'Gempabumi', 'Banjir', 'Kekeringan', 'Cuaca Ekstrem'].find(label => item.title.startsWith(label + ' '));
+          const title = generated && prefix ? t(prefix) + item.title.slice(prefix.length) : item.title;
+          const displayText = item.summary ? `${title} — ${generated ? incidentText(item.summary) : item.summary}` : title;
           const category = newsCategoryStyles[classifyNews(report)];
           return (
           <article key={item.url} className={compact ? "min-w-0 rounded-xl bg-slate-50 border border-slate-100 px-3 py-3" : "min-w-0 p-3 bg-slate-50/80 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all shrink-0"} data-testid="news-card">
@@ -80,13 +85,13 @@ export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched: matc
               </div>
               <time className="text-[10px] text-slate-400 font-medium shrink-0">{fmt(item.publishedAt || item.eventDate || null, locale)}</time>
             </div>
-            <p className="break-words text-xs text-slate-600 leading-snug mb-2">{item.summary ? `${item.title} — ${item.summary}` : item.title}</p>
+            <p className="break-words text-xs text-slate-600 leading-snug mb-2">{displayText}</p>
             <div className="flex flex-wrap items-center justify-between gap-2 text-[10px]">
               {!compact && <span className={`font-semibold px-2 py-0.5 rounded-full border ${category.badge}`}>{t(getNewsInsight(report))}</span>}
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                {!compact && <span className="text-slate-400 font-medium">{t('Sumber: {name}', { name: item.sourceName })}</span>}
-                <a href={newsSourceUrl(item.url)!} target="_blank" rel="noopener noreferrer" aria-label={t('Buka sumber berita: {name}', { name: item.sourceName })} className={compact ? "inline-flex items-center gap-1 text-slate-500 font-medium hover:text-blue-600 hover:underline" : "inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 font-semibold text-orange-600 hover:bg-orange-100 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"}>
-                  {compact ? t('Sumber: {name}', { name: item.sourceName }) : t('Buka Sumber')}<ExternalLink className="w-3 h-3 shrink-0" aria-hidden="true" />
+                {!compact && <span className="text-slate-400 font-medium">{t('Sumber: {name}', { name: t(item.sourceName) })}</span>}
+                <a href={newsSourceUrl(item.url)!} target="_blank" rel="noopener noreferrer" aria-label={t('Buka sumber berita: {name}', { name: t(item.sourceName) })} className={compact ? "inline-flex items-center gap-1 text-slate-500 font-medium hover:text-blue-600 hover:underline" : "inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 font-semibold text-orange-600 hover:bg-orange-100 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"}>
+                  {compact ? t('Sumber: {name}', { name: t(item.sourceName) }) : t('Buka Sumber')}<ExternalLink className="w-3 h-3 shrink-0" aria-hidden="true" />
                 </a>
               </div>
             </div>
