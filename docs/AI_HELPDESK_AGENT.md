@@ -49,3 +49,7 @@ Evaluasi awal menemukan metadata topic=null pada tindakan laporan dan JSON terpo
 Uji browser lokal dengan transport evaluasi Gemini nyata membuktikan pengisian beberapa field sekaligus, koreksi lokasi saat pertanyaan lain aktif, pemeliharaan rincian lama dalam rangkuman, dan pembatalan dengan ungkapan bebas tanpa kata cancel/batal. Pengujian ini tidak mengirim laporan dan tidak membuktikan deployment maupun kredensial Firebase produksi sudah benar.
 
 Hasil verifikasi akhir: 152/152 tes reguler lulus; 13/13 skenario evaluasi Gemini nyata lulus pada putaran dengan jeda (primary sempat 429 dan fallback model bekerja). TypeScript dan build produksi lulus; pemindaian bundle bersih pada 64 file.
+
+### Free-text information routing
+
+All `answer` decisions pass the original user message to `answerHelpdeskQuestion` and the grounded disaster assistant. Topic hints never dispatch a canned aid-post response. `general` covers disaster dates/details; `aid_posts` means physical aid posts or shelters only. Explicit location matches rank before previous selections. Today/recent queries retain the complete incident window. Aid-post records and candidate flags are included in grounded context for actual facility queries. The explicit Find Aid Posts service button retains its dedicated presentation.

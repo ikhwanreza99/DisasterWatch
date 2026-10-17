@@ -1,5 +1,6 @@
 import type { Lang } from '../../i18n';
 import { getGeminiModel } from '../../lib/firebase/ai';
+import { rankIncidentCandidates } from './incidentCandidates';
 import { safeParseJson } from './schemas';
 
 export const REPORT_FIELDS = ['location', 'category', 'time', 'description', 'urgency', 'items', 'victims', 'access'] as const;
@@ -25,7 +26,7 @@ export interface AgentDecision {
   reportType?: ReportWorkflow;
   updates: Partial<Record<ReportField, string>>;
   reply: string;
-  topic: 'general' | 'posts' | 'ntt';
+  topic: 'general' | 'aid_posts' | 'ntt';
   incidentId?: string;
 }
 
@@ -38,17 +39,17 @@ update_report: user starts/provides/corrects a disaster or aid-needs report. Ext
 cancel_report: user clearly withdraws the active draft. No updates.
 pause_report: user requests a delay/suspension while keeping the draft. Merely preserving the draft or refusing cancellation does not imply a delay. No updates.
 resume_report: user wants to continue or retain the existing report without a requested delay. No updates.
-answer: user asks a factual/general/help question or changes conversational topic. Preserve the draft; no updates. topic selects general, posts or ntt. Only choose incidentId when supported by the user's meaning and supplied catalog/context. Do not inherit a selected place when user explicitly asks about another place.
+answer: user asks a factual/general/help question or changes conversational topic. Preserve the draft; no updates. topic is only a retrieval hint. general means disaster occurrence, event dates, incident details, impacts, casualties, news, reporting help, or general questions. aid_posts is ONLY a request about physical aid-post/shelter locations, facilities, capacity or access. It does NOT mean news posts, disaster records, reports or general disaster information. ntt means the specific NTT earthquake case. The CURRENT user request takes precedence over earlier service choices and previous assistant replies: a previous aid-post lookup must not trap subsequent disaster questions in that service. A cancelled report does not select an aid-post service. Only choose incidentId when supported by the user's meaning and supplied catalog/context. Do not inherit a selected place when user explicitly asks about another place.
 clarify: intent or field meaning is unclear; ask a concise clarification in reply without changing the draft.
 review_report: user wants to review/finish/send the draft. This only requests a summary; NEVER sends a report. The application requires a separate explicit confirmation button.
 skip_attachment: user declines/removes the optional attachment at the attachment/confirmation stage. Never interpret this as withdrawing the report.
 Choose language en or id from the user's intended conversation language; retain the previous language for place names, numbers or ambiguous short replies. reply is required for clarify and may acknowledge pause; all prose must use that language. Do not answer factual questions in reply: application data tools will answer them. Do not claim submission/storage occurred.
-Return ONLY compact JSON: {"action":one_action,"confidence":0.0_to_1.0,"language":"en|id","reportType":"report-disaster|report-needs" or null,"updates":{field:{"value":"user-supported value","evidence":"verbatim current-message span"}},"reply":"brief clarification or empty","topic":"general|posts|ntt","incidentId":"catalog ID or null"}. Allowed fields: location,category,time,description,urgency,items,victims,access. No other keys, no executable commands.`;
+Return ONLY compact JSON: {"action":one_action,"confidence":0.0_to_1.0,"language":"en|id","reportType":"report-disaster|report-needs" or null,"updates":{field:{"value":"user-supported value","evidence":"verbatim current-message span"}},"reply":"brief clarification or empty","topic":"general|aid_posts|ntt","incidentId":"catalog ID or null"}. Allowed fields: location,category,time,description,urgency,items,victims,access. No other keys, no executable commands.`;
 
 export function buildAgentPrompt(message: string, context: AgentContext): string {
   if (!message.trim() || message.length > 1600) throw new Error('Message too long or empty');
   const history = context.history.slice(-8).map(row => ({ sender: row.sender, text: row.text.slice(0, 350) }));
-  const incidents = context.incidents.slice(0, 20).map(row => ({ id: row.id.slice(0, 100), name: row.name.slice(0, 100), category: row.category }));
+  const incidents = rankIncidentCandidates(message, context.incidents, context.selectedIncidentId).slice(0, 20).map(row => ({ id: row.id.slice(0, 100), name: row.name.slice(0, 100), category: row.category }));
   const draft = Object.fromEntries(REPORT_FIELDS.filter(field => context.answers[field]).map(field => [field, context.answers[field].slice(0, 400)]));
   const render = () => `${HELPDESK_AGENT_RULES}\nINPUT DATA (JSON):\n${JSON.stringify({ workflow: context.workflow, stage: context.stage, paused: context.paused, language: context.language, draft, currentField: context.currentField, selectedIncidentId: context.selectedIncidentId, hasAttachment: context.hasAttachment, history, incidents, message })}`;
   while (render().length > 7900 && history.length > 2) history.shift();
@@ -65,7 +66,7 @@ export function validateAgentDecision(raw: unknown, message: string, context: Ag
   if (typeof data.reply !== 'string' || data.reply.length > 600) return null;
   if (data.action === 'clarify' && !data.reply.trim()) return null;
   const topic = data.topic == null && data.action !== 'answer' ? 'general' : data.topic;
-  if (!['general', 'posts', 'ntt'].includes(topic as string)) return null;
+  if (!['general', 'aid_posts', 'ntt'].includes(topic as string)) return null;
   const reportType = data.reportType == null ? undefined : data.reportType;
   if (reportType !== undefined && reportType !== 'report-disaster' && reportType !== 'report-needs') return null;
   const rawUpdates = data.updates;

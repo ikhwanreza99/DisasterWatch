@@ -56,6 +56,7 @@ export interface AssistantSnapshot {
     source: string;
     reportCount: number;
   }>;
+  aidPosts: Array<{ incidentId: string; name: string; location: string; candidate: boolean; capacity: string; url: string }>;
   reports: {
     total: number;
     byVerificationStatus: Record<string, number>;
@@ -239,6 +240,12 @@ export function buildAssistantSnapshot(deps: AssistantDeps): AssistantSnapshot {
     provenance: sourceContext(deps.dataSources),
     summary: stats,
     disasters,
+    aidPosts: Object.values(deps.disasters).flatMap(d => d.route.checkpoints.map(post => ({
+      incidentId: d.id, name: post.name ?? post.title ?? "Unnamed aid post",
+      location: post.location ?? post.subtitle ?? "Unknown", candidate: post.recommendation === true,
+      capacity: post.capacity ? `${post.capacity.used}/${post.capacity.total}` : "Unknown",
+      url: post.googleMapsUrl ?? "",
+    }))),
     reports: { total: deps.reports.length, byVerificationStatus, latest, unresolved },
     needs: needs.slice(0, 20),
     aid: {
@@ -298,6 +305,11 @@ export function renderAssistantContextText(snap: AssistantSnapshot, maxChars = 6
       `- [${d.id}] ${d.name}, ${d.province} | ${d.title} (tipe: ${d.type}) | status ${d.status} | terdampak ${fmt(d.affectedPopulation)} orang | prioritas ${d.priorityScore} (${d.priorityReasons.join(', ') || '-'}) | laporan terkait ${d.reportCount} | pemutakhiran: ${d.updatedAt} | sumber: ${d.source}`,
     );
   }
+  L.push('AID POSTS (bounded records; recommendations are candidates, not confirmed active shelters):');
+  for (const post of snap.aidPosts.slice(0, 4)) {
+    L.push(`  - ${post.incidentId}: ${post.name} @${post.location}; candidate=${post.candidate}; capacity=${post.capacity}; ${post.url}`);
+  }
+  if (!snap.aidPosts.length) L.push('No aid-post records in this snapshot. This says nothing about disaster occurrence.');
   const b = snap.reports.byVerificationStatus;
   L.push(
     `LAPORAN: total ${snap.reports.total} (UNVERIFIED ${b.UNVERIFIED}, AI_REVIEWED ${b.AI_REVIEWED}, VERIFIED ${b.VERIFIED}, CONFLICTING ${b.CONFLICTING}).`,

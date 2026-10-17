@@ -5,7 +5,11 @@ import { resolveGeminiCandidates } from '../src/lib/firebase/geminiConfig';
 const key = process.env.GEMINI_API_KEY || process.env.DISASTERWATCH_GEMINI_SEARCH_KEY;
 if (!key) throw new Error('A server-side Gemini key is required for live evaluation.');
 const base: AgentContext = { workflow: 'report-disaster', stage: 'questions', paused: false, language: 'en', answers: {location: 'Jakarta'}, currentField: 'category', history: [{sender: 'user', text: 'I want to report a disaster.'}, {sender: 'ai', text: 'Where did it happen?'}, {sender: 'user', text: 'Jakarta'}, {sender: 'ai', text: 'What type of disaster would you like to report?'}], incidents: [], hasAttachment: false };
-const cases: Array<{name: string; message: string; actions: AgentAction[]; context?: Partial<AgentContext>; fields?: Record<string, string>; unchanged?: boolean}> = [
+const cases: Array<{name: string; message: string; actions: AgentAction[]; context?: Partial<AgentContext>; fields?: Record<string, string>; unchanged?: boolean; topic?: string}> = [
+  {name:'routing today English', message:'is there any disaster today?', actions:['answer'], topic:'general', context:{workflow:'menu',answers:{},history:[],currentField:undefined}},
+  {name:'routing Padang after cancel', message:'saya ingin tau detail bencana banjir di padang', actions:['answer'], topic:'general', context:{workflow:'menu',answers:{},currentField:undefined,history:[{sender:'ai',text:'Laporan dibatalkan. Silakan pilih layanan lain.'}],incidents:[{id:'padang',name:'Kota Padang',category:'flood'}]}},
+  {name:'routing leave aid posts', message:'What disasters happened today?', actions:['answer'], topic:'general', context:{workflow:'find-posts',answers:{},currentField:undefined,history:[{sender:'ai',text:'There is no aid post data for that location.'}]}},
+  {name:'routing actual aid posts', message:'Where can I find an aid post or shelter in Padang?', actions:['answer'], topic:'aid_posts', context:{workflow:'menu',answers:{},currentField:undefined,history:[],incidents:[{id:'padang',name:'Kota Padang',category:'flood'}]}},
   {name: 'withdraw paraphrase', message: 'On second thought, I would rather leave this unfiled.', actions: ['cancel_report']},
   {name: 'Indonesian withdrawal', message: 'Kayaknya urungkan dulu deh, saya nggak mau bikin laporan lagi.', actions: ['cancel_report']},
   {name: 'question interrupts pending type', message: 'Before we continue, what exactly qualifies as a disaster?', actions: ['answer']},
@@ -46,6 +50,7 @@ for (const item of cases.filter(item => !process.env.AGENT_EVAL_CASE || item.nam
   const context = {...base, ...item.context};
   const result = await interpretHelpdeskMessage(item.message, context, generate);
   let ok = result.available && item.actions.includes(result.decision.action);
+  if (ok && result.available && item.topic) ok = result.decision.topic === item.topic;
   if (ok && result.available && item.fields) {
     const next = applyAgentDecision(context, result.decision);
     for (const [field, expected] of Object.entries(item.fields)) {

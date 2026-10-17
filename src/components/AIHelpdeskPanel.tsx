@@ -10,8 +10,7 @@ import { assistantLanguage, translateAssistant, incidentLabel } from '../service
 import { interpretHelpdeskMessage, applyAgentDecision, type AgentContext } from '../services/ai/helpdeskAgent';
 import { UNKNOWN_SOURCES, sourceLabel, type AssistantSources } from '../services/ai/assistantSources';
 import { attachmentError } from '../services/ai/helpdeskAttachment';
-import { askAssistant } from '../services/ai/disasterAssistant';
-import { askNttAssistant } from '../services/ai/nttAssistant';
+import { answerHelpdeskQuestion } from '../services/ai/helpdeskAnswer';
 import type { NttCaseState } from '../services/nttCaseStore';
 import { submitReportPipeline } from '../services/pipeline/reportPipeline';
 import { useI18n, getLang, type Lang } from '../i18n';
@@ -274,16 +273,11 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
           setServiceChosen(true);
           const selected = decision.incidentId ? available[decision.incidentId] : undefined;
           if (selected) setLearningContext(selected);
-          const scoped = selected ? { [selected.id]: selected } : available;
-          const conversation = { language, history: messages };
-          if (decision.topic === 'posts') {
-            add('ai', postInformation(selected ? [selected] : [], language));
-          } else {
-            const result = decision.topic === 'ntt' && nttCase
-              ? await askNttAssistant(text, nttCase, language)
-              : await askAssistant(text, { disasters: scoped, reports: intelReports, aid: aidRecords, dataSources }, conversation);
-            if (mounted.current) add('ai', result.answer);
-          }
+          const result = await answerHelpdeskQuestion(text,
+            { disasters: available, reports: intelReports, aid: aidRecords, dataSources },
+            { language, history: messages },
+            { incidentId: decision.incidentId, nttCase });
+          if (mounted.current) add('ai', result.answer);
           return;
         }
       }
