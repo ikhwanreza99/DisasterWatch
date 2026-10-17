@@ -71,8 +71,22 @@ export function mergeRecovery(existing: IncidentRecoveryDoc[], incoming: Inciden
     if (!nextEntry) return p;
     if (cur && cur.status === nextEntry.status) {
       // Same status: refresh metadata only, history untouched.
-      return { ...p, lastUpdatedAt: doc.lastUpdatedAt, impactDescription: doc.impactDescription ?? p.impactDescription };
+      // Count/criterion fill-gaps only: incoming non-null values fill previous
+      // nulls, but never overwrite existing values (no lower-confidence
+      // overwrite of verified data).
+      return { ...p, lastUpdatedAt: doc.lastUpdatedAt, impactDescription: doc.impactDescription ?? p.impactDescription,
+        affectedCount: p.affectedCount ?? doc.affectedCount ?? null,
+        unit: p.unit ?? doc.unit ?? null,
+        restoredCount: p.restoredCount ?? doc.restoredCount ?? null,
+        restorationCriterion: p.restorationCriterion ?? doc.restorationCriterion ?? null };
     }
-    return appendRecoveryStatus(p, nextEntry);
+    const mergedBase = {
+      ...p,
+      affectedCount: p.affectedCount ?? doc.affectedCount ?? null,
+      unit: p.unit ?? doc.unit ?? null,
+      restoredCount: p.restoredCount ?? doc.restoredCount ?? null,
+      restorationCriterion: p.restorationCriterion ?? doc.restorationCriterion ?? null,
+    };
+    return appendRecoveryStatus(mergedBase, nextEntry);
   });
 }

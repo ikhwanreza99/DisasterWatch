@@ -30,12 +30,23 @@ export const HAZARD_NEEDS:Record<string,string[]>={flood:['clean_water','food','
 
 /** Calculation lifecycle status. `null` inputs are never coerced to zero. */
 export type CalculationStatus='calculated'|'insufficient_data'|'invalid_input';
+/**
+ * Presentation status vocabulary (audit/PDF §8, §10). The engine `status`
+ * trio is stable and asserted by tests; this extended label is DERIVED via
+ * resolveExtendedStatus() and never stored as a second competing truth.
+ * - scenario_estimate: calculated from explicitly simulated inputs
+ * - forecast: a forward-looking projection (forecast-gap family)
+ * - conflict_pending_review: withheld because sources conflict
+ * - stale_data: a calculated value older than the caller's freshness bound
+ */
+export type ExtendedResultStatus='calculated'|'scenario_estimate'|'forecast'|'insufficient_data'|'invalid_input'|'conflict_pending_review'|'stale_data';
 
 export type CalculationType=
   |'physical_damage'|'economic_loss'|'total_loss'
   |'funding_gap'|'funding_gap_percent'|'physical_gap_count'|'physical_gap_percent'
-  |'utility_recovery'
-  |'needs_demand'|'needs_forecast_gap'
+  |'utility_recovery'|'utility_ori_index'
+  |'needs_demand'|'needs_current_gap'|'needs_forecast_gap'
+  |'physical_damage_aggregate'|'fact_reconciled_total'
   |'priority_score';
 
 /** One traced input: value+unit plus evidence provenance. */
@@ -66,12 +77,30 @@ export interface BaseCalculationInput {
 /** Typed deterministic result. Pure data — no React/Firestore/AI imports. */
 export interface CalculationResult {
   type:CalculationType;
+  /** Stable metric identifier, e.g. 'physical_damage', 'ori_index'. Set by the
+      calculation service; null when the engine was invoked directly. */
+  metricId:string|null;
+  /** Incident this result belongs to. Null for incident-agnostic scenarios. */
+  incidentId:string|null;
   /** Caller-supplied correlation ID (null when the caller did not set one). */
   id:string|null;
   /** Explicit simulation-vs-live designation. */
   origin:CalculationOrigin;
   /** Geographic + reporting scope when the inputs declared one. */
   scope:CalculationScope;
+  /** Baseline / parameter registry references (PDF §10 baseline_ids). Empty
+      until baseline registries exist; never invented. */
+  baselineIds:string[];
+  /** Labels of required inputs that arrived null/missing. Never zero-filled. */
+  missingInputs:string[];
+  /** Uncertainty note (method bounds, MVP-heuristic caveats). Null when none. */
+  uncertainty:string|null;
+  /** Human-readable coverage (cohort/boundary), e.g. 'SBD / 2026-10-04'. */
+  coverage:string|null;
+  /** Valid time of the underlying observation (ISO), if declared. */
+  validTime:string|null;
+  /** Deduplicated source fact/doc ids backing this result. */
+  sourceFactIds:string[];
   version:string;
   value:number|null;
   unit:string;
@@ -100,7 +129,7 @@ function calcInput(label:string,value:number|null,unit:string,sourceRefs:string[
   observedAt:string|null=null):InputRef{return{label,value,unit,sourceRefs,observedAt};}
 
 function makeResult(type:CalculationType,value:number|null,unit:string,inputs:InputRef[],
-  opts:{assumptions?:string[];exclusions?:string[];warnings?:string[];errors?:string[];trace?:string;id?:string|null;origin?:CalculationOrigin;scope?:CalculationScope}={}):CalculationResult{
+  opts:{assumptions?:string[];exclusions?:string[];warnings?:string[];errors?:string[];trace?:string;id?:string|null;origin?:CalculationOrigin;scope?:CalculationScope;metricId?:string|null;incidentId?:string|null;baselineIds?:string[];uncertainty?:string|null;coverage?:string|null;validTime?:string|null}={}):CalculationResult{
   const errors=opts.errors??[];
   const hasMissing=inputs.some(i=>i.value===null||!Number.isFinite(i.value as number));
   const status:CalculationStatus=errors.length>0?'invalid_input':value===null||hasMissing&&value===null?'insufficient_data':value===null?'insufficient_data':'calculated';
@@ -111,10 +140,46 @@ function makeResult(type:CalculationType,value:number|null,unit:string,inputs:In
   const warnings=[...(opts.warnings??[])];
   const dupRefs=duplicateFactIds(inputs.flatMap(i=>i.sourceRefs).filter(Boolean));
   if(dupRefs.length>0)warnings.push(`duplicate source refs in one calculation: ${dupRefs.join(', ')} — verify the same evidence is not counted twice`);
-  return {type,id:opts.id??null,origin:opts.origin??'unknown',scope:opts.scope??{area:null,period:null},
+  const scope=opts.scope??{area:null,period:null};
+  const refs=[...new Set(inputs.flatMap(i=>i.sourceRefs).filter(Boolean))];
+  return {type,metricId:opts.metricId??type,incidentId:opts.incidentId??null,
+    id:opts.id??null,origin:opts.origin??'unknown',scope,
+    baselineIds:opts.baselineIds??[],
+    missingInputs:inputs.filter(i=>i.value===null||!Number.isFinite(i.value as number)).map(i=>i.label),
+    uncertainty:opts.uncertainty??null,
+    coverage:opts.coverage??(scope.area||scope.period?`${scope.area??'?'} / ${scope.period??'?'}`:null),
+    validTime:opts.validTime??null,
+    sourceFactIds:refs,
     version:type==='priority_score'?PRIORITY_VERSION:CALCULATION_ENGINE_VERSION,
     value,unit,status:finalStatus,inputs,assumptions:opts.assumptions??[],exclusions:opts.exclusions??[],
     calculatedAt:new Date().toISOString(),warnings,errors,trace:opts.trace??''};
+}
+/**
+ * Derive the 7-label presentation status from an engine result WITHOUT
+ * changing engine behavior. Deterministic; pure.
+ * - errors → invalid_input; conflict markers while withheld → conflict_pending_review
+ * - null value → insufficient_data
+ * - older than maxAgeMs (when given) → stale_data
+ * - forecast family or mode 'forecast' → forecast
+ * - simulation origin or mode 'scenario' → scenario_estimate
+ * - otherwise calculated
+ */
+export function resolveExtendedStatus(result:CalculationResult,
+  opts:{mode?:'current'|'scenario'|'forecast';maxAgeMs?:number|null;nowMs?:number}={}):ExtendedResultStatus{
+  if(result.errors.length>0)return 'invalid_input';
+  if(result.value===null){
+    const text=`${result.errors.join(' ')} ${result.trace} ${result.warnings.join(' ')}`;
+    if(/conflict/i.test(text))return 'conflict_pending_review';
+    return 'insufficient_data';
+  }
+  if(opts.maxAgeMs!==null&&opts.maxAgeMs!==undefined){
+    const t=Date.parse(result.calculatedAt);
+    const now=opts.nowMs??Date.now();
+    if(Number.isFinite(t)&&now-t>opts.maxAgeMs)return 'stale_data';
+  }
+  if(opts.mode==='forecast'||result.type==='needs_forecast_gap')return 'forecast';
+  if(opts.mode==='scenario'||result.origin==='simulation')return 'scenario_estimate';
+  return 'calculated';
 }
 
 const isMissing=(v:number|null|undefined):v is null|undefined=>v===null||v===undefined||!Number.isFinite(v as number);
@@ -295,14 +360,298 @@ export function estimateTotalLoss(physical:CalculationResult,flow:CalculationRes
   const finalErrors=errors.length>0?errors:(value===null&&!blocked?[]:errors);
   // Withheld totals stay insufficient_data (blocker in warnings), never errors.
   const origin:CalculationOrigin=physical.origin==='live'&&flow.origin==='live'?'live':physical.origin==='simulation'&&flow.origin==='simulation'?'simulation':'unknown';
-  return {type:'total_loss',id:opts.calculationId??null,origin,scope,version:CALCULATION_ENGINE_VERSION,value,unit:'IDR',
+  const combinedInputs=[...physical.inputs,...flow.inputs];
+  const combinedRefs=[...new Set(combinedInputs.flatMap(i=>i.sourceRefs).filter(Boolean))];
+  return {type:'total_loss',metricId:'total_loss',incidentId:physical.incidentId??flow.incidentId??null,
+    id:opts.calculationId??null,origin,scope,baselineIds:[],
+    missingInputs:combinedInputs.filter(i=>i.value===null||!Number.isFinite(i.value as number)).map(i=>i.label),
+    uncertainty:null,coverage:scope.area||scope.period?`${scope.area??'?'} / ${scope.period??'?'}`:null,
+    validTime:null,sourceFactIds:combinedRefs,
+    version:CALCULATION_ENGINE_VERSION,value,unit:'IDR',
     status:finalErrors.length>0?'invalid_input':value===null?'insufficient_data':'calculated',
-    inputs:[...physical.inputs,...flow.inputs],
+    inputs:combinedInputs,
     assumptions:['total_loss = damage + economic_loss (only when scopes reconcile and no overlap)'],
     exclusions:['withheld when physical/economic components overlap or scopes differ'],
     calculatedAt:new Date().toISOString(),warnings,
     errors:blocked?[]:finalErrors,
     trace: value===null?(blocked?'total withheld: overlapping inputs or mismatched scopes — resolve before combining':'total_loss: insufficient inputs — both damage and economic loss required'):`${physical.value} + ${flow.value} = ${value} IDR`};
+}
+
+// --- A2. Multi-category physical damage aggregation ----------------------------------
+// Damage = SUM_i(AssetCount_i × ReplacementCost_i × SeverityFraction_i).
+// Each category is validated independently (genuine asset counts, explicit
+// severity unit, compatible cost/scope) and the combined total is withheld
+// unless compatibility across categories can be established.
+
+/** Demographic/population units that are NEVER valid asset counts. */
+const NON_ASSET_UNITS=['household','households','kk','family','families','person','people','persons','jiwa','orang','individual','individuals','capita','householder','householders'];
+
+export interface DamageCategoryInput {
+  categoryId:string;
+  assetCount:number|null;
+  /** Observed count unit. Must be a genuine asset unit (never households/people). */
+  assetUnit:string|null;
+  replacementCostPerAsset:number|null;
+  currency:string|null;
+  damageFraction:number|null;
+  damageFractionUnit?:'fraction'|'percent';
+  area?:string|null; period?:string|null;
+  /** Assessment scope (e.g. assessor + method + date). Must agree to combine. */
+  assessmentScope?:string|null;
+  sourceRefs?:string[];
+  observedAt?:string|null;
+}
+
+export interface DamageAggregateInput extends BaseCalculationInput {
+  categories:DamageCategoryInput[];
+}
+
+export function estimateDamageAggregate(inp:DamageAggregateInput):CalculationResult{
+  const errors:string[]=[];const warnings:string[]=[];
+  const cats=inp.categories??[];
+  if(cats.length===0)errors.push('no asset categories supplied');
+  const ids=cats.map(c=>c.categoryId);
+  for(const dup of duplicateFactIds(ids.filter(Boolean)))
+    errors.push(`duplicate asset category: '${dup}' supplied twice — categories must be disjoint`);
+  interface Row { c:DamageCategoryInput; fraction:number|null; lineValue:number|null; }
+  const rows:Row[]=cats.map(c=>({c,fraction:null,lineValue:null}));
+  for(const row of rows){
+    const c=row.c;
+    if(!c.categoryId)errors.push('asset category without an id');
+    const unit=(c.assetUnit??'').toLowerCase().trim();
+    if(!unit)errors.push(`category '${c.categoryId||'?'}': count unit missing — genuine asset counts required, not households or people`);
+    else if(NON_ASSET_UNITS.includes(unit))
+      errors.push(`category '${c.categoryId}': unit '${c.assetUnit}' is a household/population count, not an asset count — never auto-converted`);
+    negErr(`asset count (${c.categoryId})`,c.assetCount,errors);
+    negErr(`replacement cost (${c.categoryId})`,c.replacementCostPerAsset,errors);
+    if(c.assetCount!==null&&c.assetCount!==undefined&&!Number.isInteger(c.assetCount)&&Number.isFinite(c.assetCount))
+      warnings.push(`category '${c.categoryId}': asset count should be an integer; fractional value kept as-is`);
+    const conv=toDamageFraction(c.damageFraction,c.damageFractionUnit??'fraction');
+    if(conv.error)errors.push(`category '${c.categoryId}': ${conv.error}`);
+    row.fraction=conv.fraction;
+    if(!isMissing(c.assetCount)&&!isMissing(c.replacementCostPerAsset)&&conv.fraction!==null){
+      const line=roundIdr(c.assetCount!*c.replacementCostPerAsset!*conv.fraction!);
+      if(line===null)errors.push(`category '${c.categoryId}': line result unsafe (overflow/negative)`);
+      else row.lineValue=line;
+    }
+  }
+  // Compatibility across categories: currency, geography, date, scope.
+  const currs=[...new Set(cats.map(c=>c.currency).filter((x):x is string=>!!x))];
+  const areas=[...new Set(cats.map(c=>c.area).filter((x):x is string=>!!x))];
+  const periods=[...new Set(cats.map(c=>c.period).filter((x):x is string=>!!x))];
+  const scopes=[...new Set(cats.map(c=>c.assessmentScope).filter((x):x is string=>!!x))];
+  const compatClash=currs.length>1||areas.length>1||periods.length>1||scopes.length>1;
+  const anyMissingLine=rows.some(r=>r.lineValue===null);
+  const inputs=cats.flatMap(c=>[calcInput(`${c.categoryId}_count`,c.assetCount,c.assetUnit??'units',c.sourceRefs??[],c.observedAt??null),
+    calcInput(`${c.categoryId}_cost`,c.replacementCostPerAsset,c.currency??'IDR',[],null),
+    calcInput(`${c.categoryId}_severity`,rows.find(r=>r.c===c)!.fraction,'fraction 0-1',[],null)]);
+  const perLine=rows.map(r=>`${r.c.categoryId}: ${r.c.assetCount} × ${r.c.replacementCostPerAsset} × ${r.fraction}${r.c.damageFractionUnit==='percent'?` [${r.c.damageFraction}% → ${r.fraction}]`:''} = ${r.lineValue===null?'withheld':r.lineValue}`).join(' | ');
+  if(errors.length===0&&(anyMissingLine||compatClash)){
+    const reasons:string[]=[];
+    if(anyMissingLine)reasons.push('one or more categories lack a valid count, cost or severity (never zero-filled)');
+    if(compatClash)reasons.push(`incompatible category scopes (currencies: ${currs.join(', ')||'—'}; areas: ${areas.join(', ')||'—'}; periods: ${periods.join(', ')||'—'}; scopes: ${scopes.join(', ')||'—'})`);
+    return makeResult('physical_damage_aggregate',null,currs.length===1?currs[0]!:'IDR',inputs,
+      {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:areas.length===1?areas[0]!:null,period:periods.length===1?periods[0]!:null},
+       assumptions:['damage = SUM_i(count_i × cost_i × severity_i)','categories must be disjoint with compatible cost unit, geography, date and assessment scope'],
+       exclusions:['lost income and other economic components excluded'],
+       warnings:[...warnings,`combined total withheld: ${reasons.join('; ')}`],errors:[],
+       trace:`damage aggregate: withheld — ${reasons.join('; ')}. Lines: ${perLine}`});
+  }
+  let value:number|null=null;
+  if(errors.length===0){
+    const sum=rows.reduce((t,r)=>t+(r.lineValue??0),0);
+    value=Number.isSafeInteger(Math.round(sum))?Math.round(sum):null;
+    if(value===null)errors.push('aggregated damage is unsafe (overflow)');
+  }
+  return makeResult('physical_damage_aggregate',value,currs.length===1?currs[0]!:'IDR',inputs,
+    {id:inp.calculationId??null,origin:inp.origin??'unknown',
+     scope:{area:areas.length===1?areas[0]!:null,period:periods.length===1?periods[0]!:null},
+     assumptions:['damage = SUM_i(count_i × cost_i × severity_i)','categories verified disjoint with compatible scopes'],
+     exclusions:['lost income and other economic components excluded'],
+     warnings,errors,
+     trace:value===null?`damage aggregate: ${errors.join('; ')}`:`SUM = ${value} ${currs[0]??'IDR'} (${perLine})`});
+}
+
+// --- A3. Parent-child fact reconciliation ---------------------------------------------
+// Aggregates facts that are totals, subsets, or disjoint groups into one
+// canonical total — or withholds when relationships are unknown, conflicting,
+// or overlapping. Every fact's inclusion/exclusion and reason is preserved in
+// the trace. This is NOT allocateAggregate (which apportions a total downward).
+
+export type FactRelation='total'|'subset'|'independent'|'revision'|'unknown';
+export interface ReconcilableFact {
+  factId:string;
+  value:number|null;
+  unit:string;
+  area?:string|null; period?:string|null;
+  relation:FactRelation;
+  /** Parent total this subset belongs to (for relation 'subset'). */
+  parentFactId?:string|null;
+  /** Group key for disjoint-group sets and revision chains. */
+  groupKey?:string|null;
+  sourceRefs:string[];
+  observedAt?:string|null;
+}
+
+export interface ReconcileFactsInput extends BaseCalculationInput {
+  facts:ReconcilableFact[];
+  /** Declared unit of the canonical total. Facts in other units are excluded. */
+  unit?:string;
+  /** Caller-confirmed disjointness for independent/subset groups without a
+      parent total. Unknown relationships are never summed blindly. */
+  disjointGroupsConfirmed?:boolean;
+}
+
+interface Lineage { factId:string; included:boolean; reason:string; }
+
+export function reconcileFacts(inp:ReconcileFactsInput):CalculationResult{
+  const errors:string[]=[];const warnings:string[]=[];
+  // Scope-divergence note: summed facts spanning different areas/periods are
+  // NOT blocked (the caller confirmed disjointness), but the divergence is
+  // recorded so geography/valid-time is never silently double-counted.
+  const scopeNote=(set:Array<{area?:string|null;period?:string|null}>)=>{
+    const areas=[...new Set(set.map(f=>f.area).filter((a):a is string=>!!a))];
+    const periods=[...new Set(set.map(f=>f.period).filter((x):x is string=>!!x))];
+    if(areas.length>1||periods.length>1)
+      warnings.push(`summed facts span differing scopes (areas: ${areas.join(', ')||'—'}; periods: ${periods.join(', ')||'—'}) — total relies on caller disjointness confirmation`);
+  };
+  const facts=inp.facts??[];
+  const unit=inp.unit??'units';
+  const lineage:Lineage[]=[];
+  const usable=facts.filter(f=>{
+    if(f.value===null||f.value===undefined||!Number.isFinite(f.value)||f.value<0){
+      lineage.push({factId:f.factId,included:false,reason:'missing, non-finite or negative value — excluded, never zero-filled'});return false;}
+    if(f.unit!==unit){
+      lineage.push({factId:f.factId,included:false,reason:`incompatible unit '${f.unit}' vs '${unit}'`});return false;}
+    if(f.relation==='unknown'){
+      lineage.push({factId:f.factId,included:false,reason:'unknown relationship — never summed blindly'});return false;}
+    return true;
+  });
+  // Duplicate source claims of the SAME value count once (syndication guard).
+  const seenClaims=new Set<string>();
+  const deduped:typeof usable=[];
+  for(const f of usable){
+    const key=[...f.sourceRefs].sort().join('+')+`=${f.value}`;
+    if(seenClaims.has(key)){
+      lineage.push({factId:f.factId,included:false,reason:'duplicated source claim of an identical value — counted once'});continue;}
+    seenClaims.add(key);
+    deduped.push(f);
+  }
+  // Revision chains: keep the latest observed entry per group; supersede rest.
+  // A revision also supersedes same-group non-revision facts (e.g. the earlier
+  // independent report it revises) — otherwise both would be counted.
+  const latest=new Map<string,typeof deduped[number]>();
+  const current:typeof deduped=[];
+  for(const f of deduped){
+    if(f.relation!=='revision'||!f.groupKey){current.push(f);continue;}
+    const prev=latest.get(f.groupKey);
+    const t=f.observedAt??'';
+    if(!prev||t>=(prev.observedAt??'')){ if(prev)lineage.push({factId:prev.factId,included:false,reason:`superseded by revision ${f.factId}`}); latest.set(f.groupKey,f); }
+    else lineage.push({factId:f.factId,included:false,reason:`superseded revision — ${prev.factId} is newer`});
+  }
+  current.push(...latest.values());
+  const live:typeof current=[];
+  for(const f of current){
+    if(f.relation!=='revision'&&f.groupKey&&latest.has(f.groupKey)){
+      lineage.push({factId:f.factId,included:false,reason:`superseded by revision chain in group '${f.groupKey}' — kept latest ${latest.get(f.groupKey)!.factId}`});continue;}
+    live.push(f);
+  }
+  const totals=live.filter(f=>f.relation==='total');
+  const distinctTotals=[...new Set(totals.map(f=>f.value))];
+  if(totals.length>1&&distinctTotals.length>1){
+    for(const f of totals)lineage.push({factId:f.factId,included:false,reason:'conflicting totals for the same scope — withheld pending reconciliation'});
+    return makeResult('fact_reconciled_total',null,unit,
+      facts.map(f=>calcInput(f.factId,f.value,unit,[f.factId,...f.sourceRefs],f.observedAt??null)),
+      {metricId:'fact_reconciled_total',id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:null,period:null},
+       assumptions:['conflicting totals are never summed or picked silently'],
+       exclusions:['all totals excluded while in conflict'],
+       warnings,errors,
+       trace:`reconciled total: WITHHELD — conflicting totals (${distinctTotals.join(' vs ')}) | lineage: ${lineage.map(l=>`${l.factId} ${l.included?'IN':'OUT'} (${l.reason})`).join(' | ')}`});
+  }
+  const parent=totals.length===1?totals[0]!:null;
+  const children=parent?live.filter(f=>f.relation==='subset'&&f.parentFactId===parent.factId):[];
+  let value:number|null=null;
+  if(parent){
+    const accounted=live.filter(f=>f!==parent&&!children.includes(f));
+    for(const f of accounted)lineage.push({factId:f.factId,included:false,reason:`not part of parent total ${parent.factId}`});
+    const childSum=children.reduce((t,f)=>t+(f.value??0),0);
+    for(const f of children)lineage.push({factId:f.factId,included:true,reason:`verified subset of ${parent.factId}`});
+    scopeNote([parent,...children]);
+    if(children.length>0&&Math.abs(childSum-(parent.value??0))>1e-9){
+      for(const f of [parent,...children]){
+        const li=lineage.find(l=>l.factId===f.factId);
+        if(li){li.included=false;li.reason=`parent-child mismatch: subsets sum to ${childSum} vs parent ${parent.value} — withheld`;}
+      }
+      return makeResult('fact_reconciled_total',null,unit,
+        facts.map(f=>calcInput(f.factId,f.value,unit,[f.factId,...f.sourceRefs],f.observedAt??null)),
+        {metricId:'fact_reconciled_total',id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:null,period:null},
+         assumptions:['parent total stands only when subsets reconcile with it'],
+         exclusions:['mismatched parent-child sets excluded'],
+         warnings,errors,
+         trace:`reconciled total: WITHHELD — parent ${parent.value} vs subsets sum ${childSum} | lineage: ${lineage.map(l=>`${l.factId} ${l.included?'IN':'OUT'} (${l.reason})`).join(' | ')}`});
+    }
+    lineage.push({factId:parent.factId,included:true,reason:children.length>0?`canonical total; subsets reconcile (${childSum})`:'canonical total (no subsets supplied)'});
+    value=parent.value;
+  } else {
+    // No parent total: sum disjoint groups only with explicit confirmation.
+    // Single-observation exception: one quantified fact cannot double-count
+    // anything, so an independent observation — or the lone surviving revision
+    // of its chain — stands as its own canonical total with lineage.
+    // A dangling subset cannot (a part is not the whole).
+    const summable=live.filter(f=>f.relation==='subset'||f.relation==='independent'||f.relation==='revision');
+    if(summable.length===1){
+      const only=summable[0]!;
+      if(only.relation==='subset'){
+        return makeResult('fact_reconciled_total',null,unit,
+          facts.map(f=>calcInput(f.factId,f.value,unit,[f.factId,...f.sourceRefs],f.observedAt??null)),
+          {metricId:'fact_reconciled_total',id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:null,period:null},
+           assumptions:['a part cannot stand as the whole without its parent total or revision chain'],
+           exclusions:['dangling subset/revision excluded'],
+           warnings,errors,
+           trace:`reconciled total: WITHHELD — dangling subset ${only.factId} without its parent total | lineage: ${[...lineage,{factId:only.factId,included:false,reason:'dangling part'}].map(l=>`${l.factId} ${l.included?'IN':'OUT'} (${l.reason})`).join(' | ')}`});
+      }
+      lineage.push({factId:only.factId,included:true,reason:`single ${only.relation==='revision'?'surviving revision':'quantified observation'} — canonical alone, NOT independently corroborated; no summation performed`});
+      return makeResult('fact_reconciled_total',only.value,unit,
+        facts.map(f=>calcInput(f.factId,f.value,unit,[f.factId,...f.sourceRefs],f.observedAt??null)),
+        {metricId:'fact_reconciled_total',id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:null,period:null},
+         assumptions:['a single quantified observation is its own canonical total; this asserts nothing about corroboration'],
+         exclusions:['no other facts combined','not an independently corroborated total'],
+         warnings,errors,
+         trace:`canonical total = ${only.value} ${unit} (single observation ${only.factId}, NOT independently corroborated) | lineage: ${lineage.map(l=>`${l.factId} ${l.included?'IN':'OUT'} (${l.reason})`).join(' | ')}`});
+    }
+    if(summable.length===0){
+      return makeResult('fact_reconciled_total',null,unit,
+        facts.map(f=>calcInput(f.factId,f.value,unit,[f.factId,...f.sourceRefs],f.observedAt??null)),
+        {metricId:'fact_reconciled_total',id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:null,period:null},
+         assumptions:['nothing summable without a parent total or confirmed disjointness'],
+         exclusions:['all facts excluded (see lineage)'],
+         warnings,errors,
+         trace:`reconciled total: WITHHELD — no summable facts | lineage: ${lineage.map(l=>`${l.factId} ${l.included?'IN':'OUT'} (${l.reason})`).join(' | ')}`});
+    }
+    if(!inp.disjointGroupsConfirmed){
+      for(const f of summable)lineage.push({factId:f.factId,included:false,reason:'group overlap unconfirmed — disjointness must be explicitly confirmed before summing'});
+      return makeResult('fact_reconciled_total',null,unit,
+        facts.map(f=>calcInput(f.factId,f.value,unit,[f.factId,...f.sourceRefs],f.observedAt??null)),
+        {metricId:'fact_reconciled_total',id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:null,period:null},
+         assumptions:['disjoint groups sum only when non-overlap is explicitly confirmed'],
+         exclusions:['unconfirmed groups excluded'],
+         warnings,errors,
+         trace:`reconciled total: WITHHELD — overlap unconfirmed | lineage: ${lineage.map(l=>`${l.factId} ${l.included?'IN':'OUT'} (${l.reason})`).join(' | ')}`});
+    }
+    const sum=summable.reduce((t,f)=>t+(f.value??0),0);
+    for(const f of summable)lineage.push({factId:f.factId,included:true,reason:'confirmed disjoint group — summed'});
+    scopeNote(summable);
+    value=Number.isSafeInteger(Math.round(sum))?Math.round(sum):null;
+    if(value===null)errors.push('reconciled total is unsafe (overflow)');
+  }
+  return makeResult('fact_reconciled_total',value,unit,
+    facts.map(f=>calcInput(f.factId,f.value,unit,[f.factId,...f.sourceRefs],f.observedAt??null)),
+    {metricId:'fact_reconciled_total',id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:null,period:null},
+     assumptions:[parent?'canonical parent total with reconciled subsets':'sum of explicitly confirmed disjoint groups',
+      'syndicated duplicates counted once; revisions superseded; conflicts withheld'],
+     exclusions:['excluded facts listed in trace lineage'],
+     warnings,errors,
+     trace:value===null?`reconciled total: ${errors.join('; ')}`:`canonical total = ${value} ${unit} | lineage: ${lineage.map(l=>`${l.factId} ${l.included?'IN':'OUT'} (${l.reason})`).join(' | ')}`});
 }
 
 // --- B. Recovery Gap Estimation --------------------------------------------
@@ -413,6 +762,9 @@ export function estimatePhysicalGapPercent(inp:PhysicalGapInput):CalculationResu
 export interface UtilityRecoveryInput extends BaseCalculationInput {
   service:'water'|'electricity'|'access'|'telecom';
   affected:number|null; recovered:number|null;
+  /** Unit actually observed by the source. When supplied, must equal the
+   *  service's canonical unit; mismatch is rejected, never coerced. */
+  unit?:string|null;
   area?:string; period?:string; sourceRefs?:string[]; observedAt?:string|null;
   /** When true, source explicitly marks restoration as temporary. */
   temporaryRestoration?:boolean|null;
@@ -425,6 +777,8 @@ export function estimateUtilityRecovery(inp:UtilityRecoveryInput):CalculationRes
   const expectedUnit=UTILITY_UNITS[inp.service]??'units';
   negErr('affected units',inp.affected,errors);
   negErr('recovered units',inp.recovered,errors);
+  if(inp.unit&&inp.unit!==expectedUnit)
+    errors.push(`observed unit "${inp.unit}" ≠ canonical unit "${expectedUnit}" for ${inp.service} — units are never mixed or coerced`);
   if(!isMissing(inp.affected)&&!isMissing(inp.recovered)&&inp.recovered! > inp.affected!)
     errors.push(`recovered (${inp.recovered}) exceeds affected (${inp.affected}) — inconsistent sample`);
   if(inp.affected!==null&&Number.isFinite(inp.affected)&&inp.affected<=0)
@@ -445,6 +799,100 @@ export function estimateUtilityRecovery(inp:UtilityRecoveryInput):CalculationRes
      exclusions:['other services excluded (no cross-service numerator/denominator)','partial/inconsistent samples excluded from regional claims'],
      warnings,errors,
      trace:value===null?`utility_recovery(${inp.service}): ${errors.join('; ')||'insufficient inputs'}`:`${inp.recovered}/${inp.affected} × 100 = ${value}% (${inp.service})`});
+}
+
+// --- C2. Utility Recovery Index (ORI, internal composite) ---------------------------
+// ORI = 0.30·water + 0.25·electricity + 0.25·access + 0.20·telecom.
+// Proposed internal composite (PDF A3 PAR-ORI-WEIGHTS). An ORI value is an
+// index, NOT a direct percentage of the population recovered.
+
+export const ORI_VERSION='ori-composite-v1.0';
+/** Centrally-defined ORI weights. Must sum to 1 (tested). */
+export const ORI_WEIGHTS={water:0.30,electricity:0.25,access:0.25,telecom:0.20} as const;
+export function oriWeightsSum():number{
+  return ORI_WEIGHTS.water+ORI_WEIGHTS.electricity+ORI_WEIGHTS.access+ORI_WEIGHTS.telecom;
+}
+
+export interface OriServiceInput extends BaseCalculationInput {
+  service:'water'|'electricity'|'access'|'telecom';
+  affected:number|null; recovered:number|null;
+  /** Unit actually observed. Must equal the service's canonical unit. */
+  unit?:string|null;
+  area?:string|null; period?:string|null;
+  operationalDefinition?:string|null;
+  temporaryRestoration?:boolean|null;
+}
+
+export interface OriIndexInput extends BaseCalculationInput {
+  components:OriServiceInput[];
+}
+
+/** Composite ORI across exactly the four utility services. */
+export function estimateOriIndex(inp:OriIndexInput):CalculationResult{
+  const errors:string[]=[];const warnings:string[]=[
+    'ORI is an internal composite index (0–100 scale), NOT a direct percentage of the population recovered.'];
+  const seen=new Set<string>();
+  const perService=new Map<string,CalculationResult>();
+  for(const c of inp.components){
+    if(seen.has(c.service))errors.push(`duplicate service entry: ${c.service} supplied twice`);
+    seen.add(c.service);
+    const expected=UTILITY_UNITS[c.service]??'units';
+    if(c.unit!==null&&c.unit!==undefined&&c.unit!==expected)
+      errors.push(`unit mismatch for ${c.service}: observed '${c.unit}' vs required '${expected}' — services are never mixed`);
+    const r=estimateUtilityRecovery({service:c.service,affected:c.affected,recovered:c.recovered,
+      area:c.area??undefined,period:c.period??undefined,sourceRefs:c.sourceRefs??[],
+      observedAt:c.observedAt??null,operationalDefinition:c.operationalDefinition??null,
+      temporaryRestoration:c.temporaryRestoration??null});
+    perService.set(c.service,r);
+    if(r.status!=='calculated')errors.push(`${c.service}: component unavailable (${r.status}) — ${r.errors.concat(r.warnings.filter(w=>/denominator|exceeds/i.test(w))).join('; ')||r.trace}`);
+  }
+  const required=['water','electricity','access','telecom'] as const;
+  const missing=required.filter(k=>!perService.has(k)||perService.get(k)!.status!=='calculated');
+  // Documented missing-data policy: withhold. Weights are NOT redistributed
+  // silently — no redistribution policy is established.
+  if(missing.length>0&&errors.length===0)
+    return makeResult('utility_ori_index',null,'index 0–100',
+      inp.components.flatMap(c=>[calcInput(`affected_${c.service}`,c.affected,UTILITY_UNITS[c.service]??'units',c.sourceRefs??[],c.observedAt??null),
+        calcInput(`recovered_${c.service}`,c.recovered,UTILITY_UNITS[c.service]??'units',[],null)]),
+      {metricId:'ori_index',id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:null,period:null},
+       assumptions:['ORI = 0.30·water + 0.25·electricity + 0.25·access + 0.20·telecom',
+        'missing categories are withheld, never re-weighted without an explicit redistribution policy'],
+       exclusions:['not a population-recovered percentage'],
+       warnings:[...warnings,`missing/unavailable categories (${missing.join(', ')}) — index withheld`],errors:[],
+       trace:`ORI: insufficient inputs — missing ${missing.join(', ')}`});
+  // Scope compatibility across components (when declared).
+  const areas=[...new Set(inp.components.map(c=>c.area).filter((a):a is string=>!!a))];
+  const periods=[...new Set(inp.components.map(c=>c.period).filter((x):x is string=>!!x))];
+  if((areas.length>1||periods.length>1)&&errors.length===0){
+    return makeResult('utility_ori_index',null,'index 0–100',
+      inp.components.flatMap(c=>[calcInput(`affected_${c.service}`,c.affected,UTILITY_UNITS[c.service]??'units',c.sourceRefs??[],c.observedAt??null)]),
+      {metricId:'ori_index',id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:null,period:null},
+       assumptions:['ORI components must share geography and reporting period'],
+       exclusions:['not a population-recovered percentage'],
+       warnings:[...warnings,`scope mismatch across components (areas: ${areas.join(', ')||'—'}; periods: ${periods.join(', ')||'—'}) — index withheld`],
+       errors:[],trace:'ORI: withheld — component scopes differ'});
+  }
+  let value:number|null=null;
+  if(errors.length===0){
+    const w=perService.get('water')!.value!,e=perService.get('electricity')!.value!,
+      a=perService.get('access')!.value!,t=perService.get('telecom')!.value!;
+    value=roundPct(ORI_WEIGHTS.water*w+ORI_WEIGHTS.electricity*e+ORI_WEIGHTS.access*a+ORI_WEIGHTS.telecom*t);
+    if(value===null)errors.push('ORI result is unsafe');
+  }
+  const scopeAreas=[...new Set(inp.components.map(c=>c.area).filter((a):a is string=>!!a))];
+  const scopePeriods=[...new Set(inp.components.map(c=>c.period).filter((x):x is string=>!!x))];
+  return makeResult('utility_ori_index',value,'index 0–100',
+    (['water','electricity','access','telecom'] as const).flatMap(k=>[
+      calcInput(`${k}_recovery_pct`,perService.get(k)!.value,'%',[],null)]),
+    {metricId:'ori_index',id:inp.calculationId??null,origin:inp.origin??'unknown',
+     scope:{area:scopeAreas.length===1?scopeAreas[0]!:null,period:scopePeriods.length===1?scopePeriods[0]!:null},
+     assumptions:['ORI = 0.30·water + 0.25·electricity + 0.25·access + 0.20·telecom',
+      `version=${ORI_VERSION}; weights sum=${oriWeightsSum()}`,
+      'each component validated (units, scope, denominators) before aggregation'],
+     exclusions:['not a population-recovered percentage','missing categories withheld, never silently re-weighted'],
+     warnings,errors,
+     trace:value===null?`ORI: ${errors.join('; ')||'insufficient inputs'}`:
+      `0.30×${perService.get('water')!.value}+0.25×${perService.get('electricity')!.value}+0.25×${perService.get('access')!.value}+0.20×${perService.get('telecom')!.value} = ${value} (index)`});
 }
 
 // --- D. Disaster Needs Intelligence ------------------------------------------
@@ -477,6 +925,72 @@ export function estimateNeedsDemand(inp:NeedsDemandInput):CalculationResult{
         'constant population over horizon; single commodity+unit'],
      exclusions:['backlog handled in forecast gap, not here'],
      errors,trace:value===null?`demand: ${errors.join('; ')||'insufficient inputs — target population/commodity/unit/duration/source required'}`:`${inp.targetPopulation} × ${inp.dailyRequirementPerPerson} × ${inp.durationDays} = ${value} ${unit}`});
+}
+
+// --- D0. Current needs gap (horizon-less) -------------------------------------------
+// CurrentGap = MAX(0, PopulationNeeding × Rate − UsableSupply).
+// Point-in-time gap for the current period. Unlike the forecast gap this has
+// NO duration/horizon factor and NO backlog/incoming terms: supply counted here
+// must already be usable and distributable now.
+
+export interface CurrentGapInput extends BaseCalculationInput {
+  populationNeeding:number|null;
+  ratePerPerson:number|null;
+  usableSupply:number|null;
+  /** Commodity unit, e.g. 'portions'. Demand and supply must share it. */
+  unit?:string;
+  /** Observed unit of the supply figure. Must equal `unit` when specified. */
+  supplyUnit?:string|null;
+  commodity?:string|null; area?:string|null; period?:string|null;
+  /** Explicit usability confirmation. false withholds (blocker). */
+  supplyConfirmedUsable?:boolean|null;
+  /** Distribution history for this commodity/period (never counted as stock). */
+  distributedHistory?:number|null;
+}
+
+export function estimateCurrentGap(inp:CurrentGapInput):CalculationResult{
+  const errors:string[]=[];const warnings:string[]=[];
+  negErr('population needing',inp.populationNeeding,errors);
+  negErr('rate per person',inp.ratePerPerson,errors);
+  negErr('usable supply',inp.usableSupply,errors);
+  const unit=inp.unit??'units';
+  if(inp.supplyUnit!==null&&inp.supplyUnit!==undefined&&inp.supplyUnit!==unit)
+    errors.push(`incompatible units: demand in '${unit}' vs supply in '${inp.supplyUnit}' — same commodity, population scope and period required`);
+  if(inp.supplyConfirmedUsable===false)
+    warnings.push('supply not confirmed usable and distributable now — current gap withheld until usability is evidenced');
+  if(inp.distributedHistory!==null&&inp.distributedHistory!==undefined&&Number.isFinite(inp.distributedHistory)&&inp.distributedHistory>0)
+    warnings.push(`distribution history (${inp.distributedHistory}) is reported movement, not current usable stock — excluded`);
+  const usabilityBlocked=inp.supplyConfirmedUsable===false;
+  const missing=isMissing(inp.populationNeeding)||isMissing(inp.ratePerPerson)||isMissing(inp.usableSupply);
+  if((missing||usabilityBlocked)&&errors.length===0){
+    return makeResult('needs_current_gap',null,unit,
+      [calcInput('population_needing',inp.populationNeeding,'people',inp.sourceRefs??[],inp.observedAt??null),
+       calcInput('rate_per_person',inp.ratePerPerson,`${unit}/person`,[],null),
+       calcInput('usable_supply',inp.usableSupply,unit,[],null)],
+      {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},
+       assumptions:[`current_gap = max(0, population × rate − usable_supply)`,
+        `commodity=${inp.commodity??'unspecified'}; unit=${unit}; area=${inp.area??'unspecified'}; period=${inp.period??'unspecified'}`,
+        'point-in-time: no horizon factor, no backlog, no incoming — use the forecast gap for future horizons'],
+       exclusions:['distribution history excluded from stock','horizon/backlog/incoming belong to the forecast gap'],
+       warnings,errors,
+       trace:usabilityBlocked?'current_gap: withheld — supply usability uncertain (see blockers)':'current_gap: insufficient inputs — population, rate and usable supply required (never zero-filled)'});
+  }
+  let value:number|null=null;
+  if(errors.length===0){
+    const raw=inp.populationNeeding!*inp.ratePerPerson!-inp.usableSupply!;
+    if(!Number.isFinite(raw))errors.push('current gap result is unsafe');
+    else value=Math.max(0,Math.round(raw*100)/100);
+  }
+  return makeResult('needs_current_gap',value,unit,
+    [calcInput('population_needing',inp.populationNeeding,'people',inp.sourceRefs??[],inp.observedAt??null),
+     calcInput('rate_per_person',inp.ratePerPerson,`${unit}/person`,[],null),
+     calcInput('usable_supply',inp.usableSupply,unit,[],null)],
+    {id:inp.calculationId??null,origin:inp.origin??'unknown',scope:{area:inp.area??null,period:inp.period??null},
+     assumptions:[`current_gap = max(0, population × rate − usable_supply)`,
+      `commodity=${inp.commodity??'unspecified'}; unit=${unit}; area=${inp.area??'unspecified'}; period=${inp.period??'unspecified'}`],
+     exclusions:['distribution history excluded from stock'],
+     warnings,errors,
+     trace:value===null?`current_gap: ${errors.join('; ')}`:`max(0, ${inp.populationNeeding} × ${inp.ratePerPerson} − ${inp.usableSupply}) = ${value} ${unit}`});
 }
 
 export interface ForecastGapInput extends BaseCalculationInput {

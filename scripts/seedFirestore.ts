@@ -301,6 +301,8 @@ const incidentRecoveryDocs: IncidentRecoveryDoc[] = DISASTER_KEYS.flatMap((k) =>
       impactDescription: `Status demo: ${s.status} (${s.recovery}%). ${DEMO_NOTICE}`,
       affectedCount: null,
       unit: null,
+      restoredCount: null,
+      restorationCriterion: null,
       waterSafety: serviceType === 'WASH' ? 'UNKNOWN' : null,
       estimatedRestorationAt: null,
       restoredAt: null,

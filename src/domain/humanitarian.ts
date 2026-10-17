@@ -331,6 +331,13 @@ export interface IncidentRecoveryDoc {
   impactDescription: string | null;
   affectedCount: number | null;
   unit: string | null;
+  /** Restored/functional count in the same unit. Null until sourced evidence
+      provides it — never zero-filled, never inferred from statuses. Additive:
+      documents written before this field exist remain valid without it. */
+  restoredCount: number | null;
+  /** Operational criterion the restored count was judged against (source
+      wording or null). Absence surfaces as a validation warning downstream. */
+  restorationCriterion: string | null;
   waterSafety: 'SAFE' | 'UNSAFE' | 'UNKNOWN' | null; // WASH only, source-backed
   estimatedRestorationAt: string | null; // sourced estimates only, never invented
   restoredAt: string | null;

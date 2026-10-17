@@ -12,15 +12,21 @@ import {
   estimateEconomicLoss,
   estimateEconomicLossNetFlow,
   estimateForecastGap,
+  estimateCurrentGap,
+  estimateDamageAggregate,
   estimateFundingGap,
   estimateFundingGapPercent,
+  estimateOriIndex,
+  oriWeightsSum,
   estimateNeedsDemand,
   estimatePhysicalDamage,
   estimatePhysicalGapCount,
   estimatePhysicalGapPercent,
   estimateTotalLoss,
   estimateUtilityRecovery,
+  reconcileFacts,
   evaluateLifeSafetyOverride,
+  ORI_VERSION,
   priorityWeightsSum,
   scorePriority,
 } from '../insights/formulas';
@@ -225,6 +231,63 @@ export function runCalculationVerification(): VerificationReport {
   const overrideOn = evaluateLifeSafetyOverride({ severity: 0.9, timeUrgency: 1, lifeThreat: true });
   const overrideOff = evaluateLifeSafetyOverride({ severity: 0.9, timeUrgency: 1, lifeThreat: false });
   out.push(build({ id: 'needs-override-scope', module: 'needs-intelligence', title: 'Override hanya asesmen mendesak', what: 'Mengevaluasi evaluateLifeSafetyOverride hidup vs mati.', invariant: 'Memicu URGENT_ASSESSMENT_REQUIRED saja; tanpa diagnosis/tindakan otomatis.', method: 'code-test', kind: 'simulasi', expected: 1, actual: overrideOn.triggered && !overrideOff.triggered ? 1 : 0, formula: 'lifeThreat=true AND (S≥0.8 OR T=1) → asesmen mendesak', inputs: 'lifeThreat=true/false, S=0.9, T=1', warnings: [], trace: overrideOn.reason, version: PRIORITY_VERSION, provenance: 'simulasi sintetis — bukan data resmi', statusOverride: overrideOn.triggered && !overrideOff.triggered && /assessment only|asesmen/i.test(`${overrideOn.reason} assessment only`) ? 'PASS' : 'FAIL' }));
+
+  // --- P0 remediation: ORI, current gap, damage aggregate, reconciliation ---
+  const oriRef = estimateOriIndex({ components: [
+    { service: 'water', affected: 200, recovered: 40, unit: 'households', area: AREA, period: PERIOD, operationalDefinition: 'definisi-verifikasi', temporaryRestoration: false },
+    { service: 'electricity', affected: 400, recovered: 300, unit: 'customers', area: AREA, period: PERIOD, operationalDefinition: 'definisi-verifikasi', temporaryRestoration: false },
+    { service: 'access', affected: 5, recovered: 2, unit: 'km', area: AREA, period: PERIOD, operationalDefinition: 'definisi-verifikasi', temporaryRestoration: false },
+    { service: 'telecom', affected: 600, recovered: 480, unit: 'customers', area: AREA, period: PERIOD, operationalDefinition: 'definisi-verifikasi', temporaryRestoration: false }] });
+  out.push(build({ id: 'ori-golden-ref', module: 'utility-recovery', title: 'ORI golden 50,75', what: 'Menjalankan estimateOriIndex 20/75/40/80 dengan bobot 30/25/25/20.', invariant: 'Tepat 50,75 (indeks internal, bukan persen populasi).', method: 'code-test', kind: 'simulasi', expected: 50.75, actual: oriRef.value, formula: 'ORI = 0.30·water + 0.25·electricity + 0.25·access + 0.20·telecom', inputs: 'water=20, electricity=75, access=40, telecom=80', warnings: oriRef.warnings, trace: oriRef.trace, version: ORI_VERSION, provenance: 'simulasi sintetis — bukan data resmi' }));
+  const oriMiss = estimateOriIndex({ components: [
+    { service: 'water', affected: 200, recovered: 40, unit: 'households', operationalDefinition: 'x', temporaryRestoration: false },
+    { service: 'electricity', affected: 400, recovered: 300, unit: 'customers', operationalDefinition: 'x', temporaryRestoration: false }] });
+  out.push(build({ id: 'ori-missing-withheld', module: 'utility-recovery', title: 'ORI kategori hilang ditahan', what: 'Menjalankan estimateOriIndex tanpa access/telecom.', invariant: 'insufficient_data; bobot tidak didistribusi ulang diam-diam.', method: 'code-test', kind: 'simulasi', expected: null, actual: oriMiss.value, formula: 'kategori hilang → indeks ditahan (tanpa redistribusi)', inputs: 'water + electricity saja', warnings: oriMiss.warnings, trace: oriMiss.trace, version: ORI_VERSION, provenance: 'simulasi sintetis — bukan data resmi', statusOverride: oriMiss.status === 'insufficient_data' ? 'PASS' : 'FAIL' }));
+  const oriWOk = Math.abs(oriWeightsSum() - 1) < 1e-9;
+  out.push(build({ id: 'ori-weights-sum', module: 'utility-recovery', title: 'Bobot ORI berjumlah 1', what: 'Menjumlahkan ORI_WEIGHTS terpusat.', invariant: 'Tepat 1 (30/25/25/20).', method: 'code-test', kind: 'simulasi', expected: 1, actual: oriWeightsSum(), formula: '0.30 + 0.25 + 0.25 + 0.20 = 1', inputs: 'ORI_WEIGHTS terpusat', warnings: [], trace: `sum=${oriWeightsSum()}`, version: ORI_VERSION, provenance: 'kode sumber — bukan data resmi', statusOverride: oriWOk ? 'PASS' : 'FAIL' }));
+  const curGap = estimateCurrentGap({ populationNeeding: 500, ratePerPerson: 2, usableSupply: 400, unit: 'portions', commodity: 'meal portions', area: AREA, period: PERIOD });
+  out.push(build({ id: 'needs-current-gap-ref', module: 'needs-intelligence', title: 'Current gap tanpa horizon', what: 'Menjalankan estimateCurrentGap 500×2−400.', invariant: 'Tepat 600 portions; tanpa faktor durasi/backlog/incoming.', method: 'code-test', kind: 'simulasi', expected: 600, actual: curGap.value, formula: 'current_gap = max(0, population × rate − usable_supply)', inputs: 'pop=500, rate=2, supply=400 portions', warnings: curGap.warnings, trace: curGap.trace, version: curGap.version, provenance: 'simulasi sintetis — bukan data resmi' }));
+  const curZero = estimateCurrentGap({ populationNeeding: 100, ratePerPerson: 1, usableSupply: 150, unit: 'portions' });
+  out.push(build({ id: 'needs-current-gap-zero', module: 'needs-intelligence', title: 'Current gap nol (supply cukup)', what: 'Menjalankan estimateCurrentGap 100×1−150.', invariant: 'Tepat 0 (floor MAX), bukan negatif.', method: 'code-test', kind: 'simulasi', expected: 0, actual: curZero.value, formula: 'max(0, demand − supply)', inputs: 'pop=100, rate=1, supply=150', warnings: curZero.warnings, trace: curZero.trace, version: curZero.version, provenance: 'simulasi sintetis — bukan data resmi' }));
+  const curMiss = estimateCurrentGap({ populationNeeding: null, ratePerPerson: 2, usableSupply: 10, unit: 'portions' });
+  out.push(build({ id: 'needs-current-gap-missing', module: 'needs-intelligence', title: 'Current gap input hilang ditahan', what: 'Menjalankan estimateCurrentGap population=null.', invariant: 'insufficient_data; tidak menjadi nol.', method: 'code-test', kind: 'simulasi', expected: null, actual: curMiss.value, formula: 'input hilang → insufficient_data', inputs: 'pop=null', warnings: curMiss.warnings, trace: curMiss.trace, version: curMiss.version, provenance: 'simulasi sintetis — bukan data resmi', statusOverride: curMiss.status === 'insufficient_data' ? 'PASS' : 'FAIL' }));
+  const curUnit = estimateCurrentGap({ populationNeeding: 100, ratePerPerson: 1, usableSupply: 10, unit: 'portions', supplyUnit: 'kg' });
+  out.push(build({ id: 'needs-current-gap-unit', module: 'needs-intelligence', title: 'Current gap satuan campur ditolak', what: 'Menjalankan estimateCurrentGap demand portions vs supply kg.', invariant: 'invalid_input; satuan komoditas harus sama.', method: 'code-test', kind: 'simulasi', expected: null, actual: curUnit.value, formula: 'demand dan supply wajib satu satuan', inputs: 'unit=portions, supplyUnit=kg', warnings: curUnit.warnings, trace: curUnit.errors.join('; '), version: curUnit.version, provenance: 'simulasi sintetis — bukan data resmi', statusOverride: curUnit.status === 'invalid_input' ? 'PASS' : 'FAIL' }));
+  const dmgAgg = estimateDamageAggregate({ categories: [
+    { categoryId: 'houses', assetCount: 5, assetUnit: 'house', replacementCostPerAsset: 150_000_000, currency: 'IDR', damageFraction: 0.5, area: AREA, period: PERIOD, assessmentScope: 'rapid-a' },
+    { categoryId: 'schools', assetCount: 2, assetUnit: 'building', replacementCostPerAsset: 500_000_000, currency: 'IDR', damageFraction: 50, damageFractionUnit: 'percent', area: AREA, period: PERIOD, assessmentScope: 'rapid-a' }] });
+  out.push(build({ id: 'loss-damage-aggregate-ref', module: 'loss', title: 'Agregat multi-kategori 875 jt', what: 'Menjalankan estimateDamageAggregate houses 375 jt + schools 500 jt.', invariant: 'Tepat Rp875.000.000 lintas kategori valid.', method: 'code-test', kind: 'simulasi', expected: 875_000_000, actual: dmgAgg.value, formula: 'damage = SUM_i(count_i × cost_i × severity_i)', inputs: 'houses=5×150M×0.5, schools=2×500M×50%', warnings: dmgAgg.warnings, trace: dmgAgg.trace, version: dmgAgg.version, provenance: 'simulasi sintetis — bukan data resmi' }));
+  const dmgHH = estimateDamageAggregate({ categories: [
+    { categoryId: 'x', assetCount: 10, assetUnit: 'households', replacementCostPerAsset: 1, currency: 'IDR', damageFraction: 0.5 }] });
+  out.push(build({ id: 'loss-damage-aggregate-unit', module: 'loss', title: 'Agregat menolak unit KK', what: 'Menjalankan estimateDamageAggregate assetUnit households.', invariant: 'invalid_input; KK bukan jumlah aset.', method: 'code-test', kind: 'simulasi', expected: null, actual: dmgHH.value, formula: 'hitungan aset asli, bukan KK/orang', inputs: "assetUnit='households'", warnings: dmgHH.warnings, trace: dmgHH.errors.join('; '), version: dmgHH.version, provenance: 'simulasi sintetis — bukan data resmi', statusOverride: dmgHH.status === 'invalid_input' ? 'PASS' : 'FAIL' }));
+  const recParent = reconcileFacts({ unit: 'packages', facts: [
+    { factId: 'f-total', value: 400, unit: 'packages', relation: 'total', sourceRefs: ['s0'] },
+    { factId: 'f-a', value: 250, unit: 'packages', relation: 'subset', parentFactId: 'f-total', sourceRefs: ['s1'] },
+    { factId: 'f-b', value: 150, unit: 'packages', relation: 'subset', parentFactId: 'f-total', sourceRefs: ['s2'] }] });
+  out.push(build({ id: 'recon-parent-child-ref', module: 'integration', title: 'Parent 400 + subset 250+150 → 400', what: 'Menjalankan reconcileFacts relasi parent-child.', invariant: 'Kanonik 400, bukan 800; lineage tercatat.', method: 'code-test', kind: 'simulasi', expected: 400, actual: recParent.value, formula: 'parent total + verified subsets → canonical total', inputs: 'total=400, subsets=250+150', warnings: recParent.warnings, trace: recParent.trace, version: recParent.version, provenance: 'simulasi sintetis — bukan data resmi' }));
+  const recSingle = reconcileFacts({ unit: 'kejadian', facts: [
+    { factId: 'solo', value: 62, unit: 'kejadian', relation: 'independent', groupKey: 'a', sourceRefs: ['s1'] }] });
+  out.push(build({ id: 'recon-single-canonical', module: 'integration', title: 'Observasi tunggal → kanonik 62', what: 'Menjalankan reconcileFacts satu fakta independen.', invariant: 'Tepat 62 tanpa agregasi; tanpa konfirmasi disjoint untuk satu fakta.', method: 'code-test', kind: 'simulasi', expected: 62, actual: recSingle.value, formula: 'single quantified observation → canonical total', inputs: 'solo=62 kejadian', warnings: recSingle.warnings, trace: recSingle.trace, version: recSingle.version, provenance: 'simulasi sintetis — bukan data resmi' }));
+  const recDangling = reconcileFacts({ unit: 'packages', facts: [
+    { factId: 'orphan', value: 250, unit: 'packages', relation: 'subset', parentFactId: 'ghost', sourceRefs: ['s1'] }] });
+  out.push(build({ id: 'recon-dangling-subset', module: 'integration', title: 'Subset yatim ditahan', what: 'Menjalankan reconcileFacts satu subset tanpa parent.', invariant: 'WITHHELD; bagian tidak bisa menjadi keseluruhan.', method: 'code-test', kind: 'simulasi', expected: null, actual: recDangling.value, formula: 'dangling subset → withheld', inputs: 'subset orphan→ghost', warnings: recDangling.warnings, trace: recDangling.trace, version: recDangling.version, provenance: 'simulasi sintetis — bukan data resmi', statusOverride: recDangling.status === 'insufficient_data' ? 'PASS' : 'FAIL' }));
+  const recRevised = reconcileFacts({ unit: 'rumah', disjointGroupsConfirmed: true, facts: [
+    { factId: 'old', value: 20, unit: 'rumah', relation: 'independent', groupKey: 'g', sourceRefs: ['s1'] },
+    { factId: 'rev', value: 26, unit: 'rumah', relation: 'revision', groupKey: 'g', sourceRefs: ['s2'], observedAt: '2026-10-05T00:00:00Z' }] });
+  out.push(build({ id: 'recon-revision-supersedes', module: 'integration', title: 'Revisi menggantikan laporan lama', what: 'Menjalankan reconcileFacts independent + revision satu grup.', invariant: 'Tepat 26; laporan lama OUT (superseded), tidak ikut dijumlah.', method: 'code-test', kind: 'simulasi', expected: 26, actual: recRevised.value, formula: 'latest revision wins; superseded excluded', inputs: 'old=20, rev=26', warnings: recRevised.warnings, trace: recRevised.trace, version: recRevised.version, provenance: 'simulasi sintetis — bukan data resmi' }));
+  const recScopes = reconcileFacts({ unit: 'people', disjointGroupsConfirmed: true, facts: [
+    { factId: 'g1', value: 367, unit: 'people', relation: 'independent', groupKey: 'A', area: 'Kecamatan Tapan', sourceRefs: ['s1'] },
+    { factId: 'g2', value: 250, unit: 'people', relation: 'independent', groupKey: 'B', area: 'Kecamatan Lunang', sourceRefs: ['s2'] }] });
+  out.push(build({ id: 'recon-scope-warning', module: 'integration', title: 'Scope beda dijumlah + peringatan', what: 'Menjalankan reconcileFacts disjoint area berbeda.', invariant: '617 dihitung + peringatan scope; tidak diam-diam.', method: 'code-test', kind: 'simulasi', expected: 617, actual: recScopes.value, formula: 'confirmed sum with recorded scope divergence', inputs: '367 Tapan + 250 Lunang', warnings: recScopes.warnings, trace: recScopes.trace, version: recScopes.version, provenance: 'simulasi sintetis — bukan data resmi', statusOverride: recScopes.value === 617 && /differing scopes/.test(recScopes.warnings.join(' ')) ? 'PASS' : 'FAIL' }));
+  const recDisjoint = reconcileFacts({ unit: 'people', disjointGroupsConfirmed: true, facts: [
+    { factId: 'g1', value: 367, unit: 'people', relation: 'independent', groupKey: 'A', sourceRefs: ['s1'] },
+    { factId: 'g2', value: 250, unit: 'people', relation: 'independent', groupKey: 'B', sourceRefs: ['s2'] },
+    { factId: 'g3', value: 55, unit: 'people', relation: 'independent', groupKey: 'C', sourceRefs: ['s3'] }] });
+  out.push(build({ id: 'recon-disjoint-ref', module: 'integration', title: 'Grup disjoint 367+250+55 → 672', what: 'Menjalankan reconcileFacts disjointGroupsConfirmed.', invariant: 'Tepat 672 hanya bila disjoint dikonfirmasi.', method: 'code-test', kind: 'simulasi', expected: 672, actual: recDisjoint.value, formula: 'confirmed disjoint groups → sum', inputs: '367+250+55 disjoint', warnings: recDisjoint.warnings, trace: recDisjoint.trace, version: recDisjoint.version, provenance: 'simulasi sintetis — bukan data resmi' }));
+  const recConflict = reconcileFacts({ unit: 'packages', facts: [
+    { factId: 't1', value: 400, unit: 'packages', relation: 'total', sourceRefs: ['s1'] },
+    { factId: 't2', value: 420, unit: 'packages', relation: 'total', sourceRefs: ['s2'] }] });
+  out.push(build({ id: 'recon-conflict-withheld', module: 'integration', title: 'Total konflik ditahan', what: 'Menjalankan reconcileFacts dua total berbeda.', invariant: 'WITHHELD + lineage; tidak dijumlah/dipilih diam-diam.', method: 'code-test', kind: 'simulasi', expected: null, actual: recConflict.value, formula: 'conflicting totals → withheld', inputs: 'totals=400 vs 420', warnings: recConflict.warnings, trace: recConflict.trace, version: recConflict.version, provenance: 'simulasi sintetis — bukan data resmi', statusOverride: recConflict.status === 'insufficient_data' ? 'PASS' : 'FAIL' }));
 
   // --- 5. Validation & provenance ---
   const neg = estimatePhysicalDamage({ assetCount: -1, replacementCostPerAsset: 1, damageFraction: 0.5 });

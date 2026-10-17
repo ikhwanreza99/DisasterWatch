@@ -6,6 +6,7 @@ import {
   estimateUtilityRecovery, estimateNeedsDemand, estimateForecastGap, scorePriority,
   evaluateLifeSafetyOverride, classifyNeedTier, priorityWeightsSum, duplicateFactIds,
   roundIdr, PRIORITY_WEIGHTS, PRIORITY_VERSION, CALCULATION_ENGINE_VERSION, METHOD_VERSION,
+  estimateOriIndex, oriWeightsSum, estimateCurrentGap, estimateDamageAggregate, reconcileFacts,
   damage, economicLoss, totalLoss, gap, gapPercent, utilityRecovery, forecast, priority,
   toDamageFraction,
 } from '../src/services/insights/formulas';
@@ -283,4 +284,148 @@ test('results carry calculation ID, origin, and scope', () => {
   const tDup = estimateTotalLoss(pDup, eDup);
   assert.equal(tDup.value, 675_000_000);
   assert.match(tDup.warnings.join(' '), /duplicate evidence refs/);
+});
+
+test('WS1: ORI golden 20/75/40/80 = 50.75, missing withheld, weights sum to 1', () => {
+  const ori = estimateOriIndex({ components: [
+    { service: 'water', affected: 200, recovered: 40, unit: 'households', area: 'K', period: '3d', operationalDefinition: 'piped flow restored', temporaryRestoration: false },
+    { service: 'electricity', affected: 400, recovered: 300, unit: 'customers', area: 'K', period: '3d', operationalDefinition: 'meter energised', temporaryRestoration: false },
+    { service: 'access', affected: 5, recovered: 2, unit: 'km', area: 'K', period: '3d', operationalDefinition: 'km passable', temporaryRestoration: false },
+    { service: 'telecom', affected: 600, recovered: 480, unit: 'customers', area: 'K', period: '3d', operationalDefinition: 'signal restored', temporaryRestoration: false }] });
+  assert.equal(ori.status, 'calculated');
+  assert.equal(ori.value, 50.75);
+  assert.equal(ori.unit, 'index 0–100');
+  assert.match(ori.warnings.join(' '), /NOT a direct percentage/);
+  assert.equal(oriWeightsSum(), 1);
+  // Missing category: withheld, weights never redistributed.
+  const miss = estimateOriIndex({ components: [
+    { service: 'water', affected: 200, recovered: 40, unit: 'households', operationalDefinition: 'x', temporaryRestoration: false }] });
+  assert.equal(miss.status, 'insufficient_data');
+  assert.equal(miss.value, null);
+  // Mixed units rejected.
+  const mixed = estimateOriIndex({ components: [
+    { service: 'water', affected: 200, recovered: 40, unit: 'customers', operationalDefinition: 'x', temporaryRestoration: false },
+    { service: 'electricity', affected: 400, recovered: 300, unit: 'customers', operationalDefinition: 'x', temporaryRestoration: false },
+    { service: 'access', affected: 5, recovered: 2, unit: 'km', operationalDefinition: 'x', temporaryRestoration: false },
+    { service: 'telecom', affected: 600, recovered: 480, unit: 'customers', operationalDefinition: 'x', temporaryRestoration: false }] });
+  assert.equal(mixed.status, 'invalid_input');
+});
+
+test('WS2: horizon-less current gap — positive, zero, missing, units, usability', () => {
+  const pos = estimateCurrentGap({ populationNeeding: 500, ratePerPerson: 2, usableSupply: 400, unit: 'portions' });
+  assert.equal(pos.status, 'calculated');
+  assert.equal(pos.value, 600);
+  const zero = estimateCurrentGap({ populationNeeding: 100, ratePerPerson: 1, usableSupply: 150, unit: 'portions' });
+  assert.equal(zero.value, 0);
+  assert.equal(estimateCurrentGap({ populationNeeding: null, ratePerPerson: 2, usableSupply: 10 }).status, 'insufficient_data');
+  assert.equal(estimateCurrentGap({ populationNeeding: 100, ratePerPerson: 1, usableSupply: 10, unit: 'portions', supplyUnit: 'kg' }).status, 'invalid_input');
+  const unusable = estimateCurrentGap({ populationNeeding: 100, ratePerPerson: 1, usableSupply: 10, supplyConfirmedUsable: false });
+  assert.equal(unusable.status, 'insufficient_data');
+  const dist = estimateCurrentGap({ populationNeeding: 100, ratePerPerson: 1, usableSupply: 10, distributedHistory: 50 });
+  assert.equal(dist.value, 90);
+  assert.match(dist.warnings.join(' '), /not current usable stock/);
+});
+
+test('WS3: multi-category damage aggregate with guards', () => {
+  const agg = estimateDamageAggregate({ categories: [
+    { categoryId: 'houses', assetCount: 5, assetUnit: 'house', replacementCostPerAsset: 150_000_000, currency: 'IDR', damageFraction: 0.5, area: 'K', period: 'p', assessmentScope: 'rapid' },
+    { categoryId: 'schools', assetCount: 2, assetUnit: 'building', replacementCostPerAsset: 500_000_000, currency: 'IDR', damageFraction: 50, damageFractionUnit: 'percent', area: 'K', period: 'p', assessmentScope: 'rapid' }] });
+  assert.equal(agg.status, 'calculated');
+  assert.equal(agg.value, 875_000_000);
+  // Household counts rejected, never converted.
+  assert.equal(estimateDamageAggregate({ categories: [
+    { categoryId: 'x', assetCount: 10, assetUnit: 'households', replacementCostPerAsset: 1, currency: 'IDR', damageFraction: 0.5 }] }).status, 'invalid_input');
+  // Missing cost withholds the combined total.
+  assert.equal(estimateDamageAggregate({ categories: [
+    { categoryId: 'x', assetCount: 5, assetUnit: 'house', replacementCostPerAsset: null, currency: 'IDR', damageFraction: 0.5 }] }).status, 'insufficient_data');
+  // Duplicate categories and incompatible scopes withhold.
+  assert.equal(estimateDamageAggregate({ categories: [
+    { categoryId: 'x', assetCount: 1, assetUnit: 'house', replacementCostPerAsset: 1, currency: 'IDR', damageFraction: 0.5 },
+    { categoryId: 'x', assetCount: 1, assetUnit: 'house', replacementCostPerAsset: 1, currency: 'IDR', damageFraction: 0.5 }] }).status, 'invalid_input');
+  assert.equal(estimateDamageAggregate({ categories: [
+    { categoryId: 'a', assetCount: 1, assetUnit: 'house', replacementCostPerAsset: 1, currency: 'IDR', damageFraction: 0.5, area: 'X' },
+    { categoryId: 'b', assetCount: 1, assetUnit: 'house', replacementCostPerAsset: 1, currency: 'IDR', damageFraction: 0.5, area: 'Y' }] }).status, 'insufficient_data');
+});
+
+test('WS4: parent-child reconciliation golden cases and withholds', () => {
+  const parent = reconcileFacts({ unit: 'packages', facts: [
+    { factId: 'f-total', value: 400, unit: 'packages', relation: 'total', sourceRefs: ['s0'] },
+    { factId: 'f-a', value: 250, unit: 'packages', relation: 'subset', parentFactId: 'f-total', sourceRefs: ['s1'] },
+    { factId: 'f-b', value: 150, unit: 'packages', relation: 'subset', parentFactId: 'f-total', sourceRefs: ['s2'] }] });
+  assert.equal(parent.status, 'calculated');
+  assert.equal(parent.value, 400);
+  assert.match(parent.trace, /f-total IN/);
+  const disjoint = reconcileFacts({ unit: 'people', disjointGroupsConfirmed: true, facts: [
+    { factId: 'g1', value: 367, unit: 'people', relation: 'independent', groupKey: 'A', sourceRefs: ['s1'] },
+    { factId: 'g2', value: 250, unit: 'people', relation: 'independent', groupKey: 'B', sourceRefs: ['s2'] },
+    { factId: 'g3', value: 55, unit: 'people', relation: 'independent', groupKey: 'C', sourceRefs: ['s3'] }] });
+  assert.equal(disjoint.value, 672);
+  assert.equal(reconcileFacts({ unit: 'people', facts: [
+    { factId: 'g1', value: 367, unit: 'people', relation: 'independent', groupKey: 'A', sourceRefs: ['s1'] },
+    { factId: 'g2', value: 250, unit: 'people', relation: 'independent', groupKey: 'B', sourceRefs: ['s2'] }] }).status, 'insufficient_data');
+  assert.equal(reconcileFacts({ unit: 'packages', facts: [
+    { factId: 't1', value: 400, unit: 'packages', relation: 'total', sourceRefs: ['s1'] },
+    { factId: 't2', value: 420, unit: 'packages', relation: 'total', sourceRefs: ['s2'] }] }).status, 'insufficient_data');
+});
+
+test('WS4: single quantified observation is its own canonical total', () => {
+  const r = reconcileFacts({ unit: 'kejadian', facts: [
+    { factId: 'f1', value: 62, unit: 'kejadian', relation: 'independent', groupKey: 'a', sourceRefs: ['s1'] }] });
+  assert.equal(r.status, 'calculated');
+  assert.equal(r.value, 62);
+  assert.match(r.trace, /single quantified observation/);
+});
+
+test('reconciliation integrity: duplicates, links, scopes, revisions, dangling parts', () => {
+  // Duplicate source reports (syndication): same source + same value counts once.
+  const syndup = reconcileFacts({ unit: 'packages', disjointGroupsConfirmed: true, facts: [
+    { factId: 'f-a', value: 250, unit: 'packages', relation: 'independent', groupKey: 'A', sourceRefs: ['s1'] },
+    { factId: 'f-a2', value: 250, unit: 'packages', relation: 'independent', groupKey: 'A', sourceRefs: ['s1'] },
+    { factId: 'f-b', value: 150, unit: 'packages', relation: 'independent', groupKey: 'B', sourceRefs: ['s2'] }] });
+  assert.equal(syndup.status, 'calculated');
+  assert.equal(syndup.value, 400);
+  assert.match(syndup.trace, /f-a2 OUT \(duplicated source claim/);
+  // Linked duplicates: same sourceUrl, different factIds, same value → once.
+  const linked = reconcileFacts({ unit: 'rumah', disjointGroupsConfirmed: true, facts: [
+    { factId: 'l1', value: 20, unit: 'rumah', relation: 'independent', groupKey: 'A', sourceRefs: ['https://x.test/bnpb'] },
+    { factId: 'l2', value: 20, unit: 'rumah', relation: 'independent', groupKey: 'A', sourceRefs: ['https://x.test/bnpb'] }] });
+  assert.equal(linked.value, 20);
+  assert.match(linked.trace, /l2 OUT \(duplicated source claim/);
+  // Same source, different values → conflict withhold, never averaged.
+  const sameSrcDiff = reconcileFacts({ unit: 'rumah', facts: [
+    { factId: 'c1', value: 20, unit: 'rumah', relation: 'total', sourceRefs: ['s1'] },
+    { factId: 'c2', value: 56, unit: 'rumah', relation: 'total', sourceRefs: ['s1'] }] });
+  assert.equal(sameSrcDiff.value, null);
+  assert.equal(sameSrcDiff.status, 'insufficient_data');
+  assert.match(sameSrcDiff.trace, /conflicting totals \(20 vs 56\)/);
+  // Dangling subset (parent absent) cannot stand as the whole.
+  const dangling = reconcileFacts({ unit: 'packages', facts: [
+    { factId: 'orphan', value: 250, unit: 'packages', relation: 'subset', parentFactId: 'ghost', sourceRefs: ['s1'] }] });
+  assert.equal(dangling.value, null);
+  assert.equal(dangling.status, 'insufficient_data');
+  assert.match(dangling.trace, /dangling subset orphan/);
+  // Revision supersedes the earlier independent report in its group.
+  const revised = reconcileFacts({ unit: 'rumah', disjointGroupsConfirmed: true, facts: [
+    { factId: 'old', value: 20, unit: 'rumah', relation: 'independent', groupKey: 'g', sourceRefs: ['s1'] },
+    { factId: 'new', value: 26, unit: 'rumah', relation: 'revision', groupKey: 'g', sourceRefs: ['s2'], observedAt: '2026-10-05T00:00:00Z' }] });
+  assert.equal(revised.value, 26);
+  assert.match(revised.trace, /old OUT \(superseded by revision chain/);
+  // Differing scopes summed only with confirmation + recorded warning.
+  const scopes = reconcileFacts({ unit: 'people', disjointGroupsConfirmed: true, facts: [
+    { factId: 'g1', value: 367, unit: 'people', relation: 'independent', groupKey: 'A', area: 'Kecamatan Tapan', sourceRefs: ['s1'] },
+    { factId: 'g2', value: 250, unit: 'people', relation: 'independent', groupKey: 'B', area: 'Kecamatan Lunang', sourceRefs: ['s2'] }] });
+  assert.equal(scopes.value, 617);
+  assert.match(scopes.warnings.join(' '), /differing scopes/);
+  // Null and negative quantities excluded with reasons, never zero-filled.
+  const badQty = reconcileFacts({ unit: 'u', disjointGroupsConfirmed: true, facts: [
+    { factId: 'ok', value: 10, unit: 'u', relation: 'independent', groupKey: 'A', sourceRefs: ['s1'] },
+    { factId: 'nil', value: null, unit: 'u', relation: 'independent', groupKey: 'B', sourceRefs: ['s2'] },
+    { factId: 'neg', value: -5, unit: 'u', relation: 'independent', groupKey: 'C', sourceRefs: ['s3'] }] });
+  assert.equal(badQty.value, 10);
+  assert.match(badQty.trace, /nil OUT \(missing, non-finite or negative/);
+  assert.match(badQty.trace, /neg OUT \(missing, non-finite or negative/);
+  // Single observation is labeled canonical-alone, not corroborated.
+  const solo = reconcileFacts({ unit: 'kejadian', facts: [
+    { factId: 'f1', value: 62, unit: 'kejadian', relation: 'independent', groupKey: 'a', sourceRefs: ['s1'] }] });
+  assert.match(solo.trace, /NOT independently corroborated/);
 });

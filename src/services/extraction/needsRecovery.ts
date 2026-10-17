@@ -112,6 +112,78 @@ function verificationOf(sourceType: Ctx['sourceType']): VerificationStatus {
   return sourceType === 'OFFICIAL' ? 'AI_REVIEWED' : 'UNVERIFIED';
 }
 
+// --- Service-count groundwork (NOT wired into extractRecovery/crawl) ---------
+// Conservative evidence parser for affected/restored service counts. Returns
+// nulls unless a number is adjacent to BOTH a known count-unit token AND an
+// affected/restored verb, with no nearby negation. Hooking this into the crawl
+// pipeline requires review of source-evidence policy; until then ingestion
+// keeps counts null rather than risk fabrication.
+const COUNT_UNITS = ['pelanggan', 'rumah tangga', 'kk', 'kepala keluarga', 'km', 'kilometer', 'unit', 'tower', 'bts', 'gardu', 'trafo', 'sambungan', 'jiwa', 'orang', 'rumah', 'desa', 'pelanggan listrik', 'pelanggan air'];
+const AFFECTED_VERBS = /terdampak|terimbas|\bmati\b|padam|putus|terputus|terendam|lumpuh|terganggu|terisolir|rusak|terputusnya/i;
+const RESTORED_VERBS = /pulih|kembali normal|menyala|tersambung|beroperasi kembali|dibuka kembali|dapat dilalui|bisa dilalui|normal kembali|baik kembali|tersambung kembali/i;
+const NEGATION = /\b(tidak|tanpa|belum|bukan)\b/i;
+
+export interface ServiceCountEvidence {
+  affected: number | null;
+  affectedUnit: string | null;
+  restored: number | null;
+  restoredUnit: string | null;
+}
+
+function parseCountNumber(raw: string): number | null {
+  const n = parseFloat(raw.replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** Extract explicitly stated affected/restored counts, or all-nulls. Pure. */
+export function extractServiceCounts(title: string, summary: string | null): ServiceCountEvidence {
+  const text = `${title}\n${summary ?? ''}`;
+  const out: ServiceCountEvidence = { affected: null, affectedUnit: null, restored: null, restoredUnit: null };
+  const re = /(\d[\d.,]*)\s*([A-Za-z]+(?: [A-Za-z]+){0,2})/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    // Longest known-unit prefix: "pelanggan terdampak…" → "pelanggan".
+    const words = m[2]!.trim().toLowerCase().split(/\s+/);
+    let unit: string | null = null;
+    for (let len = Math.min(3, words.length); len >= 1; len--) {
+      const cand = words.slice(0, len).join(' ');
+      if (COUNT_UNITS.includes(cand)) {
+        unit = cand;
+        break;
+      }
+    }
+    if (!unit) continue;
+    if (NEGATION.test(text.slice(Math.max(0, m.index - 14), m.index))) continue;
+    const n = parseCountNumber(m[1]!);
+    if (n === null) continue;
+    // Proximity attribution: verbs right after the figure win (Indonesian
+    // predicative order: "400 pelanggan terdampak"); fallback to verbs just
+    // before it. Both/neither within range → ambiguous → skipped, never guessed.
+    // (Measured from the end of the matched unit, not the raw match.)
+    const unitEnd = m.index + m[1]!.length + 1 + unit.length;
+    const after = text.slice(unitEnd, unitEnd + 30);
+    const before = text.slice(Math.max(0, m.index - 30), m.index);
+    const afterR = RESTORED_VERBS.test(after);
+    const afterA = AFFECTED_VERBS.test(after);
+    const beforeR = RESTORED_VERBS.test(before);
+    const beforeA = AFFECTED_VERBS.test(before);
+    let kind: 'restored' | 'affected' | null = null;
+    if (afterR && !afterA) kind = 'restored';
+    else if (afterA && !afterR) kind = 'affected';
+    else if (beforeR && !beforeA) kind = 'restored';
+    else if (beforeA && !beforeR) kind = 'affected';
+    else continue;
+    if (kind === 'restored' && out.restored === null) {
+      out.restored = n;
+      out.restoredUnit = unit;
+    } else if (kind === 'affected' && out.affected === null) {
+      out.affected = n;
+      out.affectedUnit = unit;
+    }
+  }
+  return out;
+}
+
 /** Extract needs — one record per distinct item. No keyword → no record (never inferred). */
 export function extractNeeds(title: string, summary: string | null, ctx: Ctx): IncidentAidNeedDoc[] {
   const text = `${title}\n${summary ?? ''}`;
@@ -223,6 +295,11 @@ export function extractRecovery(title: string, summary: string | null, ctx: Ctx)
       impactDescription: text.slice(0, 280),
       affectedCount: null,
       unit: null,
+      // Counts are never extracted here today: only explicitly sourced figures
+      // may populate them (see extractServiceCounts groundwork below and the
+      // crawl hook-point note). Null preserves "unknown", never zero.
+      restoredCount: null,
+      restorationCriterion: null,
       waterSafety: p.service === 'WASH' ? (/aman (diminum|dikonsumsi)/i.test(text) ? 'SAFE' : /tercemar|terkontaminasi/i.test(text) ? 'UNSAFE' : 'UNKNOWN') : null,
       estimatedRestorationAt: null, // never invented; only set from sourced estimates
       restoredAt: status === 'RESTORED' || status === 'OPERATIONAL' || status === 'OPEN' || status === 'AVAILABLE' ? at : null,

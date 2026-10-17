@@ -295,6 +295,92 @@ const status: Record<string, string> = {
   'Diperiksa {at}': 'Checked {at}',
   'Halaman internal untuk verifikasi implementasi. Bukan klaim kesiapan produksi. Cek live membutuhkan sesi browser dengan akses Firestore; selebihnya halaman ini deterministik dan dapat diuji ulang.':
     'Internal page for verifying the implementation. Not a production-readiness claim. Live checks need a browser session with Firestore access; the rest of this page is deterministic and re-runnable.',
+  'Bukti eksekusi layanan (sintetis)': 'Service execution proof (synthetic)',
+  'Layanan calculationService.runCalculation memanggil fungsi produksi pada fixture berlabel. Nilai di bawah adalah return value aktual, bukan angka tampilan. {pass} dari {total} goldens cocok.':
+    'The calculationService.runCalculation service calls production functions on labeled fixtures. Values below are actual return values, not display numbers. {pass} of {total} goldens match.',
+  'Estimasi skenario': 'Scenario estimate',
+  'Prakiraan': 'Forecast',
+  'Konflik — perlu telaah': 'Conflict — needs review',
+  'Data basi': 'Stale data',
+  'Siap dihitung': 'Ready to calculate',
+  'Terhambat': 'Blocked',
+  'Tidak tersedia': 'Not available',
+  'Insiden:': 'Incident:',
+  'Kurang:': 'Missing:',
+  'Ada:': 'Available:',
+  'simulasi/demo': 'simulation/demo',
+  'Pilih insiden live': 'Select live incident',
+  'Kesiapan live per metrik:': 'Live readiness per metric:',
+  '{ready} siap · {blocked} terhambat · {na} tidak tersedia': '{ready} ready · {blocked} blocked · {na} unavailable',
+  'dokumen humaniter terbaca untuk insiden ini': 'humanitarian documents read for this incident',
+  'Mode live read-only (Firestore)': 'Live read-only mode (Firestore)',
+  'Baca saja via repository yang ada. Tanpa tulis produksi. Hasil sintetis tidak pernah ditampilkan sebagai hasil live.':
+    'Read-only via the existing repository. No production writes. Synthetic results are never shown as live results.',
+  'Tidak ada insiden yang dapat dibaca dari Firestore pada sesi ini.': 'No incidents could be read from Firestore in this session.',
+  'dihasilkan layanan calculationService.runCalculation dari fungsi produksi, bukan nilai tampilan':
+    'produced by the calculationService.runCalculation service from production functions, not display values',
+  'Data Requirements & Availability': 'Data Requirements & Availability',
+  'Inventaris kebutuhan tiap perhitungan vs ketersediaan aktual di Firestore. Formula benar dan data tersedia adalah dua dimensi terpisah.':
+    'Inventory of each calculation\u2019s requirements vs actual Firestore availability. Formula correctness and data availability are separate dimensions.',
+  'Audit berjalan sesi ini': 'Audit ran this session',
+  'Cakupan: {n} dokumen per koleksi (batas 50–200, filter insiden) untuk {incident}; kesimpulan hanya untuk cakupan itu, bukan seluruh database.':
+    'Scope: {n} documents per collection (limits 50–200, incident-filtered) for {incident}; conclusions cover that scope only, not the whole database.',
+  'Audit database belum berjalan pada sesi ini — buka mode live dengan akses Firestore.':
+    'The database audit has not run in this session — open live mode with Firestore access.',
+  'Periksa ulang': 'Recheck',
+  'Ringkasan inventaris:': 'Inventory summary:',
+  '{total} kebutuhan ({mandatory} wajib). Tersedia {a} · Sebagian {p} · Hilang {m} · Tidak valid {i} · Konflik {c} · Belum diperiksa {n} · Tidak berlaku {na}.':
+    '{total} requirements ({mandatory} mandatory). Available {a} · Partial {p} · Missing {m} · Invalid {i} · Conflict {c} · Not checked {n} · Not applicable {na}.',
+  'Kesiapan metrik:': 'Metric readiness:',
+  'Cakupan = kebutuhan wajib yang valid / total kebutuhan wajib. Cakupan adalah kelengkapan data, bukan skor kepercayaan.':
+    'Coverage = valid mandatory requirements / total mandatory requirements. Coverage is data completeness, not a confidence score.',
+  'Metrik:': 'Metric:',
+  'Hasil:': 'Result:',
+  'Dokumen:': 'Documents:',
+  'Sumber:': 'Sources:',
+  'Baseline:': 'Baselines:',
+  'Dihitung:': 'Calculated at:',
+  'Peringatan:': 'Warnings:',
+  'Hasil live Firestore ({n} grup klaim):': 'Live Firestore results ({n} claim groups):',
+  'rekonsiliasi klaim terkuantifikasi per tipe+satuan; relasi diturunkan transparan, lineage tercatat.':
+    'reconciliation of quantified claims per type+unit; relations derived transparently, lineage recorded.',
+  'rekonsiliasi klaim': 'claim reconciliation',
+  'Tidak ada klaim terkuantifikasi pada insiden ini — tidak ada kalkulasi live yang dapat dijalankan. Metrik lain menunjukkan pemblokirnya di bawah.':
+    'No quantified claims for this incident — no live calculation can run. Other metrics show their blockers below.',
+  'Pemulihan layanan live ({n} observasi):': 'Live service recovery ({n} observations):',
+  'pemulihan': 'recovery',
+  'kriteria:': 'criterion:',
+  'kriteria tidak dinyatakan': 'criterion unstated',
+  'Belum ada observasi pemulihan terhitung pada insiden ini. Yang kurang: {missing}':
+    'No countable recovery observations for this incident yet. Missing: {missing}',
+  'affectedCount/restoredCount dengan satuan eksplisit per layanan (recovery.affectedCount/restoredCount)':
+    'affectedCount/restoredCount with explicit per-service units (recovery.affectedCount/restoredCount)',
+  'Semua metrik': 'All metrics',
+  'Status:': 'Status:',
+  'cakupan {num}/{den} · pemblokir: {b}': 'coverage {num}/{den} · blockers: {b}',
+  'Lihat bukti verifikasi': 'See verification evidence',
+  'Data yang dibutuhkan': 'Required data item',
+  'Sumber Firestore': 'Firestore source',
+  'Ketersediaan': 'Availability',
+  'Valid/total': 'Valid/total',
+  'Satuan': 'Unit',
+  'Blokir?': 'Blocking?',
+  'Ya': 'Yes',
+  'Tidak': 'No',
+  'opsional': 'optional',
+  'Tersedia': 'Available',
+  'Tidak valid': 'Invalid',
+  'Basi': 'Stale',
+  'Konflik': 'Conflict',
+  'Tidak berlaku': 'Not applicable',
+  'Observasi': 'Observed',
+  'Baseline': 'Baseline',
+  'Parameter': 'Parameter',
+  'Turunan': 'Derived',
+  'Terpenuhi: {ids}. Jalankan via calculationService.runCalculation dengan input tervalidasi untuk output live.':
+    'Satisfied: {ids}. Run via calculationService.runCalculation with validated inputs for live output.',
+  'Legenda sumber: Observasi = fakta terukur; Baseline = nilai acuan eksplisit; Parameter = konstanta versi di kode; Turunan = dihitung saat kalkulasi. Audit hanya membaca; tidak menulis, memigrasi, atau seed data.':
+    'Source legend: Observed = measured facts; Baseline = explicit reference values; Parameter = versioned constants in code; Derived = computed at calculation time. The audit only reads; it never writes, migrates, or seeds data.',
 };
 
 export default status;

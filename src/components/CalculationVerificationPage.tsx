@@ -1,9 +1,10 @@
 // /calculation — Calculation Verification Center.
 // Follows GoogleStatusPage (/status) styling and layout conventions.
-// Evidence-driven: every check executes the real engine via the registry;
-// this page never re-implements formulas and never invents PASS results.
+// Evidence-driven: every check executes the real engine via the registry or
+// the shared calculation service; this page never re-implements formulas,
+// never invents PASS results, and never labels synthetic output as live.
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, ArrowLeft, CheckCircle2, XCircle, MinusCircle, HelpCircle, Ban, Database } from 'lucide-react';
+import { Activity, ArrowLeft, CheckCircle2, XCircle, MinusCircle, HelpCircle, Ban, Database, FlaskConical, Radio } from 'lucide-react';
 import { useI18n, localeFor } from '../i18n';
 import { LanguageToggle } from '../i18n/LanguageToggle';
 import {
@@ -13,6 +14,29 @@ import {
   type CheckOutcome,
   type CheckStatus,
 } from '../services/verification/calculationRegistry';
+import {
+  metricLabel,
+  runCalculation,
+  type ServiceResponse,
+} from '../services/calculations/calculationService';
+import {
+  assessLiveReadiness,
+  readinessCounts,
+  type LiveReadiness,
+} from '../services/calculations/liveAdapter';
+import { buildClaimFactGroups } from '../services/calculations/liveClaimGroups';
+import { adaptUtilityInputs } from '../services/calculations/liveAdapter';
+import {
+  DATA_REQUIREMENTS,
+  REQUIREMENT_KINDS,
+  assessMetricReadiness,
+  auditRequirements,
+  metricsWithRequirements,
+  type AuditScope,
+  type CalculationReadiness,
+  type FieldAvailability,
+} from '../services/verification/requirementsInventory';
+import type { ExtendedResultStatus } from '../services/insights/formulas';
 import { loadHumanitarian, type RemoteSnapshot } from '../services/store/humanitarianRepo';
 
 const chip: Record<CheckStatus, string> = {
@@ -34,6 +58,198 @@ const STATUS_LABEL: Record<CheckStatus, string> = {
 };
 
 const MODULES: CheckModule[] = ['loss', 'recovery-gap', 'utility-recovery', 'needs-intelligence', 'validation-provenance', 'integration'];
+
+const EXTENDED_LABEL: Record<ExtendedResultStatus, string> = {
+  calculated: 'Dihitung',
+  scenario_estimate: 'Estimasi skenario',
+  forecast: 'Prakiraan',
+  insufficient_data: 'Data kurang',
+  invalid_input: 'Input tidak valid',
+  conflict_pending_review: 'Konflik — perlu telaah',
+  stale_data: 'Data basi',
+};
+
+const READINESS_CHIP: Record<LiveReadiness, string> = {
+  READY: 'bg-emerald-50 text-emerald-700',
+  BLOCKED: 'bg-amber-50 text-amber-700',
+  NOT_AVAILABLE: 'bg-slate-100 text-slate-600',
+};
+
+const READINESS_LABEL: Record<LiveReadiness, string> = {
+  READY: 'Siap dihitung',
+  BLOCKED: 'Terhambat',
+  NOT_AVAILABLE: 'Tidak tersedia',
+};
+
+const AVAIL_CHIP: Record<FieldAvailability, string> = {
+  AVAILABLE: 'bg-emerald-50 text-emerald-700',
+  PARTIAL: 'bg-amber-50 text-amber-700',
+  MISSING: 'bg-rose-50 text-rose-700',
+  INVALID: 'bg-rose-50 text-rose-700',
+  STALE: 'bg-orange-50 text-orange-700',
+  CONFLICT: 'bg-purple-50 text-purple-700',
+  NOT_CHECKED: 'bg-slate-100 text-slate-600',
+  NOT_APPLICABLE: 'bg-slate-100 text-slate-400',
+};
+
+const AVAIL_LABEL: Record<FieldAvailability, string> = {
+  AVAILABLE: 'Tersedia',
+  PARTIAL: 'Sebagian',
+  MISSING: 'Hilang',
+  INVALID: 'Tidak valid',
+  STALE: 'Basi',
+  CONFLICT: 'Konflik',
+  NOT_CHECKED: 'Belum diperiksa',
+  NOT_APPLICABLE: 'Tidak berlaku',
+};
+
+const CALC_READINESS_LABEL: Record<CalculationReadiness, string> = {
+  READY: 'Siap dihitung',
+  BLOCKED: 'Terhambat',
+  NOT_AVAILABLE: 'Tidak tersedia',
+};
+
+/** Drill-down from a metric to its verification module section. */
+const METRIC_MODULE: Record<string, CheckModule> = {
+  physical_damage: 'loss', economic_loss: 'loss', economic_loss_netflow: 'loss', total_loss: 'loss',
+  damage_aggregate: 'loss',
+  funding_gap: 'recovery-gap', funding_gap_percent: 'recovery-gap',
+  physical_gap: 'recovery-gap', physical_gap_percent: 'recovery-gap',
+  utility_recovery: 'utility-recovery', ori_index: 'utility-recovery',
+  needs_demand: 'needs-intelligence', needs_current_gap: 'needs-intelligence',
+  needs_forecast_gap: 'needs-intelligence', priority_score: 'needs-intelligence',
+  reconcile_facts: 'integration',
+};
+
+/** Production engine function behind each proof (no reimplementation). */
+const PROOF_FN: Record<string, string> = {
+  ori_index: 'estimateOriIndex',
+  needs_current_gap: 'estimateCurrentGap',
+  needs_forecast_gap: 'estimateForecastGap',
+  damage_aggregate: 'estimateDamageAggregate',
+  reconcile_facts: 'reconcileFacts',
+};
+
+interface ProofCase {
+  key: string;
+  title: string;
+  request: Parameters<typeof runCalculation>[0];
+  expected: number | null;
+}
+
+const ORI_COMPONENTS = [
+  { service: 'water', affected: 200, recovered: 40, unit: 'households', area: 'simulasi', period: '3 hari', operationalDefinition: 'aliran pipa pulih', temporaryRestoration: false },
+  { service: 'electricity', affected: 400, recovered: 300, unit: 'customers', area: 'simulasi', period: '3 hari', operationalDefinition: 'meter bertegangan', temporaryRestoration: false },
+  { service: 'access', affected: 5, recovered: 2, unit: 'km', area: 'simulasi', period: '3 hari', operationalDefinition: 'km dapat dilalui', temporaryRestoration: false },
+  { service: 'telecom', affected: 600, recovered: 480, unit: 'customers', area: 'simulasi', period: '3 hari', operationalDefinition: 'sinyal pulih', temporaryRestoration: false },
+] as const;
+
+function buildProofs(): Array<{ proof: ProofCase; response: ServiceResponse }> {
+  const cases: ProofCase[] = [
+    {
+      key: 'ori_index', title: 'ORI: 20/75/40/80 → 50,75',
+      request: { metric: 'ori_index', mode: 'scenario', origin: 'simulation', calculationId: 'proof-ori', input: { components: [...ORI_COMPONENTS] } },
+      expected: 50.75,
+    },
+    {
+      key: 'needs_current_gap', title: 'Current gap: 500 × 2 − 400 = 600',
+      request: { metric: 'needs_current_gap', mode: 'current', origin: 'simulation', calculationId: 'proof-curgap', input: { populationNeeding: 500, ratePerPerson: 2, usableSupply: 400, unit: 'portions', commodity: 'meal portions' } },
+      expected: 600,
+    },
+    {
+      key: 'needs_current_gap_floor', title: 'Current gap floor: 100 × 1 − 150 = 0',
+      request: { metric: 'needs_current_gap', mode: 'current', origin: 'simulation', calculationId: 'proof-curgap-floor', input: { populationNeeding: 100, ratePerPerson: 1, usableSupply: 150, unit: 'portions' } },
+      expected: 0,
+    },
+    {
+      key: 'damage_aggregate', title: 'Agregat: 375 jt + 500 jt = 875 jt',
+      request: {
+        metric: 'damage_aggregate', mode: 'scenario', origin: 'simulation', calculationId: 'proof-dmgagg',
+        input: {
+          categories: [
+            { categoryId: 'houses', assetCount: 5, assetUnit: 'house', replacementCostPerAsset: 150_000_000, currency: 'IDR', damageFraction: 0.5, area: 'simulasi', period: '3 hari', assessmentScope: 'rapid-a' },
+            { categoryId: 'schools', assetCount: 2, assetUnit: 'building', replacementCostPerAsset: 500_000_000, currency: 'IDR', damageFraction: 50, damageFractionUnit: 'percent', area: 'simulasi', period: '3 hari', assessmentScope: 'rapid-a' },
+          ],
+        },
+      },
+      expected: 875_000_000,
+    },
+    {
+      key: 'reconcile_parent', title: 'Parent 400 + subset 250+150 → 400',
+      request: {
+        metric: 'reconcile_facts', mode: 'current', origin: 'simulation', calculationId: 'proof-recon',
+        input: {
+          unit: 'packages',
+          facts: [
+            { factId: 'f-total', value: 400, unit: 'packages', relation: 'total', sourceRefs: ['s0'] },
+            { factId: 'f-a', value: 250, unit: 'packages', relation: 'subset', parentFactId: 'f-total', sourceRefs: ['s1'] },
+            { factId: 'f-b', value: 150, unit: 'packages', relation: 'subset', parentFactId: 'f-total', sourceRefs: ['s2'] },
+          ],
+        },
+      },
+      expected: 400,
+    },
+    {
+      key: 'forecast_gap', title: 'Forecast: 6048 + 0 − 0 − 0 = 6048',
+      request: {
+        metric: 'needs_forecast_gap', mode: 'forecast', origin: 'simulation', calculationId: 'proof-forecast',
+        input: { demand: 6048, additionalBacklog: 0, usableStock: 0, expectedIncoming: 0, unit: 'portions' },
+      },
+      expected: 6048,
+    },
+    {
+      key: 'reconcile_disjoint', title: 'Disjoint 367+250+55 → 672',
+      request: {
+        metric: 'reconcile_facts', mode: 'current', origin: 'simulation', calculationId: 'proof-disjoint',
+        input: {
+          unit: 'people', disjointGroupsConfirmed: true,
+          facts: [
+            { factId: 'g1', value: 367, unit: 'people', relation: 'independent', groupKey: 'A', sourceRefs: ['s1'] },
+            { factId: 'g2', value: 250, unit: 'people', relation: 'independent', groupKey: 'B', sourceRefs: ['s2'] },
+            { factId: 'g3', value: 55, unit: 'people', relation: 'independent', groupKey: 'C', sourceRefs: ['s3'] },
+          ],
+        },
+      },
+      expected: 672,
+    },
+  ];
+  return cases.map((proof) => ({ proof, response: runCalculation(proof.request) }));
+}
+
+function SvcProofRow({ proof, response }: { proof: ProofCase; response: ServiceResponse }) {
+  const { t, locale } = useI18n();
+  const r = response.result;
+  const pass = r.value === proof.expected;
+  const num = (v: number | null) => (v === null ? t('Belum tersedia') : v.toLocaleString(locale, { maximumFractionDigits: 2 }));
+  return (
+    <details className="px-5 py-4" data-testid={`svc-proof-${proof.key}`}>
+      <summary className="grid cursor-pointer gap-3 sm:grid-cols-[minmax(180px,1fr)_minmax(220px,2fr)_auto] sm:items-start">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{proof.title}</p>
+          <p className="mt-1 font-mono text-[11px] text-slate-400">{PROOF_FN[response.metric] ?? response.metric} · {r.metricId ?? '—'} · {r.id ?? '—'}</p>
+        </div>
+        <p className="font-mono text-[11px] leading-relaxed text-slate-600 break-words">{r.trace || '—'}</p>
+        <span className="flex flex-wrap items-start gap-1.5">
+          <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${pass ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+            {pass ? t('Lolos') : t('Gagal')}
+          </span>
+          <span className="inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700">{t('Simulasi — bukan data resmi')}</span>
+          <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{t(EXTENDED_LABEL[response.extendedStatus])}</span>
+        </span>
+      </summary>
+      <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+        <p><b className="text-slate-800">Rantai bukti:</b> fakta input → validasi/kesiapan ({t(EXTENDED_LABEL[response.extendedStatus])}) → {PROOF_FN[response.metric] ?? response.metric}(…) → trace → hasil aktual</p>
+        <p className="mt-1"><b className="text-slate-800">Aktual:</b> {num(r.value)}{r.unit ? ` ${r.unit}` : ''} · <b className="text-slate-800">Ekspektasi:</b> {num(proof.expected)} · <b className="text-slate-800">Status engine:</b> {r.status}</p>
+        <p className="mt-1"><b className="text-slate-800">Scope:</b> {r.scope.area ?? '—'} / {r.scope.period ?? '—'} · <b className="text-slate-800">Cakupan:</b> {r.coverage ?? '—'} · <b className="text-slate-800">Ketidakpastian:</b> {r.uncertainty ?? '—'}</p>
+        <p className="mt-1"><b className="text-slate-800">Baseline:</b> {r.baselineIds.length > 0 ? r.baselineIds.join(', ') : '— (registri baseline belum ada)'} · <b className="text-slate-800">Fakta sumber:</b> {r.sourceFactIds.length > 0 ? r.sourceFactIds.join(', ') : '— (skenario sintetis)'} · <b className="text-slate-800">Input hilang:</b> {r.missingInputs.length > 0 ? r.missingInputs.join(', ') : '—'}</p>
+        <p className="mt-1"><b className="text-slate-800">Insiden:</b> {r.incidentId ?? '— (skenario tanpa insiden)'} · <b className="text-slate-800">Valid time:</b> {r.validTime ?? '—'} · <b className="text-slate-800">Dihitung:</b> {fmtDate(r.calculatedAt, locale)}</p>
+        {r.warnings.length > 0 && <p className="mt-1 text-amber-700"><b>Peringatan:</b> {r.warnings.join(' | ')}</p>}
+        {r.errors.length > 0 && <p className="mt-1 text-rose-700"><b>Galat:</b> {r.errors.join(' | ')}</p>}
+        <p className="mt-1 text-[11px] text-slate-400">Metode {r.version} · output kontrak {t('dihasilkan layanan calculationService.runCalculation dari fungsi produksi, bukan nilai tampilan')}</p>
+      </div>
+    </details>
+  );
+}
 
 function fmtDate(value: string | null, locale: string) {
   return value ? new Date(value).toLocaleString(locale, { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }) + ' WIB' : '—';
@@ -76,19 +292,139 @@ export default function CalculationVerificationPage({ embedded = false }: { embe
   // Deterministic run: executes the real engine now; the timestamp below is
   // the actual run time, not a stored claim.
   const report = useMemo(() => runCalculationVerification(), []);
+  // Service execution proof: the shared service invoking the REAL production
+  // functions on labeled synthetic fixtures (P0 goldens). Rendered values come
+  // from runCalculation return values — never prefilled display numbers.
+  const proofs = useMemo(() => buildProofs(), []);
+  const proofPass = proofs.filter(({ proof, response }) => response.result.value === proof.expected).length;
+  const [incidentId, setIncidentId] = useState('padang');
   const [live, setLive] = useState<RemoteSnapshot | null>(null);
   const [liveAt, setLiveAt] = useState<string | null>(null);
+  const [auditTick, setAuditTick] = useState(0);
+  const [filterMetric, setFilterMetric] = useState<string>('ALL');
+  const [filterAvail, setFilterAvail] = useState<string>('ALL');
   useEffect(() => {
     let active = true;
-    // Read-only probe of one incident via the existing repository layer.
+    // Read-only probe via the existing authorized repository layer.
     // No writes; failure yields NOT VERIFIED, never invented numbers.
-    loadHumanitarian('padang').then((s) => {
+    loadHumanitarian(incidentId).then((s) => {
       if (!active) return;
       setLive(s);
       setLiveAt(new Date().toISOString());
     });
     return () => { active = false; };
-  }, []);
+  }, [incidentId, auditTick]);
+  // Database availability audit for the SELECTED incident. Built from the
+  // same bounded snapshot as the live probe above (per-incident limits
+  // 50–200; incidents list limit 50) — conclusions are scoped to what was
+  // actually read, never to the whole database. No writes, no new queries.
+  const audit = useMemo(() => {
+    if (!live || live.mode !== 'live') return null;
+    const docsOf = (arr: Array<{ id: string }>) =>
+      arr.filter((d) => d && d.id).map((d) => ({ id: (d as { id: string }).id, data: { ...(d as unknown as Record<string, unknown>) } }));
+    const toErrorCategory = (notice: string): string | null => {
+      if (/belum dikonfigurasi/i.test(notice)) return 'unconfigured';
+      if (/gagal memuat/i.test(notice)) return 'read-failure';
+      return 'unknown';
+    };
+    const scope: AuditScope = {
+      incidentId,
+      accessOk: true,
+      errorCategory: toErrorCategory(live.notice),
+      samples: [
+        { collection: 'incidents', limit: 50, incidentScoped: false, docs: docsOf(live.incidents) },
+        { collection: 'incidentClaims', limit: 200, incidentScoped: true, docs: docsOf(live.claims) },
+        { collection: 'incidentAidNeeds', limit: 100, incidentScoped: true, docs: docsOf(live.needs) },
+        { collection: 'incidentAidEvents', limit: 100, incidentScoped: true, docs: docsOf(live.aidEvents) },
+        { collection: 'incidentRecovery', limit: 50, incidentScoped: true, docs: docsOf(live.recovery) },
+      ],
+      auditedAt: liveAt ?? new Date().toISOString(),
+    };
+    const audits = auditRequirements(DATA_REQUIREMENTS, scope);
+    const metrics = metricsWithRequirements().map((metricId) => assessMetricReadiness(metricId, audits));
+    return { scope, audits, metrics };
+  }, [live, liveAt, incidentId]);
+  const auditRan = audit !== null;
+  const filteredAudits = useMemo(() => {
+    if (!audit) return [];
+    const byId = new Map(audit.audits.map((a) => [a.requirement_id, a]));
+    return DATA_REQUIREMENTS.filter((r) => {
+      if (filterMetric !== 'ALL' && r.metric_id !== filterMetric) return false;
+      if (filterAvail !== 'ALL' && byId.get(r.requirement_id)?.status !== filterAvail) return false;
+      return true;
+    }).map((r) => ({ req: r, audit: byId.get(r.requirement_id)! }));
+  }, [audit, filterMetric, filterAvail]);
+  const availTally = useMemo(() => {
+    const t: Record<FieldAvailability, number> = {
+      AVAILABLE: 0, PARTIAL: 0, MISSING: 0, INVALID: 0, STALE: 0, CONFLICT: 0, NOT_CHECKED: 0, NOT_APPLICABLE: 0,
+    };
+    if (audit) for (const a of audit.audits) t[a.status]++;
+    return t;
+  }, [audit]);
+  const readinessTally = useMemo(() => {
+    if (!audit) return { READY: 0, BLOCKED: 0, NOT_AVAILABLE: 0 };
+    return {
+      READY: audit.metrics.filter((m) => m.readiness === 'READY').length,
+      BLOCKED: audit.metrics.filter((m) => m.readiness === 'BLOCKED').length,
+      NOT_AVAILABLE: audit.metrics.filter((m) => m.readiness === 'NOT_AVAILABLE').length,
+    };
+  }, [audit]);
+  const readiness = useMemo(
+    () => (live && live.mode === 'live' ? assessLiveReadiness(live, incidentId) : null),
+    [live, incidentId],
+  );
+  const readyCounts = readiness ? readinessCounts(readiness) : null;
+  // Live execution: quantified claim groups for the SELECTED incident run
+  // through the shared calculation service (same runCalculation as synthetic
+  // proofs). Only IDs, quantities, units, and publisher names are displayed —
+  // never claim text or personal data.
+  const liveRuns = useMemo(() => {
+    if (!live || live.mode !== 'live') return null;
+    return buildClaimFactGroups(incidentId, live.claims).map((g) => ({
+      group: g,
+      response: runCalculation({
+        metric: 'reconcile_facts',
+        incidentId,
+        mode: 'current',
+        origin: 'live',
+        calculationId: `live-${incidentId}-${g.groupKey}`,
+        input: g.input,
+      }),
+    }));
+  }, [live, incidentId]);
+  // Live utility execution: countable recovery observations run through the
+  // same service. With current production data this yields zero runs and the
+  // exact blocker below — never a fabricated rate.
+  const liveUtilityRuns = useMemo(() => {
+    if (!live || live.mode !== 'live') return null;
+    const adapted = adaptUtilityInputs(incidentId, live.recovery);
+    return {
+      adapted,
+      runs: adapted.readyInputs.map((inp) => ({
+        input: inp,
+        response: runCalculation({
+          metric: 'utility_recovery',
+          incidentId,
+          mode: 'current',
+          origin: 'live',
+          calculationId: `live-${incidentId}-utility-${inp.service}`,
+          input: {
+            service: inp.service, affected: inp.affected, recovered: inp.recovered,
+            unit: inp.unit, area: inp.area ?? undefined, period: undefined,
+            sourceRefs: [inp.docId], observedAt: null,
+            operationalDefinition: inp.criterion,
+            temporaryRestoration: null,
+          },
+        }),
+      })),
+    };
+  }, [live, incidentId]);
+  const incidentOptions = useMemo(() => {
+    const list = (live?.incidents ?? []).filter((d) => d && d.incidentId);
+    const seen = new Map<string, typeof list[number]>();
+    for (const d of list) if (!seen.has(d.incidentId)) seen.set(d.incidentId, d);
+    return [...seen.values()].slice(0, 50);
+  }, [live]);
   const s = report.summary;
   const cards = [
     { icon: CheckCircle2, value: `${s.PASS}/${s.total}`, caption: t('Lolos verifikasi') },
@@ -136,7 +472,7 @@ export default function CalculationVerificationPage({ embedded = false }: { embe
           const checks = report.outcomes.filter((o) => o.module === m);
           const pass = checks.filter((o) => o.status === 'PASS').length;
           return (
-            <section key={m} className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid={`calc-module-${m}`}>
+            <section key={m} id={`mod-${m}`} className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid={`calc-module-${m}`}>
               <div className="border-b border-slate-100 px-5 py-4">
                 <h2 className="font-semibold">{t(MODULE_LABELS[m])}</h2>
                 <p className="mt-1 text-xs text-slate-500">{t('{pass} dari {total} cek lolos', { pass, total: checks.length })}</p>
@@ -159,22 +495,278 @@ export default function CalculationVerificationPage({ embedded = false }: { embe
             <li className="px-5 py-3">Waktu run pengujian ini: {fmtDate(report.generatedAt, localeFor())} (waktu eksekusi aktual halaman ini, bukan klaim tersimpan)</li>
           </ul>
         </section>
+        <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid="svc-proof">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="flex items-center gap-2 font-semibold"><FlaskConical size={16} className="text-blue-600" />{t('Bukti eksekusi layanan (sintetis)')}</h2>
+            <p className="mt-1 text-xs text-slate-500">{t('Layanan calculationService.runCalculation memanggil fungsi produksi pada fixture berlabel. Nilai di bawah adalah return value aktual, bukan angka tampilan. {pass} dari {total} goldens cocok.', { pass: proofPass, total: proofs.length })}</p>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {proofs.map(({ proof, response }) => <SvcProofRow key={proof.key} proof={proof} response={response} />)}
+          </div>
+        </section>
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid="calc-live">
           <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="font-semibold">{t('Probe live read-only (Firestore)')}</h2>
-            <p className="mt-1 text-xs text-slate-500">{t('Baca saja untuk insiden padang via repository yang ada. Tanpa tulis produksi.')}</p>
+            <h2 className="flex items-center gap-2 font-semibold"><Radio size={16} className="text-blue-600" />{t('Mode live read-only (Firestore)')}</h2>
+            <p className="mt-1 text-xs text-slate-500">{t('Baca saja via repository yang ada. Tanpa tulis produksi. Hasil sintetis tidak pernah ditampilkan sebagai hasil live.')}</p>
           </div>
           <div className="px-5 py-4 text-xs leading-relaxed text-slate-600">
             {!live && <p>{t('Memeriksa akses baca…')}</p>}
-            {live && live.mode === 'live' && (
-              <p><span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">{t('Live — read-only')}</span>
-                <span className="ml-2">{liveCounts} dokumen humaniter terbaca · needs {live.needs.length} · recovery {live.recovery.length} · claims {live.claims.length} · aidEvents {live.aidEvents.length} · {live.notice}</span>
-                <span className="mt-1 block text-[11px] text-slate-400">{t('Diperiksa {at}', { at: fmtDate(liveAt, locale) })}</span></p>
+            {live && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <label className="font-semibold text-slate-800">{t('Insiden:')}</label>
+                {incidentOptions.length > 0 ? (
+                  <select
+                    value={incidentOptions.some((d) => d.incidentId === incidentId) ? incidentId : incidentOptions[0]!.incidentId}
+                    onChange={(e) => setIncidentId(e.target.value)}
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                    data-testid="live-incident-select"
+                    aria-label={t('Pilih insiden live')}
+                  >
+                    {incidentOptions.map((d) => (
+                      <option key={d.incidentId} value={d.incidentId}>
+                        {d.name} · {d.province} ({d.incidentId}){d.isMock ? ` — ${t('simulasi/demo')}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-slate-500">{t('Tidak ada insiden yang dapat dibaca dari Firestore pada sesi ini.')}</span>
+                )}
+                <span className="text-[11px] text-slate-400">{live.mode === 'live' ? t('Live — read-only') : t('Belum diverifikasi')} · {t('Diperiksa {at}', { at: fmtDate(liveAt, locale) })}</span>
+              </div>
+            )}
+            {live && live.mode === 'live' && readiness && (
+              <div data-testid="live-counts">
+                <p>
+                  <span className="font-semibold text-slate-800">{t('Kesiapan live per metrik:')}</span>{' '}
+                  {t('{ready} siap · {blocked} terhambat · {na} tidak tersedia', {
+                    ready: readyCounts?.READY ?? 0, blocked: readyCounts?.BLOCKED ?? 0, na: readyCounts?.NOT_AVAILABLE ?? 0,
+                  })}
+                </p>
+                <p className="mt-1 text-[11px] text-slate-400">{liveCounts} {t('dokumen humaniter terbaca untuk insiden ini')} · {live.notice}</p>
+                {liveRuns && liveRuns.length > 0 && (
+                  <div className="mt-3" data-testid="live-results">
+                    <p className="font-semibold text-slate-800">
+                      {t('Hasil live Firestore ({n} grup klaim):', { n: liveRuns.length })}{' '}
+                      <span className="font-normal text-slate-500">{t('rekonsiliasi klaim terkuantifikasi per tipe+satuan; relasi diturunkan transparan, lineage tercatat.')}</span>
+                    </p>
+                    <ul className="mt-2 space-y-1.5">
+                      {liveRuns.map(({ group, response }) => {
+                        const r = response.result;
+                        return (
+                          <li key={group.groupKey} className="rounded-xl border border-blue-100 bg-blue-50/50 p-2.5" data-testid={`live-result-${group.claimType}-${group.unit}`}>
+                            <span className="font-semibold text-slate-800">
+                              {t('rekonsiliasi klaim')} · {group.claimType} · {group.unit}
+                            </span>{' '}
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.value !== null ? 'bg-emerald-50 text-emerald-700' : r.status === 'invalid_input' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
+                              {t(EXTENDED_LABEL[response.extendedStatus])}
+                            </span>
+                            <span className="mt-1 block text-[11px]">
+                              <b>{t('Metrik:')}</b> {r.metricId ?? 'reconcile_facts'} · <b>{t('Insiden:')}</b> {r.incidentId ?? incidentId} ·{' '}
+                              <b>{t('Hasil:')}</b> {r.value === null ? t('Belum tersedia') : `${r.value.toLocaleString(locale)} ${r.unit}`}
+                            </span>
+                            <span className="mt-0.5 block font-mono text-[10px] text-slate-500 break-words">{r.trace || '—'}</span>
+                            <span className="mt-0.5 block text-[10px] text-slate-400">
+                              {t('Dokumen:')} {group.claimIds.join(', ')} · {t('Sumber:')} {group.sources.length > 0 ? group.sources.join(', ') : '—'} ·{' '}
+                              {t('Baseline:')} {r.baselineIds.length > 0 ? r.baselineIds.join(', ') : '—'} · {t('Dihitung:')} {fmtDate(r.calculatedAt, locale)}
+                              {r.warnings.length > 0 ? ` · ${t('Peringatan:')} ${r.warnings.join(' | ')}` : ''}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {liveRuns && liveRuns.length === 0 && (
+                  <p className="mt-2 text-[11px] text-slate-500" data-testid="live-results-empty">
+                    {t('Tidak ada klaim terkuantifikasi pada insiden ini — tidak ada kalkulasi live yang dapat dijalankan. Metrik lain menunjukkan pemblokirnya di bawah.')}
+                  </p>
+                )}
+                {liveUtilityRuns && liveUtilityRuns.runs.length > 0 && (
+                  <div className="mt-3" data-testid="live-utility-results">
+                    <p className="font-semibold text-slate-800">
+                      {t('Pemulihan layanan live ({n} observasi):', { n: liveUtilityRuns.runs.length })}
+                    </p>
+                    <ul className="mt-2 space-y-1.5">
+                      {liveUtilityRuns.runs.map(({ input, response }) => {
+                        const r = response.result;
+                        return (
+                          <li key={`${input.service}-${input.docId}`} className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-2.5" data-testid={`live-result-utility-${input.service}`}>
+                            <span className="font-semibold text-slate-800">
+                              {t('pemulihan')} {input.service} · {input.affected.toLocaleString(locale)} → {input.recovered.toLocaleString(locale)} {input.unit}
+                            </span>{' '}
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.value !== null ? 'bg-emerald-50 text-emerald-700' : r.status === 'invalid_input' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
+                              {t(EXTENDED_LABEL[response.extendedStatus])}
+                            </span>
+                            <span className="mt-1 block text-[11px]">
+                              <b>{t('Metrik:')}</b> {r.metricId ?? 'utility_recovery'} · <b>{t('Insiden:')}</b> {r.incidentId ?? incidentId} ·{' '}
+                              <b>{t('Hasil:')}</b> {r.value === null ? t('Belum tersedia') : `${r.value.toLocaleString(locale)}${r.unit}`}
+                            </span>
+                            <span className="mt-0.5 block font-mono text-[10px] text-slate-500 break-words">{r.trace || '—'}</span>
+                            <span className="mt-0.5 block text-[10px] text-slate-400">
+                              {t('Dokumen:')} {input.docId}{input.area ? ` · ${input.area}` : ''}{input.criterion ? ` · ${t('kriteria:')} ${input.criterion}` : ` · ${t('kriteria tidak dinyatakan')}`} · {t('Dihitung:')} {fmtDate(r.calculatedAt, locale)}
+                              {r.warnings.length > 0 ? ` · ${t('Peringatan:')} ${r.warnings.join(' | ')}` : ''}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {liveUtilityRuns && liveUtilityRuns.runs.length === 0 && (
+                  <p className="mt-2 text-[11px] text-slate-500" data-testid="live-utility-empty">
+                    {t('Belum ada observasi pemulihan terhitung pada insiden ini. Yang kurang: {missing}', {
+                      missing: liveUtilityRuns.adapted.blockers.length > 0
+                        ? liveUtilityRuns.adapted.blockers.slice(0, 2).join(' | ')
+                        : t('affectedCount/restoredCount dengan satuan eksplisit per layanan (recovery.affectedCount/restoredCount)'),
+                    })}
+                  </p>
+                )}
+                <ul className="mt-2 space-y-1.5">
+                  {readiness.map((row) => (
+                    <li key={row.metric} className="rounded-xl border border-slate-100 bg-slate-50 p-2.5" data-testid={`live-readiness-${row.metric}`}>
+                      <span className="font-semibold text-slate-800">{metricLabel(row.metric)}</span>{' '}
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${READINESS_CHIP[row.readiness]}`}>{t(READINESS_LABEL[row.readiness])}</span>
+                      {row.missingFields.length > 0 && (
+                        <span className="mt-1 block text-[11px] text-amber-700">{t('Kurang:')} {row.missingFields.join(' · ')}</span>
+                      )}
+                      {row.availableFields.length > 0 && (
+                        <span className="mt-0.5 block text-[11px] text-slate-500">{t('Ada:')} {row.availableFields.join(' · ')}</span>
+                      )}
+                      <span className="mt-0.5 block text-[11px] text-slate-400">{row.note}{row.docRefs.length > 0 ? ` · refs: ${row.docRefs.join(', ')}` : ''}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
             {live && live.mode !== 'live' && (
               <p><span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{t('Belum diverifikasi')}</span>
                 <span className="ml-2">{live.notice} {t('Registry live tetap NOT_VERIFIED; tidak ada angka yang diinventarisasi.')}</span>
                 <span className="mt-1 block text-[11px] text-slate-400">{t('Diperiksa {at}', { at: fmtDate(liveAt, locale) })}</span></p>
+            )}
+          </div>
+        </section>
+        <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid="data-requirements">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="flex items-center gap-2 font-semibold"><Database size={16} className="text-blue-600" />{t('Data Requirements & Availability')}</h2>
+            <p className="mt-1 text-xs text-slate-500">{t('Inventaris kebutuhan tiap perhitungan vs ketersediaan aktual di Firestore. Formula benar dan data tersedia adalah dua dimensi terpisah.')}</p>
+          </div>
+          <div className="px-5 py-4 text-xs leading-relaxed text-slate-600">
+            <p>
+              <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${auditRan ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
+                {auditRan ? t('Audit berjalan sesi ini') : t('Belum diperiksa')}
+              </span>
+              <span className="ml-2">
+                {auditRan
+                  ? t('Cakupan: {n} dokumen per koleksi (batas 50–200, filter insiden) untuk {incident}; kesimpulan hanya untuk cakupan itu, bukan seluruh database.', {
+                      n: audit!.scope.samples.map((s) => s.docs.length).reduce((a, b) => a + b, 0), incident: incidentId,
+                    })
+                  : t('Audit database belum berjalan pada sesi ini — buka mode live dengan akses Firestore.')}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAuditTick((v) => v + 1)}
+                className="ml-2 rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                {t('Periksa ulang')}
+              </button>
+            </p>
+            {audit && (
+              <>
+                <p className="mt-3">
+                  <b className="text-slate-800">{t('Ringkasan inventaris:')}</b>{' '}
+                  {t('{total} kebutuhan ({mandatory} wajib). Tersedia {a} · Sebagian {p} · Hilang {m} · Tidak valid {i} · Konflik {c} · Belum diperiksa {n} · Tidak berlaku {na}.', {
+                    total: DATA_REQUIREMENTS.length,
+                    mandatory: DATA_REQUIREMENTS.filter((r) => r.required_or_optional === 'required').length,
+                    a: availTally.AVAILABLE, p: availTally.PARTIAL, m: availTally.MISSING,
+                    i: availTally.INVALID, c: availTally.CONFLICT, n: availTally.NOT_CHECKED, na: availTally.NOT_APPLICABLE,
+                  })}
+                </p>
+                <p className="mt-1">
+                  <b className="text-slate-800">{t('Kesiapan metrik:')}</b>{' '}
+                  {t('{ready} siap · {blocked} terhambat · {na} tidak tersedia.', {
+                    ready: readinessTally.READY, blocked: readinessTally.BLOCKED, na: readinessTally.NOT_AVAILABLE,
+                  })}{' '}
+                  <span className="text-slate-400">{t('Cakupan = kebutuhan wajib yang valid / total kebutuhan wajib. Cakupan adalah kelengkapan data, bukan skor kepercayaan.')}</span>
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <label className="font-semibold text-slate-800">{t('Metrik:')}</label>
+                  <select value={filterMetric} onChange={(e) => setFilterMetric(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" data-testid="req-filter-metric" aria-label={t('Filter metrik')}>
+                    <option value="ALL">{t('Semua metrik')}</option>
+                    {metricsWithRequirements().map((m) => <option key={m} value={m}>{metricLabel(m as never)}</option>)}
+                  </select>
+                  <label className="font-semibold text-slate-800">{t('Status:')}</label>
+                  <select value={filterAvail} onChange={(e) => setFilterAvail(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" data-testid="req-filter-avail" aria-label={t('Filter status')}>
+                    <option value="ALL">{t('Semua status')}</option>
+                    {(Object.keys(AVAIL_LABEL) as FieldAvailability[]).map((k) => <option key={k} value={k}>{t(AVAIL_LABEL[k])}</option>)}
+                  </select>
+                </div>
+                {metricsWithRequirements().filter((m) => filterMetric === 'ALL' || filterMetric === m).map((metricId) => {
+                  const rows = filteredAudits.filter((x) => x.req.metric_id === metricId);
+                  if (rows.length === 0) return null;
+                  const ready = audit.metrics.find((x) => x.metric_id === metricId)!;
+                  return (
+                    <div key={metricId} className="mt-3 rounded-xl border border-slate-200" data-testid={`req-metric-${metricId}`}>
+                      <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2">
+                        <b className="text-slate-800">{metricLabel(metricId as never)}</b>
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${ready.readiness === 'READY' ? 'bg-emerald-50 text-emerald-700' : ready.readiness === 'BLOCKED' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                          {t(CALC_READINESS_LABEL[ready.readiness])}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {t('cakupan {num}/{den} · pemblokir: {b}', {
+                            num: ready.coverageNumerator, den: ready.coverageDenominator,
+                            b: ready.blockers.length > 0 ? ready.blockers.slice(0, 3).join(' | ') + (ready.blockers.length > 3 ? ` (+${ready.blockers.length - 3})` : '') : '—',
+                          })}
+                        </span>
+                        <a href={`#mod-${METRIC_MODULE[metricId] ?? 'integration'}`} className="ml-auto text-[11px] font-semibold text-blue-600 hover:underline">
+                          {t('Lihat bukti verifikasi')}
+                        </a>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[720px] text-left text-[11px]">
+                          <thead>
+                            <tr className="text-slate-400">
+                              <th className="px-3 py-1.5 font-semibold">{t('Data yang dibutuhkan')}</th>
+                              <th className="px-3 py-1.5 font-semibold">{t('Sumber Firestore')}</th>
+                              <th className="px-3 py-1.5 font-semibold">{t('Ketersediaan')}</th>
+                              <th className="px-3 py-1.5 font-semibold">{t('Valid/total')}</th>
+                              <th className="px-3 py-1.5 font-semibold">{t('Satuan')}</th>
+                              <th className="px-3 py-1.5 font-semibold">{t('Blokir?')}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map(({ req, audit: a }) => (
+                              <tr key={req.requirement_id} className="border-t border-slate-100" data-testid={`req-row-${req.requirement_id}`}>
+                                <td className="px-3 py-1.5">
+                                  <span className="font-semibold text-slate-800">{req.data_item}</span>
+                                  <span className="ml-1.5 inline-flex rounded-full bg-slate-100 px-1.5 py-px text-[10px] text-slate-500">{t(REQUIREMENT_KINDS[req.source_kind])}</span>
+                                  {req.required_or_optional === 'optional' && <span className="ml-1 text-slate-400">({t('opsional')})</span>}
+                                  <span className="block font-mono text-[10px] text-slate-400">{req.requirement_id} · {req.validation_rule}</span>
+                                </td>
+                                <td className="px-3 py-1.5 font-mono text-[10px]">{req.expected_collection ? `${req.expected_collection}.${req.expected_field_path ?? '—'}` : '—'}</td>
+                                <td className="px-3 py-1.5">
+                                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${AVAIL_CHIP[a.status]}`}>{t(AVAIL_LABEL[a.status])}</span>
+                                  {a.reasons.length > 0 && <span className="block text-[10px] text-slate-400">{a.reasons.join(' ')}</span>}
+                                </td>
+                                <td className="px-3 py-1.5">{a.totalRecords > 0 ? `${a.validCount}/${a.totalRecords}` : '—'}</td>
+                                <td className="px-3 py-1.5">{req.expected_unit ?? '—'}</td>
+                                <td className="px-3 py-1.5">{req.blocking_if_missing && req.required_or_optional === 'required' ? t('Ya') : t('Tidak')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {ready.readiness === 'READY' && (
+                        <p className="border-t border-slate-100 px-3 py-2 text-[11px] text-emerald-700">
+                          {t('Terpenuhi: {ids}. Jalankan via calculationService.runCalculation dengan input tervalidasi untuk output live.', { ids: ready.satisfiedRequirementIds.join(', ') || '—' })}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+                <p className="mt-2 text-[11px] text-slate-400">
+                  {t('Legenda sumber: Observasi = fakta terukur; Baseline = nilai acuan eksplisit; Parameter = konstanta versi di kode; Turunan = dihitung saat kalkulasi. Audit hanya membaca; tidak menulis, memigrasi, atau seed data.')}
+                </p>
+              </>
             )}
           </div>
         </section>
