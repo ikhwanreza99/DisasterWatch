@@ -73,7 +73,7 @@ test('/calculation page renders the compact judge view without secrets', () => {
     </LanguageProvider>,
   );
   assert.match(markup, /data-testid="calculation-page"/);
-  assert.match(markup, /Calculation Engine/);
+  assert.match(markup, /Mesin Kalkulasi/);
   assert.match(markup, /data-testid="summary-formulas"/);
   assert.match(markup, /data-testid="summary-tests"/);
   assert.match(markup, /data-testid="summary-live"/);

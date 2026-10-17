@@ -331,7 +331,7 @@ export default function CalculationVerificationPage({ embedded = false }: { embe
           <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
             <a href="/" className="flex items-center gap-2 font-bold">
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white"><Activity size={18} /></span>
-              DisasterWatch<span className="ml-2 hidden text-xs font-normal text-slate-400 sm:inline">Calculation Verification Center</span>
+              DisasterWatch<span className="ml-2 hidden text-xs font-normal text-slate-400 sm:inline">{t('Pusat Verifikasi Kalkulasi')}</span>
             </a>
             <div className="flex items-center gap-3">
               <LanguageToggle />
@@ -343,9 +343,9 @@ export default function CalculationVerificationPage({ embedded = false }: { embe
       <Content className={embedded ? 'w-full' : 'mx-auto max-w-6xl px-5 py-10'}>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-600">DisasterWatch</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{t('Calculation Engine')}</h1>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{t('Mesin Kalkulasi')}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-500">
-            {t('Verified formulas. Transparent calculations. Evidence-based disaster insights.')}
+            {t('Formula terverifikasi. Kalkulasi transparan. Insight bencana berbasis bukti.')}
           </p>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate-400">
             {t('Setiap metrik menjalankan formula produksi asli; hasil ditahan bila input tidak valid.')}

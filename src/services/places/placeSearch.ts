@@ -123,7 +123,7 @@ export async function getPlace(placeId: string, sessionToken: string, signal?: A
 /** One bounded Nearby Search for real public-facility candidates. */
 export async function nearbyFacilities(lat:number,lng:number,radius:number):Promise<import('./evacuationCandidates').FacilityPlace[]> {
   const {FACILITY_TYPES}=await import('./evacuationCandidates');
-  if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)throw new Error('Koordinat bencana belum valid');
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)throw new Error(translate('Koordinat bencana belum valid'));
   const response=await call<{places?:import('./evacuationCandidates').FacilityPlace[]}>(`${API}/places:searchNearby`,{
     method:'POST',body:JSON.stringify({includedTypes:FACILITY_TYPES,maxResultCount:20,rankPreference:'POPULARITY',languageCode:'id',locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius}}}),
   },'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.businessStatus,places.addressComponents',AbortSignal.timeout(30000));

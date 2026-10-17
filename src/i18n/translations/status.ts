@@ -94,6 +94,8 @@ const status: Record<string, string> = {
   'Uji ulang': 'Re-test',
   'Kembali ke peta': 'Back to map',
   'Status layanan aplikasi': 'Application service status',
+  'Status layanan': 'Service status',
+  'Status workflow & deploy': 'Workflow status & deploy',
   'Layanan Google yang berhasil diuji di aplikasi ini. Parameter tanpa hasil uji berhasil disembunyikan.':
     'Google services successfully tested in this application. Parameters without a successful test result are hidden.',
   'Memeriksa layanan...': 'Checking services...',
@@ -430,6 +432,10 @@ const status: Record<string, string> = {
   'Dihitung': 'Calculated',
   'Tindakan berikutnya:': 'Next action:',
   // Judge-facing simplified view (header, three summary cards, key results, readiness).
+  'Mesin Kalkulasi': 'Calculation Engine',
+  'Pusat Verifikasi Kalkulasi': 'Calculation Verification Center',
+  'Formula terverifikasi. Kalkulasi transparan. Insight bencana berbasis bukti.':
+    'Verified formulas. Transparent calculations. Evidence-based disaster insights.',
   'Setiap metrik menjalankan formula produksi asli; hasil ditahan bila input tidak valid.':
     'Every metric runs the real production formula; results are withheld when inputs are invalid.',
   'Formula Terimplementasi': 'Formulas Implemented',

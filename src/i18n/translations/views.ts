@@ -1,5 +1,10 @@
 /** English translations — views slice. Keys are the Indonesian source strings. */
 const views: Record<string, string> = {
+  // AidGapCard
+  'jiwa (estimasi)': 'people (estimated)',
+  // placeSearch
+  'Koordinat bencana belum valid': 'Disaster coordinates are not valid.',
+
   // ArchitectureBadge
   'ekstraksi + asisten': 'extraction + assistant',
   'provider peta': 'map provider',
@@ -59,8 +64,24 @@ const views: Record<string, string> = {
   Potensial: 'Potential',
   'Butuh {qty} {unit}': 'Needed {qty} {unit}',
   'Butuh: belum tersedia': 'Needed: not yet available',
+  'Acuan: {population} jiwa': 'Reference: {population} people',
   'Terima: belum tersedia': 'Received: not yet available',
+  'Terima: lihat daftar': 'Received: see list',
   'Terima {qty} {unit}': 'Received {qty} {unit}',
+  'Bantuan sudah diterima': 'Aid received',
+  'Estimasi: {received} / {population} jiwa · {method}':
+    'Estimate: {received} / {population} people · {method}',
+  'jumlah barang = jiwa': 'items = people',
+  'pembagian merata': 'even distribution',
+  'Estimasi pembagian merata · {item}': 'Even-distribution estimate · {item}',
+  'Estimasi {item}': 'Estimate {item}',
+  '{pct}% terpenuhi · sisa {qty} {unit}': '{pct}% fulfilled · remaining {qty} {unit}',
+  'Asumsi: {assumption}.': 'Assumption: {assumption}.',
+  'Sumber jumlah jiwa': 'Population source',
+  'Estimasi per barang memakai jumlah jiwa terbesar dari berita. Asumsi kemasan dapat berbeda dari isi sebenarnya; bukan stok terkini.':
+    'The per-item estimate uses the largest reported affected population. Packaging assumptions may differ from actual contents; this is not current stock.',
+  'Recovery: rata-rata kategori, maksimal 100% per kategori. Kategori tanpa angka dihitung 0 dalam skenario, bukan bukti belum menerima bantuan.':
+    'Recovery: category average, capped at 100% per category. Categories without a figure count as 0 in the scenario, not as proof that no aid was received.',
   'Pemenuhan {label}': 'Fulfilment {label}',
   'Pemenuhan & sisa: belum dapat dihitung': 'Fulfilment & remaining: cannot be calculated yet',
   '{pct}% terpenuhi': '{pct}% fulfilled',

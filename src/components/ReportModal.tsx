@@ -256,7 +256,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                     <span className="font-semibold text-slate-800">{pipeline.engine === 'gemini' ? t('Gemini (Firebase AI Logic)') : t('Heuristik lokal')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">AI confidence:</span>
+                    <span className="text-slate-400">{t('Keyakinan AI:')}</span>
                     <span className="font-semibold text-slate-800">{t('{pct}% (indikator AI)', { pct: Math.round((pipeline.report.aiConfidence ?? 0) * 100) })}</span>
                   </div>
                   <div className="flex justify-between">

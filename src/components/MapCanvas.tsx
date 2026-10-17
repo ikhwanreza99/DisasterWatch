@@ -101,7 +101,7 @@ function ashPopupHtml(a: AshAdvisory): string {
     (a.forecasts.length ? `<div style="color:#64748b">${translate('Prakiraan sebaran: {labels} (garis putus-putus)', { labels: a.forecasts.map((f) => escHtml(f.label)).join(', ') })}</div>` : '') +
     `<div style="color:#64748b">${translate('Diterbitkan: {date}', { date: formatUtc(a.issuedAt) })}${a.advisoryNr ? ` • No. ${escHtml(a.advisoryNr)}` : ''}</div>` +
     (a.infoSource ? `<div style="color:#64748b;font-size:11px">${translate('Info: {source}', { source: escHtml(a.infoSource) })}</div>` : '') +
-    `<a href="${VAAC_SOURCE_URL}" target="_blank" rel="noopener noreferrer" style="color:#475569">Source: Darwin VAAC (BOM)</a>` +
+    `<a href="${VAAC_SOURCE_URL}" target="_blank" rel="noopener noreferrer" style="color:#475569">${translate('Sumber: Darwin VAAC (BOM)')}</a>` +
     `</div>`
   );
 }
@@ -161,7 +161,7 @@ function volcanoPopupHtml(v: Volcano, notices: EruptionNotice[] = [], rangeLabel
     `<div>${escHtml(v.regency)}, ${escHtml(v.province)}${v.elevationM ? ` • ${v.elevationM} ${translate('mdpl')}` : ''}</div>` +
     eruptionListHtml(notices, rangeLabel) +
     (v.noticeNumber ? `<div style="color:#64748b">${translate('Laporan: {number}', { number: escHtml(v.noticeNumber) })}${v.hasVona ? ` ${translate('• VONA tersedia')}` : ''}</div>` : '') +
-    `<a href="${notices.length ? MAGMA_ERUPTIONS_URL : MAGMA_VOLCANO_URL}" target="_blank" rel="noopener noreferrer" style="color:#b45309">Source: MAGMA Indonesia (PVMBG)</a>` +
+    `<a href="${notices.length ? MAGMA_ERUPTIONS_URL : MAGMA_VOLCANO_URL}" target="_blank" rel="noopener noreferrer" style="color:#b45309">${translate('Sumber: MAGMA Indonesia (PVMBG)')}</a>` +
     `</div>`
   );
 }
@@ -226,7 +226,7 @@ function landslidePopupHtml(l: LandslideReport): string {
     (l.movementType ? `<div>${translate('Jenis:')} <b>${escHtml(l.movementType)}</b>${l.material ? ` (${escHtml(l.material)})` : ''}</div>` : '') +
     (l.zone ? `<div>${translate('Zona kerentanan:')} <b>${escHtml(l.zone)}</b></div>` : '') +
     `<div style="color:#64748b">${translate('Tanggal kejadian: {date}', { date: escHtml(l.date) })}</div>` +
-    `<a href="${MAGMA_LANDSLIDE_URL}" target="_blank" rel="noopener noreferrer" style="color:#b45309">Source: MAGMA Indonesia (PVMBG)</a>` +
+    `<a href="${MAGMA_LANDSLIDE_URL}" target="_blank" rel="noopener noreferrer" style="color:#b45309">${translate('Sumber: MAGMA Indonesia (PVMBG)')}</a>` +
     `</div>`
   );
 }
@@ -263,7 +263,7 @@ function cityWeatherPopupHtml(c: CityWeather, air?: AirQualityNow | null): strin
         (air.dominantPollutant ? ` • ${translate('polutan dominan')}: <b>${escHtml(air.dominantPollutant.toUpperCase())}</b>` : '') +
         `</div>`
       : '') +
-    `<div style="color:#64748b;font-size:11px">Source: Google Weather${air ? ' · Google Air Quality' : ''}</div>` +
+    `<div style="color:#64748b;font-size:11px">${translate('Sumber: Google Weather')}${air ? ' · Google Air Quality' : ''}</div>` +
     `</div>`
   );
 }
@@ -289,12 +289,12 @@ function buildFirePopupHtml(h: FireHotspot): string {
   return (
     `<div style="font-size:12px;line-height:1.45">` +
     `<div style="font-weight:800;letter-spacing:.03em">${translate('🔥 TITIK PANAS (HOTSPOT)')}</div>` +
-    `<div>FRP: <b>${h.frp.toFixed(1)} MW</b> • Confidence: <b>${h.confidence}</b></div>` +
+    `<div>FRP: <b>${h.frp.toFixed(1)} MW</b> • ${translate('Keyakinan:')} <b>${h.confidence}</b></div>` +
     `<div>${translate('Koordinat:')} <b>${h.latitude.toFixed(3)}, ${h.longitude.toFixed(3)}</b></div>` +
     (h.count > 1 ? `<div><b>${h.count}</b> ${translate('deteksi di area ±1 km')}</div>` : '') +
     `<div style="color:#64748b">${translate('Deteksi: {time}', { time: formatFireTime(h.acquiredAt) })} • ${h.daynight === 'N' ? translate('malam') : translate('siang')} • ${h.sensor}</div>` +
     `<div style="color:#64748b;font-size:11px;margin-top:2px">${translate('Deteksi satelit, belum terverifikasi lapangan.')}</div>` +
-    `<a href="${FIRMS_SOURCE_URL}" target="_blank" rel="noopener noreferrer" style="color:#ea580c">Source: NASA FIRMS</a>` +
+    `<a href="${FIRMS_SOURCE_URL}" target="_blank" rel="noopener noreferrer" style="color:#ea580c">${translate('Sumber: NASA FIRMS')}</a>` +
     `</div>`
   );
 }
@@ -1747,7 +1747,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                         <X className="w-3 h-3" />
                       </button>
                     </div>
-                    <div className="text-[11px]">FRP: <b>{selectedFire.frp.toFixed(1)} MW</b> • Confidence: <b>{selectedFire.confidence}</b></div>
+                    <div className="text-[11px]">FRP: <b>{selectedFire.frp.toFixed(1)} MW</b> • {t('Keyakinan:')} <b>{selectedFire.confidence}</b></div>
                     {selectedFire.count > 1 && (
                       <div className="text-[11px]"><b>{selectedFire.count}</b> {t('deteksi di area ±1 km')}</div>
                     )}
@@ -1755,7 +1755,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     <div className="text-[10px] text-slate-400">{t('Deteksi: {time}', { time: formatFireTime(selectedFire.acquiredAt) })} • {selectedFire.sensor}</div>
                     <div className="text-[10px] text-slate-400">{t('Deteksi satelit, belum terverifikasi lapangan.')}</div>
                     <a href={FIRMS_SOURCE_URL} target="_blank" rel="noopener noreferrer" className="text-[11px] text-orange-300 underline">
-                      Source: NASA FIRMS
+                      {t('Sumber: NASA FIRMS')}
                     </a>
                   </div>
                 </AdvancedMarker>
@@ -2250,7 +2250,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                       onClick={(ev) => ev.stopPropagation()}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="text-xs font-black tracking-wide">BMKG WEATHER WARNING</div>
+                        <div className="text-xs font-black tracking-wide">{t('PERINGATAN CUACA BMKG')}</div>
                         <button
                           type="button"
                           aria-label={t('Tutup popup')}
@@ -2264,21 +2264,21 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                           <X className="w-3 h-3" />
                         </button>
                       </div>
-                      <div className="text-[11px] text-slate-300">Source: <b>BMKG</b> (official nowcast)</div>
-                      <div className="text-[11px]">Event: <b>{selectedWeather.event}</b></div>
+                      <div className="text-[11px] text-slate-300">{t('Sumber')}: <b>BMKG</b> {t('(nowcast resmi)')}</div>
+                      <div className="text-[11px]">{t('Peristiwa:')} <b>{selectedWeather.event}</b></div>
                       <div className="text-[11px]">{selectedWeather.headline}</div>
                       <div className="text-[11px]">
-                        Area: <b>{uniqueAreaNames(selectedWeather).join(', ') || 'Indonesia'}</b>
+                        {t('Wilayah:')} <b>{uniqueAreaNames(selectedWeather).join(', ') || 'Indonesia'}</b>
                       </div>
-                      <div className="text-[10px] text-slate-400">Effective: {selectedWeather.effective}</div>
-                      <div className="text-[10px] text-slate-400">Expires: {selectedWeather.expires}</div>
+                      <div className="text-[10px] text-slate-400">{t('Berlaku:')} {selectedWeather.effective}</div>
+                      <div className="text-[10px] text-slate-400">{t('Berakhir:')} {selectedWeather.expires}</div>
                       <a
                         href={selectedWeather.web || selectedWeather.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[11px] text-orange-300 underline"
                       >
-                        Source: BMKG — nowcast detail
+                        {t('Sumber: BMKG — detail nowcast')}
                       </a>
                     </div>
                     <span className="w-6 h-6 rounded-full bg-orange-500 border-2 border-white shadow-lg flex items-center justify-center text-white text-[11px]">

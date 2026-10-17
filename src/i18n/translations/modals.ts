@@ -65,6 +65,7 @@ const modals: Record<string, string> = {
   'Status Validasi:': 'Validation Status:',
   'Menunggu Validasi TRC': 'Awaiting TRC Validation',
   'Engine AI:': 'AI Engine:',
+  'Keyakinan AI:': 'AI confidence:',
   'Gemini (Firebase AI Logic)': 'Gemini (Firebase AI Logic)',
   'Heuristik lokal': 'Local heuristics',
   '{pct}% (indikator AI)': '{pct}% (AI indicator)',

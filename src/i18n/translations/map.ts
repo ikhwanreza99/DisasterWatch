@@ -218,6 +218,19 @@ const map: Record<string, string> = {
   'Cakupan titik sungai tidak mewakili semua banjir lokal atau banjir bandang.': 'River station coverage does not represent all local or flash floods.',
   'm³/dtk': 'm³/s',
 
+  // Map popups — labels and source attributions (source names kept unchanged)
+  'Keyakinan:': 'Confidence:',
+  'Sumber: NASA FIRMS': 'Source: NASA FIRMS',
+  'Sumber: Darwin VAAC (BOM)': 'Source: Darwin VAAC (BOM)',
+  'Sumber: MAGMA Indonesia (PVMBG)': 'Source: MAGMA Indonesia (PVMBG)',
+  'Sumber: Google Weather': 'Source: Google Weather',
+  'Sumber: BMKG — detail nowcast': 'Source: BMKG — nowcast detail',
+  'PERINGATAN CUACA BMKG': 'BMKG WEATHER WARNING',
+  '(nowcast resmi)': '(official nowcast)',
+  'Peristiwa:': 'Event:',
+  'Berlaku:': 'Effective:',
+  'Berakhir:': 'Expires:',
+
   // Map search
   'Cari area / lokasi di peta': 'Search area / place on the map',
   'Cari area': 'Search area',
