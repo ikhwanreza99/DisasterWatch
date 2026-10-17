@@ -180,7 +180,7 @@ export const DonationModal: React.FC<DonationModalProps> = ({
                 {!loading&&!error&&!posts.length&&<p className="text-slate-500">{t('Belum ada posko yang tersedia untuk wilayah ini.')} <button type="button" onClick={refresh} className="underline">{t('Coba lagi')}</button></p>}
                 <div className="space-y-2">{posts.map(post=><label key={post.id} className={`flex cursor-pointer gap-2 rounded-xl border bg-white p-2.5 ${selectedPost?.id===post.id?'border-orange-400':'border-slate-200'}`}>
                   <input type="radio" name="destinationPost" value={post.id} checked={selectedPost?.id===post.id} onChange={()=>setSelectedPostId(post.id)} className="mt-1 shrink-0 accent-orange-600"/>
-                  <span className="min-w-0"><span className="block font-semibold text-slate-800">{post.name??post.title}</span><span className="mt-0.5 block break-words text-[10px] text-slate-500">{post.location??post.subtitle}</span>
+                  <span className="min-w-0"><span className="block font-semibold text-slate-800">{post.name??post.title}</span><span className="mt-0.5 block break-words text-[10px] text-slate-500">{post.location??(post.subtitle?t(post.subtitle):'')}</span>
                   <span className="mt-1 block text-[10px] text-amber-800">{post.recommendation?t('Usulan lokasi posko'):t('Posko Bantuan')}</span>
                   {post.googleMapsUrl&&<a href={post.googleMapsUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-blue-600 underline">{t('Lihat di Google Maps')}</a>}</span>
                 </label>)}</div>

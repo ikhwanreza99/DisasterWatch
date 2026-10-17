@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { DisasterIncident } from '../types';
 import { useI18n } from '../i18n';
+import { incidentText } from '../i18n/incidentText';
 
 interface CitizenReportsViewProps {
   disaster: DisasterIncident;
@@ -185,7 +186,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
                   <span
                     className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${rep.tagClass}`}
                   >
-                    {rep.tag}
+                    {t(rep.tag)}
                   </span>
                 </div>
 
@@ -199,11 +200,11 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1 font-medium">
                       <Clock className="w-3 h-3 text-slate-400" />
-                      {rep.time}
+                      {incidentText(rep.time)}
                     </span>
                     <span>•</span>
                     <span className="font-medium text-slate-500 dark:text-slate-400 truncate max-w-[170px]">
-                      {rep.author}
+                      {incidentText(rep.author)}
                     </span>
                   </div>
 

@@ -229,7 +229,7 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
                   <AutomaticImpact incidentId={disaster.id} fallback={disaster.cost}/>
                 </div>
                 <span className="mt-2 text-[11px] font-medium text-slate-400 block">
-                  {t(disaster.impact)}
+                  {incidentText(t(disaster.impact))}
                 </span>
               </div>
               <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
@@ -328,7 +328,7 @@ export const SidebarDetailTemplate: React.FC<SidebarDetailTemplateProps> = ({
                   <span
                     className={`inline-flex items-center text-[9px] font-bold px-2 py-1 rounded-md border ${getRecoveryBadgeClass(service?.status ?? 'Belum tersedia')}`}
                   >
-                    {service?.status ?? t('Belum tersedia')}
+                    {t(service?.status ?? 'Belum tersedia')}
                   </span>
                 </div>
               );

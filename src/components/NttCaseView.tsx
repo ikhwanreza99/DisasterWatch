@@ -9,6 +9,7 @@ import { formatUnknown } from '../domain/nttCase';
 import { buildNttTimeline, countNtt, type NttCaseState } from '../services/nttCaseStore';
 import { askNttAssistant } from '../services/ai/nttAssistant';
 import { useI18n, t as translate, localeFor } from '../i18n';
+import { verificationLabel, sourceTypeLabel, contentStatusLabel, extractionLabel, claimTypeLabel, topicLabel } from '../i18n/labels';
 
 const VERIF_BADGE: Record<NttVerificationStatus, string> = {
   VERIFIED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -34,10 +35,10 @@ function ArticleCard({ a }: { a: CaseArticle }) {
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[10px] font-bold text-slate-500">{a.sourceName}</span>
         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${VERIF_BADGE[a.verificationStatus]}`}>
-          {a.verificationStatus}
+          {verificationLabel(a.verificationStatus)}
         </span>
         <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-500">
-          {a.sourceType} · {a.contentStatus}
+          {sourceTypeLabel(a.sourceType)} · {contentStatusLabel(a.contentStatus)}
         </span>
       </div>
       <a
@@ -57,7 +58,7 @@ function ArticleCard({ a }: { a: CaseArticle }) {
         <p className="mt-1 text-[10px] text-slate-500">{translate('Lokasi:')} {a.locationMentions.join(', ')}</p>
       )}
       {a.topics.length > 0 && (
-        <p className="mt-0.5 text-[10px] text-slate-500">{translate('Topik:')} {a.topics.join(', ')}</p>
+        <p className="mt-0.5 text-[10px] text-slate-500">{translate('Topik:')} {a.topics.map(topicLabel).join(', ')}</p>
       )}
       <p className="mt-0.5 text-[10px] italic text-slate-400">{a.verificationNotes}</p>
     </article>
@@ -182,13 +183,13 @@ export const NttCaseView: React.FC<Props> = ({ state, refreshing, onRefresh, onC
             <select aria-label={tr('Filter verifikasi')} value={verifFilter} onChange={(e) => setVerifFilter(e.target.value as typeof verifFilter)}
               className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px]">
               {['ALL', 'VERIFIED', 'AI_REVIEWED', 'UNVERIFIED', 'CONFLICTING'].map((v) => (
-                <option key={v} value={v}>{v === 'ALL' ? tr('Semua status') : v}</option>
+                <option key={v} value={v}>{v === 'ALL' ? tr('Semua status') : verificationLabel(v as NttVerificationStatus)}</option>
               ))}
             </select>
             <select aria-label={tr('Filter topik')} value={topicFilter} onChange={(e) => setTopicFilter(e.target.value)}
               className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px]">
               <option value="ALL">{tr('Semua topik')}</option>
-              {topics.map((topic) => <option key={topic} value={topic}>{topic}</option>)}
+              {topics.map((topic) => <option key={topic} value={topic}>{topicLabel(topic)}</option>)}
             </select>
           </div>
           <div className="mt-2 space-y-2">
@@ -229,7 +230,7 @@ export const NttCaseView: React.FC<Props> = ({ state, refreshing, onRefresh, onC
           <ul className="mt-1 space-y-1.5">
             {damageClaims.map((c) => (
               <li key={c.claimId} className="rounded-xl bg-slate-50 p-2 text-[11px]">
-                <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${VERIF_BADGE[c.verificationStatus]}`}>{c.verificationStatus}</span>
+                <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${VERIF_BADGE[c.verificationStatus]}`}>{verificationLabel(c.verificationStatus)}</span>
                 <p className="mt-1 text-slate-700">{c.claimText}</p>
                 <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{tr('Sumber')}</a>
               </li>
@@ -239,7 +240,7 @@ export const NttCaseView: React.FC<Props> = ({ state, refreshing, onRefresh, onC
           <ul className="mt-1 space-y-1.5">
             {casualtyClaims.map((c) => (
               <li key={c.claimId} className="rounded-xl bg-slate-50 p-2 text-[11px]">
-                <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${VERIF_BADGE[c.verificationStatus]}`}>{c.verificationStatus}</span>
+                <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${VERIF_BADGE[c.verificationStatus]}`}>{verificationLabel(c.verificationStatus)}</span>
                 <p className="mt-1 text-slate-700">{c.claimText}</p>
                 <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{tr('Sumber')}</a>
               </li>
@@ -254,8 +255,8 @@ export const NttCaseView: React.FC<Props> = ({ state, refreshing, onRefresh, onC
             <ul className="mt-1 space-y-1.5">
               {state.claims.map((c) => (
                 <li key={c.claimId} className="rounded-xl bg-slate-50 p-2">
-                  <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${VERIF_BADGE[c.verificationStatus]}`}>{c.verificationStatus}</span>
-                  <span className="ml-1 text-[10px] text-slate-500">{c.claimType} · {c.extractionStatus}</span>
+                  <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${VERIF_BADGE[c.verificationStatus]}`}>{verificationLabel(c.verificationStatus)}</span>
+                  <span className="ml-1 text-[10px] text-slate-500">{claimTypeLabel(c.claimType)} · {extractionLabel(c.extractionStatus)}</span>
                   <p className="mt-1 text-slate-700">{c.claimText}</p>
                   <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{tr('Sumber')}</a>
                 </li>

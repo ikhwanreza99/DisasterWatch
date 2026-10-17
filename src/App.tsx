@@ -422,7 +422,7 @@ export default function App() {
   }, [isNttOpen, isAIOpen, isSidebarMinimized, activeDisasterKey]);
   useEffect(() => {
     let cancelled = false;
-    setStoreNotice('Laporan resmi ditinjau 12 Okt 2026 · lokasi peta mewakili wilayah, bukan batas terdampak.');
+    setStoreNotice(translate('Laporan resmi ditinjau 12 Okt 2026 · lokasi peta mewakili wilayah, bukan batas terdampak.'));
     let stopWatching: (() => void) | undefined;
     // Preserve redirect-before-anonymous ordering while loading Auth after the shell.
     import('./lib/firebase/auth').then(async ({watchUser, consumeRedirectResult, ensureUser}) => {

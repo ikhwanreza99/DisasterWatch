@@ -241,7 +241,7 @@ export const SlimSidebar: React.FC<SlimSidebarProps> = ({
             <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
               <p className="text-[11px] font-medium text-slate-400">{t('Estimasi Dampak')}</p>
               <div className="mt-1 text-[18px] font-bold text-slate-900"><AutomaticImpact incidentId={disaster.id} fallback={disaster.cost}/></div>
-              <p className="mt-2 text-[11px] font-medium text-slate-400">{t(disaster.impact)}</p>
+              <p className="mt-2 text-[11px] font-medium text-slate-400">{incidentText(t(disaster.impact))}</p>
             </div>
             <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-4">
               <p className="text-[11px] font-medium text-slate-400">{t('Gap Recovery')}</p>

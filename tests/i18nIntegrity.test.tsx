@@ -5,9 +5,13 @@ import { join, extname } from 'node:path';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { en } from '../src/i18n/translations';
-import { LanguageProvider, loadEnglishTranslations } from '../src/i18n';
+import { LanguageProvider, loadEnglishTranslations, translateFor } from '../src/i18n';
 import CalculationVerificationPage from '../src/components/CalculationVerificationPage';
-import { aidAssumptionText } from '../src/i18n/incidentText';
+import { ExpandedDetailContent } from '../src/components/ExpandedDetailContent';
+import { NttCaseView } from '../src/components/NttCaseView';
+import { disastersData } from '../src/data/disasters';
+import { nttArticlesSeed, nttCaseSeed, nttClaimsSeed } from '../src/data/nttCase';
+import { aidAssumptionText, incidentText } from '../src/i18n/incidentText';
 
 const SRC = join(process.cwd(), 'src');
 
@@ -140,5 +144,87 @@ test('/calculation renders Indonesian by default and fully English for the Engli
   } finally {
     if (original) Object.defineProperty(globalThis, 'window', original);
     else Reflect.deleteProperty(globalThis, 'window');
+  }
+});
+
+/** Render a node under LanguageProvider with a forced `dw:lang` preference. */
+function renderWithLang(lang: 'id' | 'en', node: React.ReactElement): { html: string; restore: () => void } {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { localStorage: { getItem: () => lang }, addEventListener() {}, removeEventListener() {}, location: { href: 'http://x/', pathname: '/' } },
+  });
+  const html = renderToStaticMarkup(<LanguageProvider>{node}</LanguageProvider>);
+  const restore = () => {
+    if (original) Object.defineProperty(globalThis, 'window', original);
+    else Reflect.deleteProperty(globalThis, 'window');
+  };
+  return { html, restore };
+}
+
+test('disaster detail localizes interface labels in both languages without touching source content', async () => {
+  await loadEnglishTranslations();
+  const disaster = disastersData['padang'];
+  const props = {
+    disaster,
+    onOpenRoute() {},
+    onClose() {},
+    onOpenAIHelpdesk() {},
+    onOpenDonationModal() {},
+    onOpenDisasterBrief() {},
+    intelReports: [],
+    aidRecords: [],
+  };
+  const enRun = renderWithLang('en', <ExpandedDetailContent {...props} />);
+  try {
+    for (const text of ['Area Situation Detail', 'Aid Gap', 'Send Aid / Donation', 'Recovery Status']) {
+      assert.ok(enRun.html.includes(text), `expected English detail to contain "${text}"`);
+    }
+    // Untranslated interface/status chrome that used to leak through must be gone.
+    assert.doesNotMatch(enRun.html, /Kesenjangan Bantuan|Status Recovery|Terganggu|Dalam Pemulihan|% Terpenuhi/);
+  } finally {
+    enRun.restore();
+  }
+
+  const idRun = renderWithLang('id', <ExpandedDetailContent {...props} />);
+  try {
+    assert.match(idRun.html, /Kesenjangan Bantuan|Status Recovery/);
+  } finally {
+    idRun.restore();
+  }
+});
+
+test('NTT case view renders localized status labels instead of raw enum codes', async () => {
+  await loadEnglishTranslations();
+  const state = { kase: nttCaseSeed, articles: nttArticlesSeed, claims: nttClaimsSeed, mode: 'seed' as const, notice: '' };
+  const enRun = renderWithLang('en', <NttCaseView state={state} refreshing={false} onRefresh={() => {}} onClose={() => {}} />);
+  try {
+    const text = enRun.html.replace(/<[^>]+>/g, '\n');
+    assert.match(text, /Unverified|Verified|AI reviewed|Conflicting claim/);
+    // Controls must never show a bare enum code (source claim text may quote them).
+    const bareEnum = text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => /^(UNVERIFIED|AI_REVIEWED|VERIFIED|CONFLICTING|OFFICIAL|NEWS_MEDIA|METADATA_ONLY|HEURISTIC|GEMINI)$/.test(l));
+    assert.deepEqual(bareEnum, []);
+  } finally {
+    enRun.restore();
+  }
+});
+
+test('dynamic incident text rules translate numbers/units without altering the values', () => {
+  assert.equal(incidentText('Area: 1.250 KK Terdampak', 'en'), 'Area: 1.250 households affected');
+  assert.equal(incidentText('Area: 1.250 KK Terdampak', 'id'), 'Area: 1.250 KK Terdampak');
+  assert.equal(incidentText('54% Terpenuhi', 'en'), '54% fulfilled');
+  assert.equal(incidentText('54% Terpenuhi', 'id'), '54% Terpenuhi');
+  assert.equal(incidentText('Terjadi sejak 2 jam lalu', 'en'), 'Occurred since 2 hours ago');
+  assert.equal(incidentText('Terjadi sejak 2 jam lalu', 'id'), 'Terjadi sejak 2 jam lalu');
+});
+
+test('known UI strings have real English values (cannot silently fall back to Indonesian)', () => {
+  for (const key of ['Kesenjangan Bantuan', 'Status Recovery', 'Terganggu', 'Dalam Pemulihan', 'Penuh', 'Dibutuhkan', 'Korban', 'Kerusakan']) {
+    assert.ok(key in en, `missing key "${key}"`);
+    assert.notEqual(en[key], key, `key "${key}" has no English translation`);
+    assert.notEqual(translateFor('en', key), key);
   }
 });
