@@ -140,16 +140,16 @@ test('audit: READY metric executes the real formula with satisfied IDs (mock)', 
   assert.equal(resp.result.status, 'calculated');
 });
 
-test('page: requirements section renders NOT_CHECKED state without live data', () => {
+test('page: without live data no database counts or requirements table are shown', () => {
   const markup = renderToStaticMarkup(
     <LanguageProvider>
       <CalculationVerificationPage />
     </LanguageProvider>,
   );
-  assert.match(markup, /data-testid="data-requirements"/);
-  // SSR has no snapshot: audit has not run — must say so, with no DB counts.
-  assert.match(markup, /Belum diperiksa/);
-  assert.match(markup, /Periksa ulang/);
+  // The main view states readiness; the technical inventory is removed.
+  assert.match(markup, /data-testid="data-readiness"/);
+  assert.doesNotMatch(markup, /data-testid="data-requirements"/);
+  assert.match(markup, /Belum diverifikasi/);
   // No synthetic fixture counts presented as database counts.
   assert.doesNotMatch(markup, /dokumen humaniter terbaca untuk insiden ini/);
 });

@@ -440,13 +440,15 @@ const status: Record<string, string> = {
   'metrik dari data live asli': 'metrics from genuine live data',
   'data live belum diperiksa sesi ini': 'live data not checked this session',
   'Hasil perhitungan utama': 'Key calculation results',
-  'Demonstrasi sintetis': 'Synthetic demonstration',
+  'Contoh Simulasi': 'Simulation example',
+  'Data Aktual': 'Actual data',
+  'Data Belum Cukup': 'Insufficient data',
   'Kesiapan Data': 'Data Readiness',
   'Lihat detail teknis': 'View technical details',
   'Detail teknis: cek per modul, provenans, bukti eksekusi layanan, mode live read-only, dan inventaris kebutuhan data.':
     'Technical detail: per-module checks, provenance, service execution proof, live read-only mode, and the data-requirements inventory.',
-  'Hasil live ditampilkan bila data terverifikasi tersedia; sisanya ditandai Demonstrasi sintetis.':
-    'Live results are shown when verified data is available; the rest are labelled Synthetic demonstration.',
+  'Angka simulasi untuk menunjukkan cara kerja rumus, bukan data bencana aktual.':
+    'Simulation figures show how the formulas work, not actual disaster data.',
   'Kerusakan aset × biaya penggantian × tingkat keparahan.': 'Damaged assets × replacement cost × severity.',
   'Unit pulih ÷ unit terdampak untuk satu layanan.': 'Restored units ÷ affected units for one service.',
   'Gabungan berbobot empat pemulihan layanan.': 'Weighted composite of four service recoveries.',

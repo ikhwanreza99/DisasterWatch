@@ -183,21 +183,23 @@ test('grouping: mock claims group by type+unit without inventing relations', () 
 });
 
 // --- Page: synthetic/live separation and blocked states ---
-test('page: synthetic proof and live modes stay separated', () => {
+test('page: compact view keeps synthetic and live results separated', () => {
   const markup = renderToStaticMarkup(
     <LanguageProvider>
       <CalculationVerificationPage />
     </LanguageProvider>,
   );
-  assert.match(markup, /data-testid="svc-proof"/);
-  assert.match(markup, /svc-proof-ori_index/);
-  assert.match(markup, /50,75/);
-  assert.match(markup, /svc-proof-forecast_gap/);
-  assert.match(markup, /Prakiraan/);
-  assert.match(markup, /Bukti eksekusi layanan/);
-  // Live section renders the loading state in SSR (no fake live data).
-  assert.match(markup, /data-testid="calc-live"/);
-  assert.match(markup, /Memeriksa akses baca/);
+  assert.match(markup, /data-testid="key-results"/);
+  // SSR has no live snapshot: all three key results are labelled simulations,
+  // and none is presented as actual live data.
+  assert.equal(markup.match(/Contoh Simulasi<\/span>/g)?.length, 3);
+  assert.doesNotMatch(markup, /Data Aktual<\/span>/);
+  // Live Calculations is unverified (not a fabricated zero) without a session.
+  assert.match(markup, /data-testid="summary-live"[\s\S]*?Belum diverifikasi/);
+  // The technical-details UI is gone from the main page.
+  assert.doesNotMatch(markup, /data-testid="calc-details"/);
+  assert.doesNotMatch(markup, /data-testid="svc-proof"/);
+  assert.doesNotMatch(markup, /data-testid="calc-live"/);
   assert.doesNotMatch(markup, /AIza/);
 });
 

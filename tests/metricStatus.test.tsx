@@ -127,23 +127,20 @@ test('requiredInputsForMetric lists mandatory items with units only', () => {
 });
 
 // --- Synthetic vs live separation in the UI ---
-test('page: metric explorer, overview, and blocked sections render without live data', () => {
+test('page: technical detail sections are removed from the main view', () => {
   const markup = renderToStaticMarkup(
     <LanguageProvider>
       <CalculationVerificationPage />
     </LanguageProvider>,
   );
-  assert.match(markup, /data-testid="calc-overview"/);
-  assert.match(markup, /data-testid="metric-explorer"/);
-  assert.match(markup, /data-testid="metric-explorer-funding_gap"/);
-  assert.match(markup, /data-testid="metric-explorer-utility_recovery"/);
-  assert.match(markup, /data-testid="blocked-metrics"/);
-  assert.match(markup, /data-testid="blocked-funding_gap"/);
-  assert.match(markup, /data-testid="explorer-filter-CALCULATED"/);
-  assert.match(markup, /Ikhtisar mesin perhitungan/);
-  assert.match(markup, /Penjelajah metrik/);
-  // With no live session the readiness is unknown — never claimed as live success.
-  assert.match(markup, /Belum diperiksa/);
+  assert.match(markup, /data-testid="calculation-page"/);
+  assert.doesNotMatch(markup, /data-testid="calc-details"/);
+  assert.doesNotMatch(markup, /data-testid="calc-overview"/);
+  assert.doesNotMatch(markup, /data-testid="metric-explorer"/);
+  assert.doesNotMatch(markup, /data-testid="blocked-metrics"/);
+  assert.doesNotMatch(markup, /data-testid="svc-proof"/);
+  assert.doesNotMatch(markup, /data-testid="calc-live"/);
+  assert.doesNotMatch(markup, /data-testid="data-requirements"/);
   assert.doesNotMatch(markup, /AIza/);
 });
 
@@ -163,7 +160,7 @@ test('live execution path returns a real value through the shared service', () =
   assert.equal(single.extendedStatus, 'calculated');
 });
 
-// --- Judge-facing default view: compact, honest, details collapsed ---
+// --- Judge-facing default view: compact and honest ---
 test('page: default view has three summary cards, three key results, and a readiness notice', () => {
   const markup = renderToStaticMarkup(
     <LanguageProvider>
@@ -189,20 +186,7 @@ test('page: no live session means Live Calculations is NOT verified, never zero'
     </LanguageProvider>,
   );
   assert.match(markup, /data-testid="summary-live"[\s\S]*?Belum diverifikasi/);
-  // With no verified live run, every key result is a labelled synthetic demonstration.
-  assert.equal(markup.match(/Demonstrasi sintetis<\/span>/g)?.length, 3);
-});
-
-test('page: technical detail is preserved inside a collapsed details region, not deleted', () => {
-  const markup = renderToStaticMarkup(
-    <LanguageProvider>
-      <CalculationVerificationPage />
-    </LanguageProvider>,
-  );
-  assert.match(markup, /data-testid="calc-details"/);
-  assert.doesNotMatch(markup, /data-testid="calc-details"[^>]*\sopen/);
-  assert.match(markup, /data-testid="calc-overview"/);
-  assert.match(markup, /data-testid="svc-proof"/);
-  assert.match(markup, /data-testid="data-requirements"/);
-  assert.match(markup, /data-testid="calc-live"/);
+  // With no verified live run, every key result is a labelled simulation, never live.
+  assert.equal(markup.match(/Contoh Simulasi<\/span>/g)?.length, 3);
+  assert.doesNotMatch(markup, /Data Aktual<\/span>/);
 });

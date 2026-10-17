@@ -66,7 +66,7 @@ test('status mapping covers every required bucket', () => {
   }
 });
 
-test('/calculation page renders summary, modules, and provenance without secrets', () => {
+test('/calculation page renders the compact judge view without secrets', () => {
   const markup = renderToStaticMarkup(
     <LanguageProvider>
       <CalculationVerificationPage />
@@ -74,13 +74,16 @@ test('/calculation page renders summary, modules, and provenance without secrets
   );
   assert.match(markup, /data-testid="calculation-page"/);
   assert.match(markup, /Calculation Engine/);
-  assert.match(markup, /Lolos verifikasi/);
-  assert.match(markup, /Belum diverifikasi/);
-  assert.match(markup, /data-testid="calc-module-loss"/);
-  assert.match(markup, /data-testid="calc-module-needs-intelligence"/);
-  assert.match(markup, /data-testid="calc-check-loss-damage-ref"/);
-  assert.match(markup, /Simulasi/);
-  assert.match(markup, /formulas\.ts/);
+  assert.match(markup, /data-testid="summary-formulas"/);
+  assert.match(markup, /data-testid="summary-tests"/);
+  assert.match(markup, /data-testid="summary-live"/);
+  assert.match(markup, /data-testid="key-results"/);
+  assert.match(markup, /data-testid="data-readiness"/);
+  // Technical-details UI is no longer part of the main page.
+  assert.doesNotMatch(markup, /data-testid="calc-details"/);
+  assert.doesNotMatch(markup, /calc-module-loss/);
+  assert.doesNotMatch(markup, /data-testid="svc-proof"/);
+  assert.doesNotMatch(markup, /data-testid="data-requirements"/);
   assert.doesNotMatch(markup, /AIza/);
   assert.doesNotMatch(markup, /eyJ[A-Za-z0-9]/);
 });
