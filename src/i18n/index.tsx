@@ -85,9 +85,13 @@ export function localeFor(lang: Lang = activeLang): string {
 }
 
 /** Translate a key using the current language. Safe outside React. */
-export function t(key: string, params?: TranslationParams): string {
-  const raw = activeLang === 'en' ? en?.[key] ?? key : key;
+export function translateFor(lang: Lang, key: string, params?: TranslationParams): string {
+  const raw = lang === 'en' ? en?.[key] ?? key : key;
   return interpolate(raw, params);
+}
+
+export function t(key: string, params?: TranslationParams): string {
+  return translateFor(activeLang, key, params);
 }
 
 /** Alias with an explicit, intention-revealing name for non-React callers. */

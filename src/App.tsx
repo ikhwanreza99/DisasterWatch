@@ -23,7 +23,7 @@ import { useBmkgEarthquakes, useBmkgWeatherWarnings } from './services/bmkg';
 import { firmsSensorsLabel, useFirmsHotspots } from './services/firms';
 import { RANGE_LIMITS, resolveDateRange } from './domain/dateRange';
 import type { AidRecord, IntelligenceReport, UserIdentity } from './domain/intelligence';
-import { demoAid, demoReports } from './data/seedDemo';
+import type { AssistantSources } from './services/ai/assistantSources';
 import { mockUser } from './lib/firebase/identity';
 import { useI18n, translate } from './i18n';
 
@@ -85,6 +85,7 @@ export default function App() {
     return Object.fromEntries(Object.entries({ ...currentIncidents, [nttIncident.id]: nttIncident }).filter(([id]) => id === NTT_CASE_ID || covered.has(id)));
   });
   const [moderationLoaded,setModerationLoaded]=useState(false);
+  const [assistantSources, setAssistantSources] = useState<AssistantSources>({ incidents: 'loading', reports: 'loading', aid: 'loading' });
   const [ntt, setNtt] = useState<NttCaseState | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -94,16 +95,17 @@ export default function App() {
     Promise.all([import('./lib/firebase/firestore'), import('firebase/firestore')]).then(([store, {collection, onSnapshot}]) => {
       if (cancelled) return;
       const db = store.getDb();
-      if (!db) { setModerationLoaded(true); return; }
+      if (!db) { setModerationLoaded(true); setAssistantSources(previous => ({ ...previous, incidents: 'local' })); return; }
       unsubscribe = onSnapshot(collection(db,'disasters'),{includeMetadataChanges:true},snapshot=>{
-      if(snapshot.metadata.fromCache)return;
+      if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) { setAssistantSources(previous => ({ ...previous, incidents: 'cache' })); return; }
       const records = snapshot.docs.map(doc=>({...doc.data(),id:doc.id}) as DisasterIncident & {isMock?:boolean;eventDate?:string;approvalStatus?:string});
       const approved=records.filter(record=>record.approvalStatus==='APPROVED');
       const rejected=records.filter(record=>record.approvalStatus==='REJECTED').map(record=>record.id);
       setDisasters(previous=>applyDisasterDecisions(previous,Object.fromEntries(approved.filter(incident=>incident.isMock===false && incident.coords && locationValidation(incident).status!=='REJECTED' && (incident.id===NTT_CASE_ID || inRecentWindow(incident.eventDate))).map(incident=>[incident.id,incident])),rejected));
+      setAssistantSources(previous => ({ ...previous, incidents: 'mixed' }));
       setModerationLoaded(true);
-    },()=>{ /* Do not reveal incident markers until moderation has been read successfully. */ });
-    }).catch(() => { /* Keep markers gated if Firebase cannot initialize. */ });
+    },()=>{ setAssistantSources(previous => ({ ...previous, incidents: 'unavailable' })); /* Do not reveal incident markers until moderation has been read successfully. */ });
+    }).catch(() => { setAssistantSources(previous => ({ ...previous, incidents: 'unavailable' })); /* Keep markers gated if Firebase cannot initialize. */ });
     return () => { cancelled = true; unsubscribe?.(); };
   },[]);
   useEffect(() => {
@@ -121,8 +123,23 @@ export default function App() {
   const [isNttOpen, setIsNttOpen] = useState<boolean>(false);
   const [nttRefreshing, setNttRefreshing] = useState<boolean>(false);
   const [activeDisasterKey, setActiveDisasterKey] = useState<string>('padang');
-  const [intelReports, setIntelReports] = useState<IntelligenceReport[]>(demoReports);
-  const [aidRecords, setAidRecords] = useState<AidRecord[]>(demoAid);
+  const [intelReports, setIntelReports] = useState<IntelligenceReport[]>([]);
+  const [aidRecords, setAidRecords] = useState<AidRecord[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    import('./services/store/operationalRecords').then(({ subscribeOperationalRecords }) => {
+      if (cancelled) return;
+      unsubscribe = subscribeOperationalRecords({
+        reports: setIntelReports,
+        aid: setAidRecords,
+        status: (collection, status) => setAssistantSources(previous => ({ ...previous, [collection]: status })),
+      });
+    }).catch(() => {
+      if (!cancelled) setAssistantSources(previous => ({ ...previous, reports: 'unavailable', aid: 'unavailable' }));
+    });
+    return () => { cancelled = true; unsubscribe?.(); };
+  }, []);
   const [storeNotice, setStoreNotice] = useState<string>('Mode demo lokal — Firestore fallback aktif.');
   const [currentUser, setCurrentUser] = useState<UserIdentity>(mockUser());
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
@@ -469,7 +486,7 @@ export default function App() {
 
   /** New intelligence pipeline path: structured report + legacy feed stay in sync. */
   const handleIntelReport = (rep: IntelligenceReport) => {
-    setIntelReports((prev) => [rep, ...prev]);
+    setIntelReports((prev) => [rep, ...prev.filter(record => record.id !== rep.id)]);
     const targetKey = rep.disasterId && disasters[rep.disasterId] ? rep.disasterId : activeDisasterKey;
     const e = rep.extractedData;
     setDisasters((prev) => {
@@ -507,7 +524,7 @@ export default function App() {
   };
 
   const handleAidAdded = (aid: AidRecord) => {
-    setAidRecords((prev) => [aid, ...prev]);
+    setAidRecords((prev) => [aid, ...prev.filter(record => record.id !== aid.id)]);
   };
 
   return (
@@ -691,6 +708,7 @@ export default function App() {
               aidRecords={aidRecords}
               onIntelReport={handleIntelReport}
               nttCase={ntt}
+              dataSources={assistantSources}
             /></Suspense>
           )}
 

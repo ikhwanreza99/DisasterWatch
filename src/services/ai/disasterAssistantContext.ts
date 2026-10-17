@@ -14,9 +14,11 @@ import { localeFor } from '../../i18n';
 import { estimateImpact } from '../intelligence/impactEngine';
 import { summarizeGaps } from '../intelligence/aidGapEngine';
 import { rankDisasters } from '../intelligence/priorityEngine';
+import { sourceContext, type AssistantSources } from './assistantSources';
 import { recentDisasterContext } from './recentDisasterList';
 
 export interface AssistantDeps {
+  dataSources?: AssistantSources;
   disasters: Record<string, DisasterIncident>;
   reports: IntelligenceReport[];
   aid: AidRecord[];
@@ -36,6 +38,7 @@ export interface AssistantSnapshot {
   generatedAt: string;
   recentDisasters: string;
   isDemoData: boolean;
+  provenance: string;
   summary: DashboardStats;
   disasters: Array<{
     id: string;
@@ -232,7 +235,8 @@ export function buildAssistantSnapshot(deps: AssistantDeps): AssistantSnapshot {
   return {
     generatedAt: new Date().toISOString(),
     recentDisasters: recentDisasterContext(deps.disasters),
-    isDemoData: true,
+    isDemoData: deps.reports.some(record => record.isMock) || deps.aid.some(record => record.isMock) || Object.values(deps.disasters).some(record => (record as DisasterIncident & {isMock?: boolean}).isMock === true),
+    provenance: sourceContext(deps.dataSources),
     summary: stats,
     disasters,
     reports: { total: deps.reports.length, byVerificationStatus, latest, unresolved },
@@ -284,11 +288,12 @@ function fmt(n: number): string {
 /** Render the snapshot as compact grounded text for the Gemini prompt. Numbers are precomputed. */
 export function renderAssistantContextText(snap: AssistantSnapshot, maxChars = 6000): string {
   const L: string[] = [
-    snap.recentDisasters,
-    'DATA DISASTERWATCH SAAT INI (otoritatif untuk angka/fakta — data demo/prototipe, bukan feed resmi BNPB/BMKG):',
+    snap.provenance,
+    `CURRENT DISASTERWATCH APP SNAPSHOT. Contains explicitly marked demo records: ${snap.isDemoData}. Event dates determine when an incident happened; updatedAt is not an event date.`,
     `RINGKASAN: ${snap.summary.activeDisasters} insiden aktif; ${fmt(snap.summary.affectedPeople)} orang terdampak; prioritas tertinggi ${snap.summary.topPriorityName} (skor ${snap.summary.topPriorityScore}); ${snap.summary.unverifiedReports} laporan belum terverifikasi; total gap bantuan ${fmt(snap.summary.totalAidGap)}.`,
   ];
-  for (const d of snap.disasters) {
+  // Details are bounded; summary totals still cover the full loaded snapshot.
+  for (const d of snap.disasters.slice(0, 4)) {
     L.push(
       `- [${d.id}] ${d.name}, ${d.province} | ${d.title} (tipe: ${d.type}) | status ${d.status} | terdampak ${fmt(d.affectedPopulation)} orang | prioritas ${d.priorityScore} (${d.priorityReasons.join(', ') || '-'}) | laporan terkait ${d.reportCount} | pemutakhiran: ${d.updatedAt} | sumber: ${d.source}`,
     );
@@ -297,12 +302,12 @@ export function renderAssistantContextText(snap: AssistantSnapshot, maxChars = 6
   L.push(
     `LAPORAN: total ${snap.reports.total} (UNVERIFIED ${b.UNVERIFIED}, AI_REVIEWED ${b.AI_REVIEWED}, VERIFIED ${b.VERIFIED}, CONFLICTING ${b.CONFLICTING}).`,
   );
-  for (const r of snap.reports.latest) {
+  for (const r of snap.reports.latest.slice(0, 3)) {
     L.push(`  - ${r.id} @${r.location} [${r.status}, AI ${r.confidence}%]: ${r.snippet}`);
   }
   if (snap.needs.length > 0) {
     L.push('KEBUTUHAN vs BANTUAN (gap & coverage sudah dihitung aplikasi — pakai angka ini apa adanya):');
-    for (const n of snap.needs.slice(0, 12)) {
+    for (const n of snap.needs.slice(0, 6)) {
       L.push(
         `  - ${n.label} @${n.disasterName}: butuh ${fmt(n.estimated)} ${n.unit}, terima ${fmt(n.received)} ${n.unit}, kurang ${fmt(n.gap)} ${n.unit} (${n.gapPct}%), coverage ${n.coveragePct}%`,
       );
@@ -320,7 +325,9 @@ export function renderAssistantContextText(snap: AssistantSnapshot, maxChars = 6
   L.push(
     `INTELIJEN: peringkat prioritas ${snap.intelligence.ranking.map((r) => `${r.name} ${r.score}`).join('; ')}; gap terbesar: ${snap.intelligence.largestUnmetNeed}.`,
   );
-  for (const g of snap.guides) {
+  L.push('DETAILS are bounded excerpts, not every database record.');
+  L.push(snap.recentDisasters.slice(0, 600));
+  for (const g of snap.guides.slice(0, 2)) {
     L.push(`PANDUAN ${g.id} (${g.name} — ${g.title}): penyebab: ${g.cause.slice(0, 200)}; bahaya: ${g.hazards.slice(0, 200)}; evakuasi: ${g.evacRoute.slice(0, 200)}`);
   }
   if (snap.reports.unresolved.length > 0) {

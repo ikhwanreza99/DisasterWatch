@@ -1,5 +1,10 @@
 /** English translations — modals slice. Keys are the Indonesian source strings. */
 const modals: Record<string, string> = {
+  'Apakah Anda memiliki foto atau dokumen pendukung? Lampiran bersifat opsional dan tidak otomatis memverifikasi laporan.': 'Do you have a supporting photo or document? Attachments are optional and do not automatically verify a report.',
+
+  'Batalkan laporan': 'Cancel report',
+  'Laporan dibatalkan. Draf aktif dan lampiran telah dibersihkan. Tidak ada laporan yang dikirim. Silakan pilih layanan lain atau tulis pertanyaan Anda.': 'Report cancelled. The active draft and attachment have been cleared. No report was submitted. Choose another service or ask a question.',
+
   'Kapasitas (estimasi pembagian)':'Capacity (allocation estimate)',
   'Tutup form donasi':'Close donation form',
   'Pilih Posko Drop-off':'Choose a drop-off post',

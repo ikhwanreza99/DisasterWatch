@@ -1,6 +1,8 @@
 // NTT case assistant — grounded in persisted case data.
 // Reuses existing Gemini client (getGeminiModel). No second client, no hardcoded keys.
 // Compact structured context; never sends the whole database blindly.
+import { assistantLanguage, assistantLanguageInstruction, responseMatchesLanguage } from './assistantLanguage';
+import type { Lang } from '../../i18n';
 import { getGeminiModel } from '../../lib/firebase/ai';
 import type { NttCaseState } from '../nttCaseStore';
 import { countNtt } from '../nttCaseStore';
@@ -43,7 +45,16 @@ export function buildNttContext(state: NttCaseState, maxChars = 4000): string {
 }
 
 /** Deterministic fallback — same numbers the dashboard shows. */
-export function nttFallbackAnswer(question: string, state: NttCaseState): string {
+export function nttFallbackAnswer(question: string, state: NttCaseState, language: Lang = assistantLanguage(question)): string {
+  if (language === 'en') {
+    const counts = countNtt(state);
+    const revisions = state.kase.revisions.map(revision => `• ${revision.revision}: magnitude ${revision.magnitude}, depth ${revision.depthKm} km, coordinates ${revision.latitude}, ${revision.longitude}. Source: ${revision.sourceUrl}`).join('\n');
+    if (/death|fatal|killed|injur|casualt/i.test(question)) {
+      return `The available case snapshot does not establish a verified death toll. Missing data must not be interpreted as zero. Check the original sources for casualty claims: ${state.kase.sourceUrl}`;
+    }
+    const sourceLinks = [...new Set(state.claims.map(claim => claim.sourceUrl))].slice(0, 5).join('\n');
+    return `NTT case: Sumba Barat Daya earthquake, ${state.kase.eventDate}.\nOfficial recorded parameters:\n${revisions}\n${counts.articles} articles and ${counts.claims} claims are available; ${counts.awaiting} claims await verification and ${counts.conflicting} are conflicting. Source claims must be assessed individually and must not be added together.\nSources:\n${sourceLinks || state.kase.sourceUrl}`;
+  }
   const q = question.toLowerCase();
   const c = countNtt(state);
   const bmkg = state.kase.sourceUrl;
@@ -100,17 +111,18 @@ export function nttFallbackAnswer(question: string, state: NttCaseState): string
 export async function askNttAssistant(
   question: string,
   state: NttCaseState,
+  language: Lang = assistantLanguage(question),
 ): Promise<{ answer: string; engine: 'gemini' | 'deterministic' }> {
   const context = buildNttContext(state);
   try {
     const model = await getGeminiModel();
     if (model) {
-      const prompt = `Anda DisasterAI untuk kasus gempa Sumba Barat Daya 4 Okt 2026. Jawab HANYA dari KONTEKS KASUS di bawah, Bahasa Indonesia ringkas. Setiap angka/fakta harus berlink ke sumber aktual dari konteks. Jika tidak ada di konteks, katakan "Belum tersedia" — jangan simpulkan dari magnitudo. Pisahkan: 1) Fakta resmi, 2) Klaim media, 3) Belum terverifikasi, 4) Panduan umum (hanya jika diminta).\n\nKONTEKS KASUS\n${context}\n\nPertanyaan:\n${question.slice(0, 800)}`;
+      const prompt = `Anda DisasterAI untuk kasus gempa Sumba Barat Daya 4 Okt 2026. Jawab HANYA dari KONTEKS KASUS di bawah, ikuti instruksi bahasa respons berikut. Setiap angka/fakta harus berlink ke sumber aktual dari konteks. Jika tidak ada di konteks, katakan "Belum tersedia" — jangan simpulkan dari magnitudo. Pisahkan: 1) Fakta resmi, 2) Klaim media, 3) Belum terverifikasi, 4) Panduan umum (hanya jika diminta).\n\nKONTEKS KASUS\n${context}\n\nPertanyaan:\n${question.slice(0, 800)}\n\n${assistantLanguageInstruction(language)}`;
       const out = await model.generateContent(prompt);
-      if (out && out.trim().length > 10) return { answer: out.trim().slice(0, 2000), engine: 'gemini' };
+      if (out && out.trim().length > 10 && responseMatchesLanguage(out, language)) return { answer: out.trim().slice(0, 2000), engine: 'gemini' };
     }
   } catch {
     /* fallback below */
   }
-  return { answer: nttFallbackAnswer(question, state), engine: 'deterministic' };
+  return { answer: nttFallbackAnswer(question, state, language), engine: 'deterministic' };
 }

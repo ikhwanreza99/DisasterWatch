@@ -1,5 +1,8 @@
 /** English translations — services slice. Keys are the Indonesian source strings. */
 const services: Record<string, string> = {
+  'Saya menjawab dari DATA APLIKASI dalam rentang {start}–{end} (WIB): {count} wilayah/jenis bencana tercatat ({names}). Tanya misalnya: "daerah mana yang paling membutuhkan air bersih?", "berapa bantuan yang masih kurang?", atau "berapa laporan belum diverifikasi?"':
+    'I answer from the APP SNAPSHOT for {start}–{end} (WIB): {count} recorded area/disaster-type entries ({names}). You can ask which areas need clean water, how much aid is still needed, or how many reports await verification.',
+
   'Sesi pelaporan anonim belum tersedia. Silakan coba lagi.': 'The anonymous reporting session is not available yet. Please try again.',
   'Laporan belum tersimpan di server. Silakan coba lagi.': 'The report has not been saved to the server. Please try again.',
   'Oleh: Warga Pelapor': 'By: Citizen reporter',
@@ -223,7 +226,7 @@ const services: Record<string, string> = {
   '{name} saat ini menjadi prioritas tertinggi dengan skor {score}. Fokus utama adalah kebutuhan bantuan yang masih memiliki gap.':
     '{name} is currently the highest priority with a score of {score}. The main focus is aid needs that still have a gap.',
   'Belum ada data bencana.': 'No disaster data yet.',
-  'Kebutuhan {name}: {list} (data posko).': 'Needs for {name}: {list} (posko data).',
+  'Kebutuhan {name}: {list} (data posko).': 'Needs for {name}: {list} (aid post data).',
   'Kebutuhan {name}: {list}.': 'Needs for {name}: {list}.',
   '{need} — butuh {estimated}, terima {received}, kurang {gap}':
     '{need} — need {estimated}, received {received}, short {gap}',
@@ -231,7 +234,7 @@ const services: Record<string, string> = {
     'A total of {count} intelligence reports are stored. {list}.',
   '{name}: {count} laporan warga': '{name}: {count} citizen reports',
   'Secara umum (panduan umum, bukan data DisasterWatch saat ini): ikuti arahan posko/BNPB setempat — amankan diri dan keluarga dulu, siapkan dokumen penting dan tas siaga, matikan listrik/gas bila terancam, dan hindari area berbahaya. Untuk kondisi spesifik wilayah Anda, tanyakan misalnya "wilayah mana yang paling prioritas?" berdasarkan data DisasterWatch saat ini.':
-    'In general (general guidance, not current DisasterWatch data): follow the directions of the local posko/BNPB — secure yourself and your family first, prepare important documents and a go-bag, turn off electricity/gas if threatened, and avoid dangerous areas. For conditions specific to your area, ask for example "which region is the highest priority?" based on current DisasterWatch data.',
+    'In general (general guidance, not current DisasterWatch data): follow the directions of the local aid post or BNPB — secure yourself and your family first, prepare important documents and a go-bag, turn off electricity/gas if threatened, and avoid dangerous areas. For conditions specific to your area, ask for example "which region is the highest priority?" based on current DisasterWatch data.',
   'Saya menjawab dari DATA APLIKASI: {count} insiden aktif ({names}). Tanya misalnya: "daerah mana yang paling membutuhkan air bersih?", "berapa bantuan yang masih kurang?", atau "berapa laporan belum diverifikasi?"':
     'I answer from APP DATA: {count} active incidents ({names}). Ask for example: "which region needs clean water the most?", "how much aid is still lacking?", or "how many reports are unverified?"',
 
