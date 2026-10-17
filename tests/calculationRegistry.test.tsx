@@ -73,7 +73,7 @@ test('/calculation page renders summary, modules, and provenance without secrets
     </LanguageProvider>,
   );
   assert.match(markup, /data-testid="calculation-page"/);
-  assert.match(markup, /Verifikasi Perhitungan/);
+  assert.match(markup, /Calculation Engine/);
   assert.match(markup, /Lolos verifikasi/);
   assert.match(markup, /Belum diverifikasi/);
   assert.match(markup, /data-testid="calc-module-loss"/);

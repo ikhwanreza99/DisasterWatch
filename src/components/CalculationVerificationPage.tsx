@@ -136,14 +136,73 @@ function OverviewStat({ value, caption }: { value: string; caption: string }) {
   );
 }
 
+function SummaryCard({ icon: Icon, value, label, sub, testId }: { icon: React.ElementType; value: string; label: string; sub: string; testId: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5" data-testid={testId}>
+      <Icon size={18} className="text-blue-600" />
+      <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-700">{label}</p>
+      <p className="mt-1 text-xs text-slate-400">{sub}</p>
+    </div>
+  );
+}
+
+function KeyResultCard({ result }: { result: KeyResult }) {
+  const { t, locale } = useI18n();
+  const chipClass = result.source === 'live'
+    ? 'bg-blue-50 text-blue-700'
+    : result.source === 'synthetic' ? 'bg-violet-50 text-violet-700' : 'bg-slate-100 text-slate-500';
+  const chipText = result.source === 'live'
+    ? t('Live — read-only')
+    : result.source === 'synthetic' ? t('Demonstrasi sintetis') : t('Data kurang');
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5" data-testid={`key-result-${result.metric}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-semibold text-slate-900">{result.label}</p>
+        <span className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${chipClass}`}>{chipText}</span>
+      </div>
+      {result.value === null ? (
+        <p className="mt-3 text-lg font-semibold text-slate-400">{t('Data kurang')}</p>
+      ) : (
+        <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
+          {result.value.toLocaleString(locale, { maximumFractionDigits: 2 })}
+          {result.unit ? <span className="ml-1 text-sm font-normal text-slate-400">{result.unit}</span> : null}
+        </p>
+      )}
+      <p className="mt-2 text-xs leading-relaxed text-slate-500">{result.explanation}</p>
+    </div>
+  );
+}
+
 /** Production engine function behind each proof (no reimplementation). */
 const PROOF_FN: Record<string, string> = {
+  physical_damage: 'estimatePhysicalDamage',
+  utility_recovery: 'estimateUtilityRecovery',
   ori_index: 'estimateOriIndex',
   needs_current_gap: 'estimateCurrentGap',
   needs_forecast_gap: 'estimateForecastGap',
   damage_aggregate: 'estimateDamageAggregate',
   reconcile_facts: 'reconcileFacts',
 };
+
+/** Judge-facing key results: at most three, in priority order. */
+const KEY_RESULT_METRICS: ServiceMetric[] = ['physical_damage', 'utility_recovery', 'ori_index'];
+
+/** One short, non-technical explanation per key result metric. */
+const KEY_RESULT_EXPLANATION: Partial<Record<ServiceMetric, string>> = {
+  physical_damage: 'Kerusakan aset × biaya penggantian × tingkat keparahan.',
+  utility_recovery: 'Unit pulih ÷ unit terdampak untuk satu layanan.',
+  ori_index: 'Gabungan berbobot empat pemulihan layanan.',
+};
+
+interface KeyResult {
+  metric: ServiceMetric;
+  label: string;
+  value: number | null;
+  unit: string | null;
+  source: 'live' | 'synthetic' | 'unavailable';
+  explanation: string;
+}
 
 interface ProofCase {
   key: string;
@@ -165,6 +224,22 @@ function buildProofs(): Array<{ proof: ProofCase; response: ServiceResponse }> {
       key: 'ori_index', title: 'ORI: 20/75/40/80 → 50,75',
       request: { metric: 'ori_index', mode: 'scenario', origin: 'simulation', calculationId: 'proof-ori', input: { components: [...ORI_COMPONENTS] } },
       expected: 50.75,
+    },
+    {
+      key: 'physical_damage', title: 'Kerusakan fisik: 5 × 150 jt × 0,5 = 375 jt',
+      request: {
+        metric: 'physical_damage', origin: 'simulation', calculationId: 'proof-physical-damage',
+        input: { assetCount: 5, replacementCostPerAsset: 150_000_000, damageFraction: 0.5, currency: 'IDR', area: 'simulasi', period: '3 hari', sourceRefs: ['verifikasi:damage-ref'] },
+      },
+      expected: 375_000_000,
+    },
+    {
+      key: 'utility_recovery', title: 'Pemulihan air: 40/200 → 20%',
+      request: {
+        metric: 'utility_recovery', mode: 'current', origin: 'simulation', calculationId: 'proof-utility-water',
+        input: { service: 'water', affected: 200, recovered: 40, area: 'simulasi', period: '3 hari', operationalDefinition: 'definisi-verifikasi' },
+      },
+      expected: 20,
     },
     {
       key: 'needs_current_gap', title: 'Current gap: 500 × 2 − 400 = 600',
@@ -575,6 +650,32 @@ export default function CalculationVerificationPage({ embedded = false }: { embe
     });
   }, [metricStatuses, explorerFilter, explorerQuery]);
   const s = report.summary;
+  // Live is only "verified" when a real read-only Firestore session produced a
+  // full readiness assessment. Otherwise the count stays NOT verified — never 0.
+  const liveVerified = live?.mode === 'live' && readiness !== null;
+  // Up to three judge-facing results, preferring genuine live output; a metric
+  // with a passing production-function proof is shown as a labelled synthetic
+  // demonstration, and a metric with neither is withheld, never zeroed.
+  const keyResults = useMemo<KeyResult[]>(() => KEY_RESULT_METRICS.map((metric) => {
+    const row = metricStatuses.find((m) => m.metric === metric) ?? null;
+    const liveRun = liveByMetric[metric];
+    if (liveRun && liveRun.value !== null) {
+      return { metric, label: metricLabel(metric), value: liveRun.value, unit: liveRun.unit, source: 'live', explanation: t(KEY_RESULT_EXPLANATION[metric] ?? '') };
+    }
+    const proof = proofs.find((p) => p.response.metric === metric)?.response.result;
+    if (proof && proof.value !== null) {
+      return { metric, label: metricLabel(metric), value: proof.value, unit: proof.unit || null, source: 'synthetic', explanation: t(KEY_RESULT_EXPLANATION[metric] ?? '') };
+    }
+    return {
+      metric, label: metricLabel(metric), value: null, unit: null, source: 'unavailable',
+      explanation: row?.readiness?.note ?? t('Metrik ini memerlukan input terverifikasi yang belum tersedia.'),
+    };
+  }), [metricStatuses, liveByMetric, proofs, t]);
+  const readinessNotice = liveVerified
+    ? metricOverview.blockedByData > 0
+      ? t('{blocked} dari {total} metrik memerlukan input terverifikasi tambahan seperti jumlah pemulihan, pendanaan pemulihan, atau stok bantuan saat ini. Nilai yang hilang ditahan, bukan dianggap nol.', { blocked: metricOverview.blockedByData, total: metricOverview.tracked })
+      : t('Semua metrik memiliki input terverifikasi untuk insiden ini.')
+    : t('Data live belum diperiksa sesi ini. Sebagian kalkulasi memerlukan input terverifikasi tambahan seperti jumlah pemulihan, pendanaan pemulihan, atau stok bantuan saat ini. Nilai yang hilang ditahan, bukan dianggap nol.');
   const cards = [
     { icon: CheckCircle2, value: `${s.PASS}/${s.total}`, caption: t('Lolos verifikasi') },
     { icon: XCircle, value: `${s.FAIL}`, caption: t('Gagal — perlu perbaikan') },
@@ -602,21 +703,64 @@ export default function CalculationVerificationPage({ embedded = false }: { embe
       )}
       <Content className={embedded ? 'w-full' : 'mx-auto max-w-6xl px-5 py-10'}>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-600">DisasterWatch · Calculation Engine</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{t('Verifikasi Perhitungan')}</h1>
+          <p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-600">DisasterWatch</p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{t('Calculation Engine')}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-500">
-            {t('Setiap cek mengeksekusi fungsi perhitungan asli dan membandingkan aktual vs ekspektasi. Status tidak pernah diberikan hanya karena fungsi atau komponen ada. Contoh berlabel simulasi; bukan data resmi.')}
+            {t('Verified formulas. Transparent calculations. Evidence-based disaster insights.')}
+          </p>
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate-400">
+            {t('Setiap metrik menjalankan formula produksi asli; hasil ditahan bila input tidak valid.')}
           </p>
         </div>
-        <div className="my-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {cards.map(({ icon: Icon, value, caption }) => (
-            <div key={caption} className="rounded-2xl border border-slate-200 bg-white p-5">
-              <Icon size={18} className="text-blue-600" />
-              <p className="mt-3 text-base font-semibold">{value}</p>
-              <p className="mt-1 text-xs text-slate-400">{caption}</p>
-            </div>
-          ))}
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <SummaryCard
+            testId="summary-formulas" icon={FlaskConical}
+            value={`${metricOverview.implemented}/${metricOverview.tracked}`}
+            label={t('Formula Terimplementasi')} sub={t('dari registri metrik')}
+          />
+          <SummaryCard
+            testId="summary-tests" icon={CheckCircle2}
+            value={`${s.PASS}/${s.total}`}
+            label={t('Uji Lolos')} sub={t('cek formula fixture sintetis — bukan uji produksi')}
+          />
+          <SummaryCard
+            testId="summary-live" icon={Radio}
+            value={liveVerified ? `${metricOverview.calculatedLive}` : t('Belum diverifikasi')}
+            label={t('Kalkulasi Live')}
+            sub={liveVerified ? t('metrik dari data live asli') : t('data live belum diperiksa sesi ini')}
+          />
         </div>
+        <section className="mt-8" data-testid="key-results">
+          <h2 className="text-sm font-semibold text-slate-700">{t('Hasil perhitungan utama')}</h2>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {keyResults.map((r) => <KeyResultCard key={r.metric} result={r} />)}
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+            {t('Hasil live ditampilkan bila data terverifikasi tersedia; sisanya ditandai Demonstrasi sintetis.')}
+          </p>
+        </section>
+        <section className="mt-8 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-5" data-testid="data-readiness">
+          <Database size={16} className="mt-0.5 shrink-0 text-blue-600" />
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">{t('Kesiapan Data')}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">{readinessNotice}</p>
+          </div>
+        </section>
+        <details className="mt-8 rounded-2xl border border-slate-200 bg-white" data-testid="calc-details">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-slate-700">{t('Lihat detail teknis')}</summary>
+          <div className="border-t border-slate-100 p-5">
+            <p className="mb-4 text-xs leading-relaxed text-slate-500">
+              {t('Detail teknis: cek per modul, provenans, bukti eksekusi layanan, mode live read-only, dan inventaris kebutuhan data.')}
+            </p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              {cards.map(({ icon: Icon, value, caption }) => (
+                <div key={caption} className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <Icon size={18} className="text-blue-600" />
+                  <p className="mt-3 text-base font-semibold">{value}</p>
+                  <p className="mt-1 text-xs text-slate-400">{caption}</p>
+                </div>
+              ))}
+            </div>
         <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid="calc-overview">
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="font-semibold">{t('Ikhtisar mesin perhitungan')}</h2>
@@ -992,6 +1136,8 @@ export default function CalculationVerificationPage({ embedded = false }: { embe
         <p className="mt-5 text-[11px] leading-relaxed text-slate-400">
           {t('Halaman internal untuk verifikasi implementasi. Bukan klaim kesiapan produksi. Cek live membutuhkan sesi browser dengan akses Firestore; selebihnya halaman ini deterministik dan dapat diuji ulang.')}
         </p>
+          </div>
+        </details>
       </Content>
     </div>
   );

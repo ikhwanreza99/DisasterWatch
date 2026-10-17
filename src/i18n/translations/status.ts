@@ -429,6 +429,35 @@ const status: Record<string, string> = {
   'Sumber & waktu:': 'Source & time:',
   'Dihitung': 'Calculated',
   'Tindakan berikutnya:': 'Next action:',
+  // Judge-facing simplified view (header, three summary cards, key results, readiness).
+  'Setiap metrik menjalankan formula produksi asli; hasil ditahan bila input tidak valid.':
+    'Every metric runs the real production formula; results are withheld when inputs are invalid.',
+  'Formula Terimplementasi': 'Formulas Implemented',
+  'Uji Lolos': 'Tests Passed',
+  'Kalkulasi Live': 'Live Calculations',
+  'dari registri metrik': 'from the metric registry',
+  'cek formula fixture sintetis — bukan uji produksi': 'formula checks on synthetic fixtures — not a production test run',
+  'metrik dari data live asli': 'metrics from genuine live data',
+  'data live belum diperiksa sesi ini': 'live data not checked this session',
+  'Hasil perhitungan utama': 'Key calculation results',
+  'Demonstrasi sintetis': 'Synthetic demonstration',
+  'Kesiapan Data': 'Data Readiness',
+  'Lihat detail teknis': 'View technical details',
+  'Detail teknis: cek per modul, provenans, bukti eksekusi layanan, mode live read-only, dan inventaris kebutuhan data.':
+    'Technical detail: per-module checks, provenance, service execution proof, live read-only mode, and the data-requirements inventory.',
+  'Hasil live ditampilkan bila data terverifikasi tersedia; sisanya ditandai Demonstrasi sintetis.':
+    'Live results are shown when verified data is available; the rest are labelled Synthetic demonstration.',
+  'Kerusakan aset × biaya penggantian × tingkat keparahan.': 'Damaged assets × replacement cost × severity.',
+  'Unit pulih ÷ unit terdampak untuk satu layanan.': 'Restored units ÷ affected units for one service.',
+  'Gabungan berbobot empat pemulihan layanan.': 'Weighted composite of four service recoveries.',
+  'Metrik ini memerlukan input terverifikasi yang belum tersedia.':
+    'This metric requires verified inputs that are not available yet.',
+  '{blocked} dari {total} metrik memerlukan input terverifikasi tambahan seperti jumlah pemulihan, pendanaan pemulihan, atau stok bantuan saat ini. Nilai yang hilang ditahan, bukan dianggap nol.':
+    '{blocked} of {total} metrics require additional verified inputs such as restoration counts, recovery funding, or current aid stock. Missing values are withheld rather than treated as zero.',
+  'Semua metrik memiliki input terverifikasi untuk insiden ini.':
+    'All metrics have the verified inputs they need for this incident.',
+  'Data live belum diperiksa sesi ini. Sebagian kalkulasi memerlukan input terverifikasi tambahan seperti jumlah pemulihan, pendanaan pemulihan, atau stok bantuan saat ini. Nilai yang hilang ditahan, bukan dianggap nol.':
+    'Live data has not been checked in this session. Some calculations require additional verified inputs such as restoration counts, recovery funding, or current aid stock. Missing values are withheld rather than treated as zero.',
 };
 
 export default status;

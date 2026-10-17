@@ -162,3 +162,47 @@ test('live execution path returns a real value through the shared service', () =
   assert.equal(single.result.origin, 'live');
   assert.equal(single.extendedStatus, 'calculated');
 });
+
+// --- Judge-facing default view: compact, honest, details collapsed ---
+test('page: default view has three summary cards, three key results, and a readiness notice', () => {
+  const markup = renderToStaticMarkup(
+    <LanguageProvider>
+      <CalculationVerificationPage />
+    </LanguageProvider>,
+  );
+  assert.match(markup, /data-testid="summary-formulas"/);
+  assert.match(markup, /data-testid="summary-tests"/);
+  assert.match(markup, /data-testid="summary-live"/);
+  assert.match(markup, /data-testid="key-results"/);
+  assert.match(markup, /data-testid="key-result-physical_damage"/);
+  assert.match(markup, /data-testid="key-result-utility_recovery"/);
+  assert.match(markup, /data-testid="key-result-ori_index"/);
+  assert.match(markup, /data-testid="data-readiness"/);
+  assert.equal(markup.match(/data-testid="summary-/g)?.length, 3);
+  assert.equal(markup.match(/data-testid="key-result-/g)?.length, 3);
+});
+
+test('page: no live session means Live Calculations is NOT verified, never zero', () => {
+  const markup = renderToStaticMarkup(
+    <LanguageProvider>
+      <CalculationVerificationPage />
+    </LanguageProvider>,
+  );
+  assert.match(markup, /data-testid="summary-live"[\s\S]*?Belum diverifikasi/);
+  // With no verified live run, every key result is a labelled synthetic demonstration.
+  assert.equal(markup.match(/Demonstrasi sintetis<\/span>/g)?.length, 3);
+});
+
+test('page: technical detail is preserved inside a collapsed details region, not deleted', () => {
+  const markup = renderToStaticMarkup(
+    <LanguageProvider>
+      <CalculationVerificationPage />
+    </LanguageProvider>,
+  );
+  assert.match(markup, /data-testid="calc-details"/);
+  assert.doesNotMatch(markup, /data-testid="calc-details"[^>]*\sopen/);
+  assert.match(markup, /data-testid="calc-overview"/);
+  assert.match(markup, /data-testid="svc-proof"/);
+  assert.match(markup, /data-testid="data-requirements"/);
+  assert.match(markup, /data-testid="calc-live"/);
+});
