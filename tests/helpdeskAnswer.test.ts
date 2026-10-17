@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { answerHelpdeskQuestion } from '../src/services/ai/helpdeskAnswer';
 import { rankIncidentCandidates } from '../src/services/ai/incidentCandidates';
 import { currentIncidents } from '../src/data/currentIncidents';
-import { fallbackAnswer, buildAssistantPrompt } from '../src/services/ai/disasterAssistant';
+import { askAssistant, fallbackAnswer, buildAssistantPrompt } from '../src/services/ai/disasterAssistant';
 import { buildAssistantSnapshot } from '../src/services/ai/disasterAssistantContext';
 const deps = { disasters: currentIncidents, reports: [], aid: [] };
 
@@ -44,4 +44,22 @@ test('model outage still returns the scoped incident title rather than unrelated
   assert.match(result, /Padang/);
   assert.ok(result.includes(currentIncidents.padang.fullTitleDisplay));
   assert.doesNotMatch(result, /Belum ada data posko/);
+});
+
+test('intro-only generation is replaced by factual incident fallback, never shown as finished', async () => {
+  let budget: number | undefined;
+  const result = await askAssistant('saya ingin tau tentang bencana banjir di Padang', {...deps,disasters:{padang:currentIncidents.padang}}, {language:'id'}, async options => {
+    budget = options?.maxOutputTokens;
+    return {generateContent:async () => 'Menurut data DisasterWatch saat ini, berikut adalah rincian mengenai bencana banjir di Kota Padang:'};
+  });
+  assert.equal(budget, 2048);
+  assert.equal(result.engine, 'deterministic');
+  assert.match(result.answer, /2026-10-10/);
+  assert.doesNotMatch(result.answer, /berikut adalah rincian/);
+});
+test('complete model answer is preserved without arbitrary character clipping', async () => {
+  const answer = 'Banjir tercatat di Kota Padang. ' + 'Data tersedia dalam aplikasi. '.repeat(80);
+  const result = await askAssistant('Detail banjir Padang', deps, {language:'id'}, async () => ({generateContent:async () => answer}));
+  assert.equal(result.answer, answer.trim());
+  assert.equal(result.engine, 'gemini');
 });

@@ -1,3 +1,4 @@
+import { assertCompletedGeneration } from '../../services/ai/responseCompletion';
 import { recordTokenUsage } from '../../admin/tokenUsage';
 // Firebase AI Logic (Gemini) accessor with safe fallback.
 // Transport order: Firebase AI Logic first, server-side Gemini proxy second
@@ -96,12 +97,12 @@ async function tryAILogicTransport(maxOutputTokens = 512, temperature?: 0): Prom
     const ai = (getAI as unknown as (app: unknown, opts?: unknown) => unknown)(app, {
       backend: new (GoogleAIBackend as unknown as new () => unknown)(),
     });
-    const cache = new Map<string, { generateContent: (p: string | unknown) => Promise<{ response: { text: () => string; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } } }> }>();
+    const cache = new Map<string, { generateContent: (p: string | unknown) => Promise<{ response: { text: () => string; candidates?: Array<{ finishReason?: string }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } } }> }>();
     const forModel = (name: string) => {
       let m = cache.get(name);
       if (!m) {
         m = (getGenerativeModel as unknown as (ai: unknown, opts: unknown) => {
-          generateContent: (p: string | unknown) => Promise<{ response: { text: () => string; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } } }>;
+          generateContent: (p: string | unknown) => Promise<{ response: { text: () => string; candidates?: Array<{ finishReason?: string }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } } }>;
         })(ai, { model: name, generationConfig: { maxOutputTokens, ...(temperature === 0 ? { temperature } : {}) } });
         cache.set(name, m);
       }
@@ -111,6 +112,7 @@ async function tryAILogicTransport(maxOutputTokens = 512, temperature?: 0): Prom
       generate: async (prompt: string, model: string) => {
         const res = await forModel(model).generateContent(prompt);
         recordTokenUsage(res.response.usageMetadata, model, 'Firebase AI Logic');
+        assertCompletedGeneration(res.response.candidates?.[0]?.finishReason);
         const text = res.response.text();
         if (!text.trim()) throw new Error('Empty model response');
         return text;
@@ -160,7 +162,7 @@ async function proxyGenerate(prompt: string, model: string, maxOutputTokens = 51
   }
   const data = (await res.json()) as {
     usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    candidates?: Array<{ finishReason?: string; content?: { parts?: Array<{ text?: string }> } }>;
     error?: { message?: string } | string;
   };
   if (!res.ok) {
@@ -175,6 +177,7 @@ async function proxyGenerate(prompt: string, model: string, maxOutputTokens = 51
   if (data?.error && typeof data.error === 'object' && data.error.message) {
     throw new Error(`Gemini proxy error: ${data.error.message.slice(0, 200)}`);
   }
+  assertCompletedGeneration(data?.candidates?.[0]?.finishReason);
   const text = (data?.candidates?.[0]?.content?.parts ?? [])
     .map((p) => (typeof p?.text === 'string' ? p.text : ''))
     .join('');

@@ -53,3 +53,7 @@ Hasil verifikasi akhir: 152/152 tes reguler lulus; 13/13 skenario evaluasi Gemin
 ### Free-text information routing
 
 All `answer` decisions pass the original user message to `answerHelpdeskQuestion` and the grounded disaster assistant. Topic hints never dispatch a canned aid-post response. `general` covers disaster dates/details; `aid_posts` means physical aid posts or shelters only. Explicit location matches rank before previous selections. Today/recent queries retain the complete incident window. Aid-post records and candidate flags are included in grounded context for actual facility queries. The explicit Find Aid Posts service button retains its dedicated presentation.
+
+### Response completion and waiting
+
+The processing spinner lives in the fixed composer footer, outside the scrolling transcript. Semantic interpretation and factual generation have bounded waits. Factual answers request 2048 output tokens and a concise complete answer; transport finish reasons other than STOP are rejected, as are visibly unfinished prose endings. These failures use the grounded fallback rather than display a partial introductory response. Client-side character clipping no longer cuts answers after generation.

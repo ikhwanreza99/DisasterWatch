@@ -1,3 +1,4 @@
+import { withResponseDeadline } from '../services/ai/responseCompletion';
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Send, Sparkles, Paperclip, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import type { DisasterIncident } from '../types';
@@ -223,7 +224,7 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
       selectedIncidentId: learningContext?.id, hasAttachment: !!attachment,
     };
     try {
-      const interpretation = await interpretHelpdeskMessage(text, agentContext);
+      const interpretation = await withResponseDeadline(interpretHelpdeskMessage(text, agentContext));
       if (!mounted.current) return;
       if (!interpretation.available) {
         // No semantic engine means no automatic field updates or guessed intent.
@@ -325,10 +326,10 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
           {!reportPaused && stage === 'confirm' && <div className="flex flex-wrap gap-2 pl-10"><button type="button" disabled={busy} onClick={submit} className="rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{t('Kirim Laporan')}</button><button type="button" disabled={busy} onClick={() => { setStage('questions'); setStep(0); add('ai', t('Bagian mana yang ingin Anda koreksi? Ceritakan perubahannya; informasi lain tetap disimpan.')); }} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold disabled:opacity-50">{t('Perbaiki Laporan')}</button></div>}
           {(workflow === 'report-disaster' || workflow === 'report-needs') && <button type="button" disabled={busy} onClick={() => cancelReport()} className="self-start rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 disabled:opacity-50">{t('Batalkan laporan')}</button>}
           {reportPaused && <button type="button" disabled={busy} onClick={() => continueDraft(workflow, answers)} className="self-start rounded-full border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700">{t('Lanjutkan laporan')}</button>}
-          {busy && <p role="status" className="flex items-center gap-2 pl-10 text-xs text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />{t('DisasterAI sedang memproses…')}</p>}
         </div>
       </div>
       <footer className="shrink-0 border-t border-slate-200 bg-white p-3 sm:p-4">
+        {busy && <p role="status" aria-live="polite" className="mx-auto mb-2 flex max-w-3xl items-center gap-2 text-xs text-violet-700"><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />{t('DisasterAI sedang memproses…')}</p>}
         <form onSubmit={event => { event.preventDefault(); void send(); }} className="mx-auto flex max-w-3xl items-center gap-2">
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; const error = attachmentError(file); if (error) { add('ai', t(error)); return; } finishAttachment(file); }} />
           {!reportPaused && stage === 'attachment' && <button type="button" onClick={() => fileRef.current?.click()} aria-label={t('Lampirkan foto atau dokumen')} className="rounded-full p-2 text-violet-600 hover:bg-violet-50"><Paperclip className="h-5 w-5" /></button>}
