@@ -17,6 +17,7 @@ import {
 import {
   metricLabel,
   runCalculation,
+  type ServiceMetric,
   type ServiceResponse,
 } from '../services/calculations/calculationService';
 import {
@@ -26,6 +27,14 @@ import {
 } from '../services/calculations/liveAdapter';
 import { buildClaimFactGroups } from '../services/calculations/liveClaimGroups';
 import { adaptUtilityInputs } from '../services/calculations/liveAdapter';
+import {
+  buildMetricStatuses,
+  summariseMetricStatuses,
+  nextActionFor,
+  METRIC_MODULE,
+  type LiveRunSummary,
+  type MetricStatusRow,
+} from '../services/verification/metricStatus';
 import {
   DATA_REQUIREMENTS,
   REQUIREMENT_KINDS,
@@ -109,17 +118,23 @@ const CALC_READINESS_LABEL: Record<CalculationReadiness, string> = {
   NOT_AVAILABLE: 'Tidak tersedia',
 };
 
-/** Drill-down from a metric to its verification module section. */
-const METRIC_MODULE: Record<string, CheckModule> = {
-  physical_damage: 'loss', economic_loss: 'loss', economic_loss_netflow: 'loss', total_loss: 'loss',
-  damage_aggregate: 'loss',
-  funding_gap: 'recovery-gap', funding_gap_percent: 'recovery-gap',
-  physical_gap: 'recovery-gap', physical_gap_percent: 'recovery-gap',
-  utility_recovery: 'utility-recovery', ori_index: 'utility-recovery',
-  needs_demand: 'needs-intelligence', needs_current_gap: 'needs-intelligence',
-  needs_forecast_gap: 'needs-intelligence', priority_score: 'needs-intelligence',
-  reconcile_facts: 'integration',
+const EXPLORER_FILTER_LABEL: Record<string, string> = {
+  ALL: 'Semua metrik',
+  CALCULATED: 'Terhitung',
+  BLOCKED: 'Terhambat',
+  CONFLICTS: 'Konflik',
+  NOT_IMPLEMENTED: 'Belum diimplementasikan',
+  SYNTHETIC: 'Verifikasi sintetis',
 };
+
+function OverviewStat({ value, caption }: { value: string; caption: string }) {
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+      <p className="text-lg font-semibold text-slate-900">{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{caption}</p>
+    </div>
+  );
+}
 
 /** Production engine function behind each proof (no reimplementation). */
 const PROOF_FN: Record<string, string> = {
@@ -286,6 +301,79 @@ function CheckRow({ check }: { check: CheckOutcome }) {
   );
 }
 
+function MetricExplorerRow({ row }: { row: MetricStatusRow }) {
+  const { t, locale } = useI18n();
+  const required = DATA_REQUIREMENTS.filter((r) => r.metric_id === row.metric && r.required_or_optional === 'required');
+  const primary = row.tests[0];
+  const num = (v: number | null | undefined) => (v === null || v === undefined ? t('Belum tersedia') : v.toLocaleString(locale, { maximumFractionDigits: 2 }));
+  const blockerCount = (row.readiness?.missingFields.length ?? 0) + (row.live?.missingInputs.length ?? 0);
+  const liveChip = row.live
+    ? row.live.value !== null
+      ? 'bg-emerald-50 text-emerald-700'
+      : row.live.status === 'invalid_input' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'
+    : 'bg-slate-100 text-slate-500';
+  const readinessChip = row.readiness?.readiness === 'READY' ? 'bg-emerald-50 text-emerald-700'
+    : row.readiness?.readiness === 'BLOCKED' ? 'bg-amber-50 text-amber-700'
+      : row.readiness?.readiness === 'NOT_AVAILABLE' ? 'bg-slate-100 text-slate-600' : 'bg-slate-100 text-slate-500';
+  const readinessLabel = row.readiness ? t(READINESS_LABEL[row.readiness.readiness]) : t('Belum diperiksa');
+  return (
+    <details className="px-5 py-4" data-testid={`metric-explorer-${row.metric}`}>
+      <summary className="grid cursor-pointer gap-3 sm:grid-cols-[minmax(160px,1.3fr)_minmax(200px,2fr)_auto] sm:items-start">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{row.label}</p>
+          <p className="mt-1 text-xs text-slate-500">{row.description}</p>
+          <p className="mt-1 font-mono text-[11px] text-slate-400">{row.metric} · {t('modul')}: {row.module}</p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${row.implemented ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+            {row.implemented ? t('Formula terimplementasi') : t('Belum diimplementasikan')}
+          </span>
+          <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${row.tested ? 'bg-emerald-50 text-emerald-700' : row.testTotal > 0 ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>
+            {row.testTotal > 0 ? `${t('Uji')} ${row.testPass}/${row.testTotal}` : t('Tanpa uji')}
+          </span>
+          <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${readinessChip}`}>{readinessLabel}</span>
+          {row.live && (
+            <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${liveChip}`}>{t(EXTENDED_LABEL[row.live.status])}</span>
+          )}
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-semibold text-slate-900">
+            {row.live ? `${num(row.live.value)}${row.live.unit ? ` ${row.live.unit}` : ''}` : '—'}
+          </p>
+          <p className="text-[11px] text-slate-400">{row.live ? t('hasil live') : t('tanpa hasil live')}</p>
+          <p className="text-[11px] text-slate-400">{t('pemblokir')}: {blockerCount}</p>
+        </div>
+      </summary>
+      <div className="mt-3 grid gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+        <p><b className="text-slate-800">{t('Formula (implementasi aktual):')}</b> <span className="font-mono text-[11px]">{primary?.evidence.formula ?? '—'}</span></p>
+        <p><b className="text-slate-800">{t('Fungsi produksi:')}</b> <span className="font-mono text-[11px]">{PROOF_FN[row.metric] ?? row.metric}</span> · <b className="text-slate-800">{t('Versi')}:</b> {primary?.evidence.version ?? '—'} · <a href={`#mod-${row.module}`} className="font-semibold text-blue-600 hover:underline">{t('Lihat bukti verifikasi')}</a></p>
+        <p><b className="text-slate-800">{t('Input wajib:')}</b> {required.length > 0 ? required.map((r) => `${r.data_item}${r.expected_unit ? ` (${r.expected_unit})` : ''}`).join(' · ') : '—'}</p>
+        <p><b className="text-slate-800">{t('Diterima live:')}</b> {row.readiness && row.readiness.availableFields.length > 0 ? row.readiness.availableFields.join(' · ') : t('Belum tersedia')}</p>
+        <p className="text-amber-700"><b>{t('Hilang/tidak valid:')}</b> {row.readiness && row.readiness.missingFields.length > 0 ? row.readiness.missingFields.join(' · ') : '—'}</p>
+        <div><b className="text-slate-800">{t('Hasil validasi/uji sintetis:')}</b>
+          <ul className="mt-1 space-y-0.5">
+            {row.tests.map((c) => (
+              <li key={c.id} className="flex flex-wrap gap-1.5">
+                <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${chip[c.status]}`}>{t(STATUS_LABEL[c.status])}</span>
+                <span className="font-mono text-[10px] text-slate-500">{c.id}</span>
+                <span className="text-[10px] text-slate-500">{c.title} · {t('ekspektasi')} {c.evidence.expected} / {t('aktual')} {c.evidence.actual}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p><b className="text-slate-800">{t('Hasil terbaru:')}</b> {row.live
+          ? <>{row.live.value === null ? t('Ditahan') : `${num(row.live.value)}${row.live.unit ? ` ${row.live.unit}` : ''}`} · {t(EXTENDED_LABEL[row.live.status])} · {row.live.detail}</>
+          : t('Belum ada eksekusi live untuk metrik ini pada insiden terpilih.')}</p>
+        {row.live && row.live.trace && <p><b className="text-slate-800">{t('Trace:')}</b> <span className="font-mono text-[11px] break-words">{row.live.trace}</span></p>}
+        {row.readiness?.note && <p><b className="text-slate-800">{t('Alasan ditahan:')}</b> {row.readiness.note}</p>}
+        <p><b className="text-slate-800">{t('Provenans/ketidakpastian:')}</b> {primary?.evidence.provenance ?? '—'}{primary?.evidence.warnings && primary.evidence.warnings.length > 0 ? ` · ${primary.evidence.warnings.join(' | ')}` : ''}</p>
+        <p><b className="text-slate-800">{t('Sumber & waktu:')}</b> {row.live?.source ?? '—'} · {t('Dihitung')} {fmtDate(row.live?.calculatedAt ?? null, locale)}</p>
+        <p className="text-blue-700"><b>{t('Tindakan berikutnya:')}</b> {nextActionFor(row)}</p>
+      </div>
+    </details>
+  );
+}
+
 export default function CalculationVerificationPage({ embedded = false }: { embedded?: boolean }) {
   const { t, locale } = useI18n();
   const Content = embedded ? 'div' : 'main';
@@ -303,6 +391,8 @@ export default function CalculationVerificationPage({ embedded = false }: { embe
   const [auditTick, setAuditTick] = useState(0);
   const [filterMetric, setFilterMetric] = useState<string>('ALL');
   const [filterAvail, setFilterAvail] = useState<string>('ALL');
+  const [explorerFilter, setExplorerFilter] = useState<string>('ALL');
+  const [explorerQuery, setExplorerQuery] = useState('');
   useEffect(() => {
     let active = true;
     // Read-only probe via the existing authorized repository layer.
@@ -425,6 +515,65 @@ export default function CalculationVerificationPage({ embedded = false }: { embe
     for (const d of list) if (!seen.has(d.incidentId)) seen.set(d.incidentId, d);
     return [...seen.values()].slice(0, 50);
   }, [live]);
+  // Latest live result per metric, folded from the SAME live runs already
+  // executed above — no extra Firestore reads, no fabricated values.
+  const liveByMetric = useMemo(() => {
+    const summarize = (
+      out: Partial<Record<ServiceMetric, LiveRunSummary>>,
+      metric: ServiceMetric,
+      responses: Array<{ response: ServiceResponse; source: string; detail: string }>,
+    ) => {
+      if (responses.length === 0) return;
+      const withValue = responses.filter(({ response }) => response.result.value !== null);
+      const pick = withValue[0] ?? responses[0]!;
+      const r = pick.response.result;
+      const anyConflict = responses.some(({ response }) => response.extendedStatus === 'conflict_pending_review');
+      out[metric] = {
+        value: r.value,
+        unit: r.unit || null,
+        status: pick.response.extendedStatus === 'calculated' && anyConflict ? 'conflict_pending_review' : pick.response.extendedStatus,
+        calculatedAt: r.calculatedAt,
+        source: pick.source,
+        detail: responses.length > 1 ? `${withValue.length}/${responses.length} ${t('grup terhitung')}` : pick.detail,
+        trace: r.trace,
+        warnings: r.warnings,
+        missingInputs: r.missingInputs,
+      };
+    };
+    const out: Partial<Record<ServiceMetric, LiveRunSummary>> = {};
+    if (liveRuns) {
+      summarize(out, 'reconcile_facts', liveRuns.map(({ group, response }) => ({
+        response, source: group.claimIds.join(', '), detail: `${group.claimType} · ${group.unit}`,
+      })));
+    }
+    if (liveUtilityRuns && liveUtilityRuns.runs.length > 0) {
+      summarize(out, 'utility_recovery', liveUtilityRuns.runs.map(({ input, response }) => ({
+        response, source: input.docId, detail: `${input.service} · ${input.affected}→${input.recovered} ${input.unit}`,
+      })));
+    }
+    return out;
+  }, [liveRuns, liveUtilityRuns, t]);
+  // Unified per-metric status: implementation, synthetic test, live readiness,
+  // latest live result, blockers. Composed from existing services only.
+  const metricStatuses = useMemo(
+    () => buildMetricStatuses({ outcomes: report.outcomes, readiness, liveByMetric }),
+    [report, readiness, liveByMetric],
+  );
+  const metricOverview = useMemo(() => summariseMetricStatuses(metricStatuses), [metricStatuses]);
+  const filteredMetrics = useMemo(() => {
+    const q = explorerQuery.trim().toLowerCase();
+    return metricStatuses.filter((row) => {
+      if (q && !`${row.metric} ${row.label} ${row.description}`.toLowerCase().includes(q)) return false;
+      switch (explorerFilter) {
+        case 'CALCULATED': return row.live !== null && row.live.value !== null;
+        case 'BLOCKED': return !(row.live !== null && row.live.value !== null) && (row.readiness === null || row.readiness.readiness !== 'READY');
+        case 'CONFLICTS': return row.live?.status === 'conflict_pending_review' || row.live?.status === 'invalid_input';
+        case 'NOT_IMPLEMENTED': return !row.implemented;
+        case 'SYNTHETIC': return row.tested;
+        default: return true;
+      }
+    });
+  }, [metricStatuses, explorerFilter, explorerQuery]);
   const s = report.summary;
   const cards = [
     { icon: CheckCircle2, value: `${s.PASS}/${s.total}`, caption: t('Lolos verifikasi') },
@@ -468,6 +617,76 @@ export default function CalculationVerificationPage({ embedded = false }: { embe
             </div>
           ))}
         </div>
+        <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid="calc-overview">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="font-semibold">{t('Ikhtisar mesin perhitungan')}</h2>
+            <p className="mt-1 text-xs text-slate-500">{t('Hitungan tingkat metrik yang diturunkan dari layanan perhitungan, registri verifikasi, dan adaptor live — bukan angka yang di-hardcode. Verifikasi sintetis dan hasil live adalah dua dimensi terpisah.')}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3 lg:grid-cols-6">
+            <OverviewStat value={`${metricOverview.tracked}`} caption={t('Metrik dilacak')} />
+            <OverviewStat value={`${metricOverview.implemented}`} caption={t('Formula terimplementasi')} />
+            <OverviewStat value={`${metricOverview.tested}`} caption={t('Formula dengan uji lolos')} />
+            <OverviewStat value={`${metricOverview.calculatedLive}`} caption={t('Terhitung dari data live')} />
+            <OverviewStat value={`${metricOverview.blockedByData}`} caption={t('Terhambat kebutuhan data')} />
+            <OverviewStat value={`${metricOverview.conflictsOrInvalid}`} caption={t('Konflik/input tidak valid')} />
+          </div>
+          <p className="border-t border-slate-100 px-5 py-3 text-[11px] text-slate-400">
+            {t('Metrik terhitung live hanya bila dokumentasi Firestore menyuplai seluruh input wajib; sisanya ditahan dengan pemblokir eksplisit di bawah.')}
+          </p>
+        </section>
+        <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid="metric-explorer">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="font-semibold">{t('Penjelajah metrik')}</h2>
+            <p className="mt-1 text-xs text-slate-500">{t('Setiap metrik dengan status implementasi, uji, kesiapan live, hasil terbaru, satuan, pemblokir, sumber, dan waktu. Pilih metrik untuk detail lengkap.')}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 px-5 py-3">
+            {(['ALL', 'CALCULATED', 'BLOCKED', 'CONFLICTS', 'NOT_IMPLEMENTED', 'SYNTHETIC'] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setExplorerFilter(key)}
+                aria-pressed={explorerFilter === key}
+                data-testid={`explorer-filter-${key}`}
+                className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold ${explorerFilter === key ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+              >
+                {t(EXPLORER_FILTER_LABEL[key])}
+              </button>
+            ))}
+            <input
+              type="search"
+              value={explorerQuery}
+              onChange={(e) => setExplorerQuery(e.target.value)}
+              placeholder={t('Cari metrik…')}
+              aria-label={t('Cari metrik')}
+              data-testid="explorer-search"
+              className="ml-auto w-full rounded-lg border border-slate-200 px-2.5 py-1 text-xs sm:w-56"
+            />
+          </div>
+          <div className="divide-y divide-slate-100">
+            {filteredMetrics.map((row) => <MetricExplorerRow key={row.metric} row={row} />)}
+            {filteredMetrics.length === 0 && <p className="px-5 py-4 text-xs text-slate-500">{t('Tidak ada metrik yang cocok dengan filter ini.')}</p>}
+          </div>
+        </section>
+        <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid="blocked-metrics">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="font-semibold">{t('Metrik terhambat & input yang dibutuhkan')}</h2>
+            <p className="mt-1 text-xs text-slate-500">{t('Setiap metrik terhambat menjelaskan alasan tepat dan tindakan berikutnya. “Data tidak tersedia” tidak cukup.')}</p>
+          </div>
+          <ul className="divide-y divide-slate-100 text-xs leading-relaxed text-slate-600">
+            {metricStatuses.filter((row) => !(row.live?.value != null) && (row.readiness === null || row.readiness.readiness !== 'READY')).map((row) => (
+              <li key={row.metric} className="px-5 py-3" data-testid={`blocked-${row.metric}`}>
+                <span className="font-semibold text-slate-800">{row.label}</span>{' '}
+                <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${row.readiness?.readiness === 'BLOCKED' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                  {row.readiness ? t(READINESS_LABEL[row.readiness.readiness]) : t('Belum diperiksa')}
+                </span>
+                <span className="mt-1 block">{t('Tindakan berikutnya:')} {nextActionFor(row)}</span>
+                {row.readiness && row.readiness.missingFields.length > 0 && (
+                  <span className="mt-0.5 block text-[11px] text-amber-700">{t('Kurang:')} {row.readiness.missingFields.join(' · ')}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
         {MODULES.map((m) => {
           const checks = report.outcomes.filter((o) => o.module === m);
           const pass = checks.filter((o) => o.status === 'PASS').length;

@@ -381,6 +381,54 @@ const status: Record<string, string> = {
     'Satisfied: {ids}. Run via calculationService.runCalculation with validated inputs for live output.',
   'Legenda sumber: Observasi = fakta terukur; Baseline = nilai acuan eksplisit; Parameter = konstanta versi di kode; Turunan = dihitung saat kalkulasi. Audit hanya membaca; tidak menulis, memigrasi, atau seed data.':
     'Source legend: Observed = measured facts; Baseline = explicit reference values; Parameter = versioned constants in code; Derived = computed at calculation time. The audit only reads; it never writes, migrates, or seeds data.',
+  // Metric-level visibility layer (Calculation Overview / Metric Explorer / Blocked).
+  'Ikhtisar mesin perhitungan': 'Calculation engine overview',
+  'Hitungan tingkat metrik yang diturunkan dari layanan perhitungan, registri verifikasi, dan adaptor live — bukan angka yang di-hardcode. Verifikasi sintetis dan hasil live adalah dua dimensi terpisah.':
+    'Metric-level counts derived from the calculation service, verification registry, and live adapter — not hardcoded numbers. Synthetic verification and live results are two separate dimensions.',
+  'Metrik dilacak': 'Metrics tracked',
+  'Formula terimplementasi': 'Formulas implemented',
+  'Formula dengan uji lolos': 'Formulas with passing tests',
+  'Terhitung dari data live': 'Calculated from live data',
+  'Terhambat kebutuhan data': 'Blocked by data requirements',
+  'Konflik/input tidak valid': 'Conflicts/invalid inputs',
+  'Metrik terhitung live hanya bila dokumentasi Firestore menyuplai seluruh input wajib; sisanya ditahan dengan pemblokir eksplisit di bawah.':
+    'A metric is calculated live only when Firestore documents supply every mandatory input; the rest are withheld with explicit blockers below.',
+  'Penjelajah metrik': 'Metric explorer',
+  'Setiap metrik dengan status implementasi, uji, kesiapan live, hasil terbaru, satuan, pemblokir, sumber, dan waktu. Pilih metrik untuk detail lengkap.':
+    'Every metric with implementation, test, live-readiness status, latest result, unit, blockers, source, and time. Select a metric for full detail.',
+  'Terhitung': 'Calculated',
+  'Verifikasi sintetis': 'Synthetic verification',
+  'Cari metrik…': 'Search metrics…',
+  'Cari metrik': 'Search metrics',
+  'Tidak ada metrik yang cocok dengan filter ini.': 'No metric matches this filter.',
+  'Metrik terhambat & input yang dibutuhkan': 'Blocked metrics & required inputs',
+  'Setiap metrik terhambat menjelaskan alasan tepat dan tindakan berikutnya. “Data tidak tersedia” tidak cukup.':
+    'Every blocked metric states the exact reason and the next action. “Data unavailable” is not enough.',
+  'modul': 'module',
+  'Uji': 'Tests',
+  'Tanpa uji': 'No tests',
+  'hasil live': 'live result',
+  'tanpa hasil live': 'no live result',
+  'pemblokir': 'blockers',
+  'grup terhitung': 'groups calculated',
+  'Formula (implementasi aktual):': 'Formula (actual implementation):',
+  'Fungsi produksi:': 'Production function:',
+  'Versi': 'Version',
+  'Input wajib:': 'Required inputs:',
+  'Diterima live:': 'Received live:',
+  'Hilang/tidak valid:': 'Missing/invalid:',
+  'Hasil validasi/uji sintetis:': 'Validation/synthetic-test outcomes:',
+  'ekspektasi': 'expected',
+  'aktual': 'actual',
+  'Hasil terbaru:': 'Latest result:',
+  'Ditahan': 'Withheld',
+  'Belum ada eksekusi live untuk metrik ini pada insiden terpilih.':
+    'No live execution for this metric on the selected incident yet.',
+  'Alasan ditahan:': 'Reason withheld:',
+  'Provenans/ketidakpastian:': 'Provenance/uncertainty:',
+  'Sumber & waktu:': 'Source & time:',
+  'Dihitung': 'Calculated',
+  'Tindakan berikutnya:': 'Next action:',
 };
 
 export default status;
