@@ -50,8 +50,10 @@ export function createAiProxy(options: AiProxyOptions = {}) {
     }
     const token=req.headers.authorization?.match(/^Bearer ([^ ]+)$/)?.[1];
     if(!token){res.status(401).json({error:'Sign in required.'});return;}
+    // Public helpdesk accepts verified Firebase sessions, including anonymous.
+    // UID and IP limits still apply; unverified/missing tokens never spend quota.
     let uid:string;
-    try{uid=await (options.authenticate??(async token=>{if(!getApps().length)initializeApp({credential:applicationDefault()});const claims=await getAuth().verifyIdToken(token);if(claims.firebase.sign_in_provider==='anonymous')throw new Error('Anonymous not allowed');return claims.uid;}))(token);}catch{res.status(401).json({error:'Authentication failed.'});return;}
+    try{uid=await (options.authenticate??(async token=>{if(!getApps().length)initializeApp({credential:applicationDefault()});const claims=await getAuth().verifyIdToken(token);return claims.uid;}))(token);}catch{res.status(401).json({error:'Authentication failed.'});return;}
     const now=Date.now();const limit=attempts.get(uid);if(limit&&now-limit.at<60000){if(limit.count>=10){res.status(429).json({error:'Rate limit exceeded.'});return;}limit.count++;}else {if(attempts.size>=10000)attempts.clear();attempts.set(uid,{at:now,count:1});}
     const model = typeof req.body?.model === "string" ? req.body.model.trim() : "";
     const prompt = typeof req.body?.prompt === "string" ? req.body.prompt : "";
@@ -69,7 +71,7 @@ export function createAiProxy(options: AiProxyOptions = {}) {
           headers: { "Content-Type": "application/json", "x-goog-api-key": key },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt.slice(0, MAX_PROMPT_CHARS) }] }],
-            generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS },
+            generationConfig: { maxOutputTokens: req.body?.maxOutputTokens === 2048 ? 2048 : MAX_OUTPUT_TOKENS, ...(req.body?.temperature === 0 ? {temperature: 0} : {}) },
           }),
         },
       );

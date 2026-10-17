@@ -1,5 +1,13 @@
 /** English translations — modals slice. Keys are the Indonesian source strings. */
 const modals: Record<string, string> = {
+  'Draf diperbarui. Informasi lain tetap disimpan.': 'Draft updated. The other information has been kept.',
+
+  'Saya belum dapat memahami maksud pesan ini karena layanan AI belum tersedia atau hasilnya belum cukup jelas. Draf Anda tidak berubah. Coba lagi, atau gunakan tombol layanan dan pembatalan.': 'I could not interpret this message because the AI service is unavailable or its decision is unclear. Your draft is unchanged. Please try again, or use the service and cancellation buttons.',
+  'Laporan dijeda. Draf Anda tetap tersimpan dalam percakapan ini. Anda dapat bertanya atau melanjutkannya nanti.': 'The report is paused. Your draft remains in this conversation. You can ask questions or resume it later.',
+  'Informasi itu belum dapat dimasukkan ke draf. Jelaskan bagian laporan yang ingin Anda ubah.': 'That information could not be added to the draft. Please explain which part of the report you want to change.',
+  'Bagian mana yang ingin Anda koreksi? Ceritakan perubahannya; informasi lain tetap disimpan.': 'Which part would you like to correct? Describe the change; the other information will be kept.',
+  'Lanjutkan laporan': 'Resume report',
+
   'Apakah Anda memiliki foto atau dokumen pendukung? Lampiran bersifat opsional dan tidak otomatis memverifikasi laporan.': 'Do you have a supporting photo or document? Attachments are optional and do not automatically verify a report.',
 
   'Batalkan laporan': 'Cancel report',

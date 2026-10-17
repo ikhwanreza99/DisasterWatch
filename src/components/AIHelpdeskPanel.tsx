@@ -7,12 +7,11 @@ import { getFirebaseApp } from '../lib/firebase/config';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { MAJOR_CITIES } from '../services/weather/cityWeather';
 import { assistantLanguage, translateAssistant, incidentLabel } from '../services/ai/assistantLanguage';
-import { isReportCancellation } from '../services/ai/reportControl';
+import { interpretHelpdeskMessage, applyAgentDecision, type AgentContext } from '../services/ai/helpdeskAgent';
 import { UNKNOWN_SOURCES, sourceLabel, type AssistantSources } from '../services/ai/assistantSources';
 import { attachmentError } from '../services/ai/helpdeskAttachment';
-import { detectReportIntent } from '../services/ai/reportIntent';
 import { askAssistant } from '../services/ai/disasterAssistant';
-import { askNttAssistant, isNttQuestion } from '../services/ai/nttAssistant';
+import { askNttAssistant } from '../services/ai/nttAssistant';
 import type { NttCaseState } from '../services/nttCaseStore';
 import { submitReportPipeline } from '../services/pipeline/reportPipeline';
 import { useI18n, getLang, type Lang } from '../i18n';
@@ -98,6 +97,7 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
   const [quickOptions, setQuickOptions] = useState<string[]>(initialWorkflow === 'report-disaster' && !context ? regionOptions : []);
   const [step, setStep] = useState(initialWorkflow === 'report-disaster' && context ? 2 : 0);
   const [answers, setAnswers] = useState<Record<string, string>>(initialWorkflow === 'report-disaster' && context ? { location: `${context.name}, ${context.province}`, category: context.fullTitleDisplay } : {});
+  const [reportPaused, setReportPaused] = useState(false);
   const [stage, setStage] = useState<'questions' | 'attachment' | 'confirm' | 'done'>('questions');
   const [input, setInput] = useState('');
   const [narrative, setNarrative] = useState('');
@@ -117,6 +117,7 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
   const start = (next: WorkflowType, sourceText?: string, language: Lang = chatLang) => {
     const t = (key: string, params?: import('../i18n').TranslationParams) => translateAssistant(language, key, params);
     setChatLang(language);
+    setReportPaused(false);
     setNarrative(sourceText ?? '');
     setServiceChosen(true);
     locationSuggestionsActive.current = next === 'report-disaster' && !context;
@@ -133,12 +134,13 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
       : next === 'find-posts' ? (context ? postInformation([context], language) : t('Di kota/kabupaten mana Anda ingin mencari posko bantuan?'))
       : context ? t('Mari pelajari {title} di {name}. Anda ingin tahu tentang penyebab, risiko, atau cara melindungi diri?', { title: incidentLabel(context, language), name: context.name }) : t('Bencana apa dan di mana yang ingin Anda pelajari?'));
   };
-  const questions = workflow === 'report-needs' ? needsQuestions : context ? [reportQuestions[0], reportQuestions[1], reportQuestions[3], reportQuestions[2], reportQuestions[4]] : reportQuestions;
-  const summarize = (data: Record<string, string>, file?: File | null, language: Lang = chatLang) => {
+  const questionsFor = (type: WorkflowType) => type === 'report-needs' ? needsQuestions : context ? [reportQuestions[0], reportQuestions[1], reportQuestions[3], reportQuestions[2], reportQuestions[4]] : reportQuestions;
+  const questions = questionsFor(workflow);
+  const summarize = (data: Record<string, string>, file?: File | null, language: Lang = chatLang, type: WorkflowType = workflow) => {
     const t = (key: string, params?: import('../i18n').TranslationParams) => translateAssistant(language, key, params);
     add('ai', t('Berikut rangkuman {kind} Anda:\n\n{summary}\nDokumen pendukung: {document}\n\nApakah informasi ini sudah benar? Klik “Kirim Laporan”, atau “Perbaiki Laporan” untuk mengulang.', {
-      kind: workflow === 'report-needs' ? t('kebutuhan') : t('laporan bencana'),
-      summary: [narrative, questions.map(q => `${t(({ location: 'Lokasi', category: 'Jenis bencana', time: 'Waktu', description: 'Kondisi dan dampak', urgency: 'Urgensi', items: 'Kebutuhan', victims: 'Penerima bantuan', access: 'Akses dan kontak' } as Record<string, string>)[q.key])}: ${q.key === 'category' && context && data[q.key] === context.fullTitleDisplay ? incidentLabel(context, language) : data[q.key]}`).join('\n')].filter(Boolean).join('\n'),
+      kind: type === 'report-needs' ? t('kebutuhan') : t('laporan bencana'),
+      summary: [narrative, questionsFor(type).map(q => `${t(({ location: 'Lokasi', category: 'Jenis bencana', time: 'Waktu', description: 'Kondisi dan dampak', urgency: 'Urgensi', items: 'Kebutuhan', victims: 'Penerima bantuan', access: 'Akses dan kontak' } as Record<string, string>)[q.key])}: ${q.key === 'category' && context && data[q.key] === context.fullTitleDisplay ? incidentLabel(context, language) : data[q.key]}`).join('\n')].filter(Boolean).join('\n'),
       document: file?.name || t('Tidak ada'),
     }));
     setStage('confirm');
@@ -152,7 +154,9 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
     summarize(answers, file, language);
   };
   const submit = async () => {
-    if (sending.current || stage !== 'confirm' || (workflow !== 'report-disaster' && workflow !== 'report-needs')) return;
+    if (sending.current || reportPaused || stage !== 'confirm' || (workflow !== 'report-disaster' && workflow !== 'report-needs')) return;
+    const missing = questions.findIndex(question => !answers[question.key]?.trim());
+    if (missing >= 0) { setStep(missing); setStage('questions'); add('ai', t(questions[missing].text)); return; }
     sending.current = true; setBusy(true);
     add('user', t('Kirim laporan.'));
     try {
@@ -189,75 +193,106 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
   };
   const cancelReport = (language: Lang = chatLang) => {
     locationSuggestionsActive.current = false;
+    setReportPaused(false);
     initialAttachmentConsumed.current = true;
     setWorkflow('menu'); setStage('questions'); setServiceChosen(false);
     setAnswers({}); setStep(0); setAttachment(null); setNarrative(''); setQuickOptions([]); setInput('');
     add('ai', translateAssistant(language, 'Laporan dibatalkan. Draf aktif dan lampiran telah dibersihkan. Tidak ada laporan yang dikirim. Silakan pilih layanan lain atau tulis pertanyaan Anda.'));
   };
+  const continueDraft = (type: WorkflowType, data: Record<string, string>, language: Lang = chatLang, review = false) => {
+    const nextQuestions = questionsFor(type);
+    const missing = nextQuestions.findIndex(question => !data[question.key]?.trim());
+    setReportPaused(false);
+    if (missing >= 0) {
+      setStep(missing); setStage('questions');
+      add('ai', translateAssistant(language, nextQuestions[missing].text));
+    } else if (review || (stage === 'confirm' && type === workflow)) summarize(data, attachment, language, type);
+    else { setStage('attachment'); add('ai', translateAssistant(language, attachmentQuestion)); }
+  };
   const send = async (suggestion?: string) => {
     const text = (suggestion ?? input).trim();
     if (!text || busy || sending.current) return;
-    const responseLanguage = assistantLanguage(text, chatLang);
-    const t = (key: string, params?: import('../i18n').TranslationParams) => translateAssistant(responseLanguage, key, params);
-    setChatLang(responseLanguage);
-    // Conversation commands take precedence over every report field and stage.
-    if ((workflow === 'report-disaster' || workflow === 'report-needs') && isReportCancellation(text)) {
-      add('user', text);
-      cancelReport(responseLanguage);
-      return;
-    }
-    const reportIntent = detectReportIntent(text);
-    if (reportIntent && workflow !== 'report-disaster' && workflow !== 'report-needs') {
-      start(reportIntent, text, responseLanguage);
-      return;
-    }
+    sending.current = true; setBusy(true);
     setInput('');
-    setServiceChosen(true);
-    locationSuggestionsActive.current = false;
-    if ((workflow === 'report-disaster' || workflow === 'report-needs') && stage === 'attachment') {
-      if (/^(tidak|nggak|enggak|ga|gak|skip|lewati|belum|no|none|without)/i.test(text)) finishAttachment(undefined, responseLanguage);
-      else { add('user', text); add('ai', t('Silakan lampirkan foto atau dokumen melalui ikon klip, atau pilih “Tanpa Dokumen”.')); }
-      return;
-    }
     add('user', text);
-    setQuickOptions([]);
-    if ((workflow === 'report-disaster' || workflow === 'report-needs') && stage === 'questions') {
-      if (questions[step].key === 'location' && regionOptions.some(region => region === text || t(region) === text)) {
-        add('ai', t('Kota/kabupaten mana di {region}? Anda juga bisa mengetik desa atau alamat yang lebih spesifik.', { region: text }));
+    locationSuggestionsActive.current = false;
+    const available = disasters ?? (context ? { [context.id]: context } : {});
+    const agentContext: AgentContext = {
+      workflow, stage, paused: reportPaused, language: chatLang, answers,
+      currentField: (workflow === 'report-disaster' || workflow === 'report-needs') && stage === 'questions' && !reportPaused ? questions[step]?.key : undefined,
+      history: messages, incidents: Object.values(available).map(incident => ({ id: incident.id, name: incident.name, category: incident.category })),
+      selectedIncidentId: learningContext?.id, hasAttachment: !!attachment,
+    };
+    try {
+      const interpretation = await interpretHelpdeskMessage(text, agentContext);
+      if (!mounted.current) return;
+      if (!interpretation.available) {
+        // No semantic engine means no automatic field updates or guessed intent.
+        add('ai', t('Saya belum dapat memahami maksud pesan ini karena layanan AI belum tersedia atau hasilnya belum cukup jelas. Draf Anda tidak berubah. Coba lagi, atau gunakan tombol layanan dan pembatalan.'));
+        setInput(text);
         return;
       }
-      const nextAnswers = { ...answers, [questions[step].key]: text };
-      setAnswers(nextAnswers);
-      if (step + 1 < questions.length) { setStep(step + 1); add('ai', t(questions[step + 1].text)); }
-      else { setStage('attachment'); add('ai', t(attachmentQuestion)); }
-      return;
-    }
-    if ((workflow === 'report-disaster' || workflow === 'report-needs') && stage === 'confirm') {
-      add('ai', t('Silakan pilih “Kirim Laporan” jika sudah benar, atau “Perbaiki Laporan” untuk mengulang informasi.')); return;
-    }
-    sending.current = true; setBusy(true);
-    try {
-      const available = disasters ?? (context ? { [context.id]: context } : {});
-      const conversation = { language: responseLanguage, history: messages };
-      const target = Object.values(available).find(d => text.toLowerCase().includes(d.name.toLowerCase()) || text.toLowerCase().includes(d.id.toLowerCase())) ?? learningContext;
-      if (workflow === 'find-posts') {
-        const query = text.toLocaleLowerCase();
-        const matches = Object.values(available).filter(d => query.includes(d.id.toLocaleLowerCase()) || query.includes(d.name.toLocaleLowerCase()) || d.name.toLocaleLowerCase().includes(query));
-        add('ai', postInformation(matches, responseLanguage));
-      } else if (workflow === 'learn-disaster') {
-        if (target) setLearningContext(target);
-        const scoped = target ? { [target.id]: target } : available;
-        const result = await askAssistant(text, { disasters: scoped, reports: intelReports, aid: aidRecords, dataSources }, conversation);
-        if (mounted.current) add('ai', result.answer);
-      } else {
-        // Case-specific NTT questions answer from persisted case data (grounded, with source links).
-        const result = nttCase && isNttQuestion(text)
-          ? await askNttAssistant(text, nttCase, responseLanguage)
-          : await askAssistant(text, { disasters: available, reports: intelReports, aid: aidRecords, dataSources }, conversation);
-        if (mounted.current) add('ai', result.answer);
+      const decision = interpretation.decision;
+      const language = decision.language;
+      const local = (key: string) => translateAssistant(language, key);
+      setChatLang(language);
+      setQuickOptions([]);
+      const next = applyAgentDecision({ workflow, answers, paused: reportPaused }, decision);
+      switch (decision.action) {
+        case 'cancel_report': cancelReport(language); return;
+        case 'pause_report':
+          setReportPaused(true);
+          add('ai', local('Laporan dijeda. Draf Anda tetap tersimpan dalam percakapan ini. Anda dapat bertanya atau melanjutkannya nanti.'));
+          return;
+        case 'resume_report':
+          continueDraft(workflow, answers, language);
+          return;
+        case 'clarify': add('ai', decision.reply); return;
+        case 'update_report': {
+          // Invalid field/type combinations cannot alter the active draft.
+          if (next.answers === answers) { add('ai', local('Informasi itu belum dapat dimasukkan ke draf. Jelaskan bagian laporan yang ingin Anda ubah.')); return; }
+          const type = next.workflow as WorkflowType;
+          if (type !== workflow) {
+            // Current structured fields are authoritative after semantic extraction.
+            setNarrative('');
+            if (workflow === 'report-disaster' || workflow === 'report-needs') setAttachment(null);
+          }
+          const corrected = Object.keys(decision.updates).filter(key => answers[key] && answers[key] !== next.answers[key]);
+          if (corrected.length) add('ai', translateAssistant(language, 'Draf diperbarui. Informasi lain tetap disimpan.'));
+          setWorkflow(type); setAnswers(next.answers); setReportPaused(next.paused); setServiceChosen(true);
+          continueDraft(type, next.answers, language);
+          return;
+        }
+        case 'review_report': continueDraft(workflow, answers, language, true); return;
+        case 'skip_attachment':
+          setReportPaused(false);
+          setAttachment(null);
+          summarize(answers, null, language);
+          return;
+        case 'answer': {
+          // Answer an interruption without overwriting, discarding or advancing the report.
+          setServiceChosen(true);
+          const selected = decision.incidentId ? available[decision.incidentId] : undefined;
+          if (selected) setLearningContext(selected);
+          const scoped = selected ? { [selected.id]: selected } : available;
+          const conversation = { language, history: messages };
+          if (decision.topic === 'posts') {
+            add('ai', postInformation(selected ? [selected] : [], language));
+          } else {
+            const result = decision.topic === 'ntt' && nttCase
+              ? await askNttAssistant(text, nttCase, language)
+              : await askAssistant(text, { disasters: scoped, reports: intelReports, aid: aidRecords, dataSources }, conversation);
+            if (mounted.current) add('ai', result.answer);
+          }
+          return;
+        }
       }
-    } catch { if (mounted.current) add('ai', t('Jawaban belum tersedia. Silakan coba lagi.')); }
-    finally { sending.current = false; if (mounted.current) setBusy(false); }
+    } catch {
+      if (mounted.current) add('ai', t('Jawaban belum tersedia. Silakan coba lagi.'));
+    } finally {
+      sending.current = false;
+      if (mounted.current) setBusy(false);
+    }
   };
   const draftSent = useRef(false);
   useEffect(() => {
@@ -292,16 +327,17 @@ export function AIHelpdeskPanel({ expanded = false, onToggleExpanded, disaster, 
           </div>
           {showServices && <div className="flex flex-wrap gap-2 pl-10">{services.map(service => <button key={service.workflow} type="button" disabled={busy} onClick={() => start(service.workflow)} className="rounded-full border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-50 disabled:opacity-50">{service.workflow === 'report-disaster' && context ? t('Laporkan Update Bencana') : t(service.label)}</button>)}</div>}
           {quickOptions.length > 0 && <div className="flex flex-wrap gap-2 pl-10">{quickOptions.map(option => <button key={option} type="button" disabled={busy} onClick={() => void send(t(option))} className="rounded-full border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-50">{t(option)}</button>)}</div>}
-          {stage === 'attachment' && <div className="flex flex-wrap gap-2 pl-10">{attachment && <button type="button" onClick={() => finishAttachment(attachment)} className="rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white">{t('Gunakan {name}', { name: attachment.name })}</button>}<button type="button" onClick={() => fileRef.current?.click()} className="rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white">{t('Lampirkan Foto / Dokumen')}</button><button type="button" onClick={() => finishAttachment()} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold">{t('Tanpa Dokumen')}</button></div>}
-          {stage === 'confirm' && <div className="flex flex-wrap gap-2 pl-10"><button type="button" disabled={busy} onClick={submit} className="rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{t('Kirim Laporan')}</button><button type="button" disabled={busy} onClick={() => start(workflow, narrative || undefined)} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold disabled:opacity-50">{t('Perbaiki Laporan')}</button></div>}
+          {!reportPaused && stage === 'attachment' && <div className="flex flex-wrap gap-2 pl-10">{attachment && <button type="button" onClick={() => finishAttachment(attachment)} className="rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white">{t('Gunakan {name}', { name: attachment.name })}</button>}<button type="button" onClick={() => fileRef.current?.click()} className="rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white">{t('Lampirkan Foto / Dokumen')}</button><button type="button" onClick={() => finishAttachment()} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold">{t('Tanpa Dokumen')}</button></div>}
+          {!reportPaused && stage === 'confirm' && <div className="flex flex-wrap gap-2 pl-10"><button type="button" disabled={busy} onClick={submit} className="rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{t('Kirim Laporan')}</button><button type="button" disabled={busy} onClick={() => { setStage('questions'); setStep(0); add('ai', t('Bagian mana yang ingin Anda koreksi? Ceritakan perubahannya; informasi lain tetap disimpan.')); }} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold disabled:opacity-50">{t('Perbaiki Laporan')}</button></div>}
           {(workflow === 'report-disaster' || workflow === 'report-needs') && <button type="button" disabled={busy} onClick={() => cancelReport()} className="self-start rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 disabled:opacity-50">{t('Batalkan laporan')}</button>}
+          {reportPaused && <button type="button" disabled={busy} onClick={() => continueDraft(workflow, answers)} className="self-start rounded-full border border-violet-200 bg-white px-4 py-2 text-xs font-semibold text-violet-700">{t('Lanjutkan laporan')}</button>}
           {busy && <p role="status" className="flex items-center gap-2 pl-10 text-xs text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />{t('DisasterAI sedang memproses…')}</p>}
         </div>
       </div>
       <footer className="shrink-0 border-t border-slate-200 bg-white p-3 sm:p-4">
         <form onSubmit={event => { event.preventDefault(); void send(); }} className="mx-auto flex max-w-3xl items-center gap-2">
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; const error = attachmentError(file); if (error) { add('ai', t(error)); return; } finishAttachment(file); }} />
-          {stage === 'attachment' && <button type="button" onClick={() => fileRef.current?.click()} aria-label={t('Lampirkan foto atau dokumen')} className="rounded-full p-2 text-violet-600 hover:bg-violet-50"><Paperclip className="h-5 w-5" /></button>}
+          {!reportPaused && stage === 'attachment' && <button type="button" onClick={() => fileRef.current?.click()} aria-label={t('Lampirkan foto atau dokumen')} className="rounded-full p-2 text-violet-600 hover:bg-violet-50"><Paperclip className="h-5 w-5" /></button>}
           <input autoFocus aria-label={t('Pesan untuk DisasterAI')} value={input} onChange={event => setInput(event.target.value)} disabled={busy} placeholder={t('Tulis jawaban atau pertanyaan Anda…')} className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
           <button type="submit" disabled={busy || !input.trim()} aria-label={t('Kirim pesan')} className="rounded-full bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 p-3 text-white disabled:opacity-40"><Send className="h-5 w-5" /></button>
         </form>

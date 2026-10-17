@@ -46,9 +46,10 @@ export function aiBackendStatus(): AIBackendStatus {
  * overload of the primary model (HTTP 503) automatically falls back instead
  * of failing the whole feature.
  */
-export async function getGeminiModel(): Promise<{ generateContent: (prompt: string) => Promise<string> } | null> {
+export async function getGeminiModel(options: { maxOutputTokens?: 512 | 2048; temperature?: 0 } = {}): Promise<{ generateContent: (prompt: string) => Promise<string> } | null> {
   const candidates = resolveGeminiCandidates();
-  const aiLogic = await tryAILogicTransport();
+  const maxOutputTokens = options.maxOutputTokens ?? 512;
+  const aiLogic = await tryAILogicTransport(maxOutputTokens, options.temperature);
   let lastError: unknown = null;
   return {
     generateContent: async (prompt: string) => {
@@ -68,7 +69,7 @@ export async function getGeminiModel(): Promise<{ generateContent: (prompt: stri
       if (proxyState !== 'down') {
         for (const model of candidates) {
           try {
-            return await proxyGenerate(prompt, model);
+            return await proxyGenerate(prompt, model, maxOutputTokens, options.temperature);
           } catch (e) {
             lastError = e;
           }
@@ -83,7 +84,7 @@ interface AILogicTransport {
   generate: (prompt: string, model: string) => Promise<string>;
 }
 
-async function tryAILogicTransport(): Promise<AILogicTransport | null> {
+async function tryAILogicTransport(maxOutputTokens = 512, temperature?: 0): Promise<AILogicTransport | null> {
   if (!isFirebaseConfigured()) return null;
   try {
     const { getFirebaseApp } = await import('./config');
@@ -101,7 +102,7 @@ async function tryAILogicTransport(): Promise<AILogicTransport | null> {
       if (!m) {
         m = (getGenerativeModel as unknown as (ai: unknown, opts: unknown) => {
           generateContent: (p: string | unknown) => Promise<{ response: { text: () => string; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } } }>;
-        })(ai, { model: name, generationConfig: { maxOutputTokens: 512 } });
+        })(ai, { model: name, generationConfig: { maxOutputTokens, ...(temperature === 0 ? { temperature } : {}) } });
         cache.set(name, m);
       }
       return m;
@@ -132,18 +133,24 @@ async function tryAILogicTransport(): Promise<AILogicTransport | null> {
  */
 let proxyState: 'unknown' | 'down' = 'unknown';
 
-async function proxyGenerate(prompt: string, model: string): Promise<string> {
+async function proxyGenerate(prompt: string, model: string, maxOutputTokens = 512, temperature?: 0): Promise<string> {
   if (proxyState === 'down') throw new Error('Gemini proxy unavailable.');
   const {getAuth}=await import('firebase/auth');
   const {getFirebaseApp}=await import('./config');
-  const app=getFirebaseApp();const user=app?getAuth(app).currentUser:null;
-  if(!user||user.isAnonymous)throw new Error('Sign in required for the server AI fallback.');
+  const app = getFirebaseApp();
+  let user = app ? getAuth(app).currentUser : null;
+  if (app && !user) {
+    const { ensureUser } = await import('./auth');
+    await ensureUser();
+    user = getAuth(app).currentUser;
+  }
+  if (!user) throw new Error('A valid Firebase session is required for the server AI fallback.');
   const token=await user.getIdToken();
   const res = await fetch('/api/ai/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization:`Bearer ${token}` },
     signal:AbortSignal.timeout(25000),
-    body: JSON.stringify({ model, prompt: prompt.slice(0, 8000) }),
+    body: JSON.stringify({ model, prompt: prompt.slice(0, 8000), maxOutputTokens, temperature }),
   });
   const contentType = res.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {

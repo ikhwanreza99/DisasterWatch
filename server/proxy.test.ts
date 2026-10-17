@@ -107,3 +107,38 @@ test('upstream failures cannot echo server secrets into browser responses',async
  const r=await fetch(`${base}/generate`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer test'},body:JSON.stringify({model:'gemini-3.8-flash',prompt:'hi'})});assert.equal(r.status,502);assert.doesNotMatch(await r.text(),/test-private-secret/);
  });
 });
+
+test('semantic decisions allow a bounded 2048-token response while defaults stay at 512', async () => {
+ const limits: number[] = [];
+ const fetchImpl = (async (_url: unknown, init?: RequestInit) => {
+  limits.push(JSON.parse(String(init?.body)).generationConfig.maxOutputTokens);
+  return new Response(JSON.stringify({candidates:[{content:{parts:[{text:'{}'}]}}]}),{headers:{'Content-Type':'application/json'}});
+ }) as typeof fetch;
+ await withServer(createAiProxy({key:'synthetic-key',authenticate:async()=>'user',fetchImpl}), async base => {
+  for (const maxOutputTokens of [undefined,2048,999999]) {
+   const result = await fetch(`${base}/generate`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer test'},body:JSON.stringify({model:'gemini-3.8-flash',prompt:'Classify a synthetic message',maxOutputTokens})});
+   assert.equal(result.status,200);
+  }
+ });
+ assert.deepEqual(limits,[512,2048,512]);
+});
+
+test('verified anonymous session remains subject to the same per-UID AI quota', async () => {
+ let calls=0;
+ await withServer(createAiProxy({key:'synthetic-key',authenticate:async token=>{assert.equal(token,'verified-guest-token');return 'firebase-anonymous-uid';},fetchImpl:(async()=>{calls++;return new Response(JSON.stringify({candidates:[{content:{parts:[{text:'{}'}]}}]}),{headers:{'Content-Type':'application/json'}});}) as typeof fetch}),async base=>{
+  for(let index=0;index<11;index++) {
+   const result=await fetch(`${base}/generate`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer verified-guest-token'},body:JSON.stringify({model:'gemini-3.8-flash',prompt:'Synthetic semantic decision'})});
+   assert.equal(result.status,index<10?200:429);
+  }
+ });
+ assert.equal(calls,10);
+});
+
+test('failed token verification never reaches Gemini', async () => {
+ let calls=0;
+ await withServer(createAiProxy({key:'synthetic-key',authenticate:async()=>{throw Error('Invalid token');},fetchImpl:(async()=>{calls++;return new Response('{}');}) as typeof fetch}),async base=>{
+  const result=await fetch(`${base}/generate`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer invalid-token'},body:JSON.stringify({model:'gemini-3.8-flash',prompt:'Synthetic request'})});
+  assert.equal(result.status,401);
+ });
+ assert.equal(calls,0);
+});

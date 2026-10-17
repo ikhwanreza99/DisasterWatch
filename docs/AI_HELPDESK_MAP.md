@@ -1,5 +1,7 @@
 # Peta AI Helpdesk
 
+> Arsitektur terbaru: lihat [AI_HELPDESK_AGENT.md](AI_HELPDESK_AGENT.md). Pengendali semantik di helpdeskAgent.ts menggantikan reportIntent.ts/reportControl.ts yang disebut pada catatan historis di bawah.
+
 Basis audit: origin/main 70810a0, 17 Oktober 2026. Perubahan awal ada pada branch codex/ai-helpdesk-main-review; belum dipush atau dimerge.
 
 ## Folder dan file terkait
