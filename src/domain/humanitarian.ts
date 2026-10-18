@@ -363,8 +363,8 @@ export function appendRecoveryStatus(doc: IncidentRecoveryDoc, entry: RecoverySt
   return { ...doc, history: [...doc.history, entry], lastUpdatedAt: entry.at };
 }
 
-// --- 8. incidentCrawlRuns (1-day gate source of truth) ---
-export const CRAWL_INTERVAL_MS = 1 * 24 * 3600_000;
+// --- 8. incidentCrawlRuns (5-day gate source of truth) ---
+export const CRAWL_INTERVAL_MS = 5 * 24 * 3600_000;
 export type CrawlOutcome = 'SUCCESS' | 'SUCCESS_EMPTY' | 'PROVIDER_FAILED' | 'GATED_SKIP';
 export interface IncidentCrawlRunDoc {
   id: string;
@@ -379,7 +379,7 @@ export interface IncidentCrawlRunDoc {
   errorCode: string | null; // safe code only, never bodies/headers
   schemaVersion: number;
 }
-/** Pure gate: crawl only when ≥1d since last success (missing history → due). */
+/** Pure gate: crawl only when ≥5d since last success (missing history → due). */
 export function isCrawlDue(lastSuccessAt: string | null, nowMs = Date.now()): boolean {
   if (!lastSuccessAt) return true;
   const t = Date.parse(lastSuccessAt);

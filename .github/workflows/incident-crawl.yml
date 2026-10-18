@@ -1,8 +1,8 @@
 # Incident humanitarian crawl (daily cheap check, paid calls only when due).
 #
 # - Runs daily + on demand. The FIRST thing the script does is read
-#   `incidentCrawlRuns` for the last SUCCESS/SUCCESS_EMPTY; when <1 day elapsed
-#   it exits 0 before any paid ZAPI call (one Firestore read total).
+#   `incidentCrawlRuns` for the last SUCCESS/SUCCESS_EMPTY; when <5 days elapsed
+#   it exits 0 before any paid provider call (one Firestore read total).
 # - Writes use Firebase Admin SDK with a least-privilege service account:
 #   grant ONLY roles/datastore.user on disasterwatch-61ed5 (no rules deploy,
 #   no Hosting, no IAM changes happen here).
@@ -13,7 +13,7 @@ name: Incident humanitarian crawl (gated, daily)
 
 on:
   schedule:
-    # Daily cheap gate check (05:00 UTC). Paid calls only when the 1-day gate passes.
+    # Daily cheap gate check (05:00 UTC). Paid calls only when the 5-day gate passes.
     - cron: '0 5 * * *'
   workflow_dispatch:
     inputs:

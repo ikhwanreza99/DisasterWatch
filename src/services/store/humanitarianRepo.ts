@@ -89,7 +89,7 @@ export async function loadHumanitarian(incidentId: string): Promise<RemoteSnapsh
   }
 }
 
-/** Latest successful crawl timestamp across runs (the 1-day gate source of truth). */
+/** Latest successful crawl timestamp across runs (the 5-day gate source of truth). */
 export function latestSuccessAt(runs: IncidentCrawlRunDoc[]): string | null {
   let best: string | null = null;
   for (const r of runs) {

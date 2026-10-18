@@ -6,7 +6,7 @@ import { searchGemini } from '../providers/geminiSearch.ts';
 import { searchSerpNews } from '../providers/serpapiNews.ts';
 import type { ServiceCheck, StatusSnapshot } from '../../src/services/status/model.ts';
 import { safeStatusError } from '../../src/services/status/model.ts';
-import { isCrawlDue } from '../../src/domain/humanitarian.ts';
+import { CRAWL_INTERVAL_MS, isCrawlDue } from '../../src/domain/humanitarian.ts';
 import { recentWindow, RECENT_WINDOW_DAYS } from '../../src/services/recentWindow.ts';
 import { currentRecords } from '../../src/data/currentIncidents.ts';
 
@@ -62,7 +62,8 @@ try {
       const latest = runs.docs.map(d => d.data()).find(r => ['SUCCESS', 'SUCCESS_EMPTY'].includes(r.outcome));
       const at = latest?.finishedAt || latest?.startedAt || null;
       const due = isCrawlDue(at, Date.now());
-      add('crawler', 'Crawler berita · gate & hasil tersimpan', 'ok', `Terakhir: ${latest?.outcome || 'belum ada run sukses'}. ${due ? 'Sudah jatuh tempo' : 'Tertahan interval 1 hari'}. Artikel Gemini tersimpan: ${google.data().count}; seluruh artikel: ${zapi.data().count}.`);
+      const crawlIntervalDays = Math.round(CRAWL_INTERVAL_MS / 86400_000);
+      add('crawler', 'Crawler berita · gate & hasil tersimpan', 'ok', `Terakhir: ${latest?.outcome || 'belum ada run sukses'}. ${due ? 'Sudah jatuh tempo' : `Tertahan interval ${crawlIntervalDays} hari`}. Artikel Gemini tersimpan: ${google.data().count}; seluruh artikel: ${zapi.data().count}.`);
       if (at) services[services.length - 1].detail += ` Run sukses: ${at}.`;
       const sample = googleSample.docs.map(d => d.data());
       const matched = sample.filter(a => a.relevance?.status === 'MATCHED').length;

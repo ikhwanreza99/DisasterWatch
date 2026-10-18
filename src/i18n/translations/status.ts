@@ -39,7 +39,7 @@ const status: Record<string, string> = {
     'Last run: {outcome}. {schedule}. Gemini articles stored: {geminiCount}; all articles: {articleCount}{runAt}',
   'belum ada run sukses': 'no successful run yet',
   'Sudah jatuh tempo': 'Due',
-  'Tertahan interval 1 hari': 'Held by the 1-day interval',
+  'Tertahan interval {days} hari': 'Held by the {days}-day interval',
   ' Run sukses: {runAt}.': ' Successful run: {runAt}.',
   'Tersimpan {count} artikel Gemini. Sampel {sample}: {matched} sesuai kejadian, {review} perlu review. Tanpa tanggal publikasi yang cocok, hasil Gemini masuk review dan tidak otomatis tampil di feed utama.':
     '{count} Gemini articles stored. Sample of {sample}: {matched} match incidents, {review} need review. Without a matching publication date, Gemini results are sent for review and are not automatically shown in the main feed.',

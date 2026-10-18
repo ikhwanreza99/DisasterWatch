@@ -8,8 +8,8 @@ import { ACTIVE_NEWS_IDS } from '../src/services/incidentRegistry.ts';
 // Gated incident crawl runner (Admin SDK, trusted GitHub Actions ONLY).
 // NEVER import from browser code. Never commit/log credentials, keys, or bodies.
 //
-// - Gate: reads incidentCrawlRuns for the last SUCCESS/SUCCESS_EMPTY; paid ZAPI
-//   Zapi/Google calls happen ONLY when ≥1 day elapsed (or --force). The daily schedule check
+// - Gate: reads incidentCrawlRuns for the last SUCCESS/SUCCESS_EMPTY; paid ZAPI/SERP/
+//   Gemini/Threads calls happen ONLY when ≥5 days elapsed (or --force). The daily schedule check
 //   itself is one cheap Firestore read — no crawling API before due.
 // - Outcomes: SUCCESS (≥1 incident ok), SUCCESS_EMPTY (ok, zero relevant —
 //   distinct from failure), PROVIDER_FAILED (all failed → exit 1, data preserved),
@@ -155,7 +155,7 @@ async function main() {
 
   const due = FORCE || isCrawlDue(lastSuccess, Date.parse(now));
   const daysSince = lastSuccess ? ((Date.parse(now) - Date.parse(lastSuccess)) / 86400_000).toFixed(1) : 'n/a (no history)';
-  console.log(`gate           : lastSuccess=${lastSuccess ?? 'none'} (${daysSince}d ago, interval=1d) → ${due ? 'DUE' : 'GATED_SKIP'}`);
+  console.log(`gate           : lastSuccess=${lastSuccess ?? 'none'} (${daysSince}d ago, interval=5d) → ${due ? 'DUE' : 'GATED_SKIP'}`);
   if (!due) {
     console.log('outcome        : GATED_SKIP (no paid API calls, no writes)');
     return { outcome: 'GATED_SKIP' as CrawlOutcome, exitCode: 0 };

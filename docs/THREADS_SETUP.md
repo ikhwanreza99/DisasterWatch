@@ -11,7 +11,7 @@ Provider baru memakai endpoint resmi Meta `GET https://graph.threads.net/v1.0/ke
 5. Cara awal memakai Postman: fork koleksi resmi Meta Threads, isi Threads App ID, App Secret dan redirect URI yang sama persis dengan konfigurasi Meta. Gunakan OAuth Authorization Code dan scope dua permission tadi. Redirect URI harus sesuai alur callback OAuth Postman yang Anda pilih. Pilih Get New Access Token, login sebagai akun Threads operator, lalu izinkan aplikasi.
 6. Jalankan request Get Long-Lived Access Token (`grant_type=th_exchange_token`) dalam koleksi Meta. Simpan token user hasil pertukaran, bukan App Access Token.
 7. GitHub → Settings → Secrets and variables → Actions → Secrets → tambah `THREADS_ACCESS_TOKEN`. Jangan memakai awalan VITE dan jangan menempelkan token ke chat atau repository.
-8. Jalankan workflow hosting agar konfigurasi terlihat pada `/status`. Crawler kejadian menjalankan pencarian setelah gate 24 jam lolos. Muat ulang halaman tidak menjalankan pencarian.
+8. Jalankan workflow hosting agar konfigurasi terlihat pada `/status`. Crawler kejadian menjalankan pencarian setelah gate 5 hari lolos. Muat ulang halaman tidak menjalankan pencarian.
 9. Uji request Search for Threads Posts di Postman dengan query lokasi yang diketahui. Hasil kosong dapat berarti tidak ada post, filter terlalu sempit, atau akses permission belum mencakup pencarian yang diharapkan; tidak otomatis berarti crawler rusak.
 10. Perbarui token sebelum kedaluwarsa lewat request Refresh Access Token (`grant_type=th_refresh_token`) lalu ganti secret. Pembaruan token belum diotomatisasi.
 

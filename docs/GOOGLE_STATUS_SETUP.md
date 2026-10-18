@@ -31,7 +31,7 @@ Ini bukan hasil gagal. Halaman status belum melakukan upload lampiran. Aktifkan 
 
 ## Interval crawler kejadian
 
-Crawler kejadian menjadi due 24 jam setelah SUCCESS/SUCCESS_EMPTY terakhir. Workflow memeriksanya setiap hari pukul 05.00 UTC (12.00 WIB). Bila pemeriksaan jadwal terjadi sebelum batas 24 jam, crawl menunggu pemeriksaan berikutnya. Workflow dapat dijalankan manual setelah jatuh tempo.
+Crawler kejadian menjadi due 5 hari (120 jam) setelah SUCCESS/SUCCESS_EMPTY terakhir. Workflow memeriksanya setiap hari pukul 05.00 UTC (12.00 WIB). Bila pemeriksaan jadwal terjadi sebelum batas 5 hari, crawl menunggu pemeriksaan berikutnya. Workflow dapat dijalankan manual setelah jatuh tempo.
 
 Snapshot berita nasional terpisah masih memakai interval 5 hari. Mengubah interval crawler tidak menghapus kebutuhan klasifikasi/review artikel Gemini tanpa tanggal publikasi.
 

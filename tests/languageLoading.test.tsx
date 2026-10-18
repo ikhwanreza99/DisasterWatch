@@ -92,4 +92,11 @@ test('dynamic status report text is translated while retaining live counts and d
     ),
     'Valid Air Quality API response for Jakarta; UAQI 32 (Low air pollution).',
   );
+  assert.equal(
+    translateStatusText(
+      'Terakhir: SUCCESS. Tertahan interval 5 hari. Artikel Gemini tersimpan: 100; seluruh artikel: 500.',
+      english,
+    ),
+    'Last run: SUCCESS. Held by the 5-day interval. Gemini articles stored: 100; all articles: 500',
+  );
 });

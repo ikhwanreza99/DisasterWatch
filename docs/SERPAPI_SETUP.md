@@ -5,7 +5,7 @@
 3. Tidak perlu variable enabled; provider aktif saat secret tersedia. Key hanya masuk ke crawler/status backend, tidak ke bundle browser.
 4. Actions → Deploy to Firebase Hosting (production) → Run workflow → branch main → aktifkan `check_serpapi`. Ini satu request untuk membuktikan key bekerja, tanpa menyimpan artikel atau melewati gate harian.
 5. Buka `/status` → Muat ulang laporan. Lihat SerpApi konfigurasi, uji langsung, dan artikel tersimpan.
-6. Crawler Incident humanitarian crawl berjalan harian pukul 12.00 WIB bila sudah 24 jam sejak SUCCESS/SUCCESS_EMPTY terakhir. Bisa Run workflow manual setelah jatuh tempo. Reload halaman tidak menjalankan crawler.
+6. Crawler Incident humanitarian crawl berjalan harian pukul 12.00 WIB bila sudah 5 hari sejak SUCCESS/SUCCESS_EMPTY terakhir. Bisa Run workflow manual setelah jatuh tempo. Reload halaman tidak menjalankan crawler.
 
 Provider memakai `engine=google_news`, `gl=id`, `hl=id`. Tiga query per titik aktif: kejadian, kebutuhan, penanggulangan/pemulihan. Tidak melakukan pagination. Batas hasil 30 artikel per query. Kuota perkiraan per run: jumlah titik aktif × 3 request SerpApi, di luar provider lain dan uji langsung. Cache default SerpApi tetap digunakan.
 

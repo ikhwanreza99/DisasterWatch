@@ -35,14 +35,16 @@ const rules: StatusTextRule[] = [
     params: match => ({ count: match[1] }),
   },
   {
-    pattern: /^Terakhir: (.+?)\. (Sudah jatuh tempo|Tertahan interval 1 hari)\. Artikel Gemini tersimpan: ([\d,]+); seluruh artikel: ([\d,]+)\.(?: Run sukses: (.+)\.)?$/,
+    pattern: /^Terakhir: (.+?)\. (Sudah jatuh tempo|Tertahan interval (\d+) hari)\. Artikel Gemini tersimpan: ([\d,]+); seluruh artikel: ([\d,]+)\.(?: Run sukses: (.+)\.)?$/,
     key: 'Terakhir: {outcome}. {schedule}. Artikel Gemini tersimpan: {geminiCount}; seluruh artikel: {articleCount}{runAt}',
     params: (match, translate) => ({
       outcome: translate(match[1]),
-      schedule: translate(match[2]),
-      geminiCount: match[3],
-      articleCount: match[4],
-      runAt: match[5] ? ` Run sukses: ${match[5]}.` : '',
+      schedule: match[3]
+        ? translate('Tertahan interval {days} hari', { days: match[3] })
+        : translate(match[2]),
+      geminiCount: match[4],
+      articleCount: match[5],
+      runAt: match[6] ? ` Run sukses: ${match[6]}.` : '',
     }),
   },
   {
