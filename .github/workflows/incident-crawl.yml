@@ -16,6 +16,12 @@ on:
     # Daily cheap gate check (05:00 UTC). Paid calls only when the 1-day gate passes.
     - cron: '0 5 * * *'
   workflow_dispatch:
+    inputs:
+      force_translation:
+        description: 'Run one bounded translation pass now, bypassing its five-day gate'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -29,6 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
+        id: checkout
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -38,9 +45,13 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        id: install
         run: npm ci
 
       - name: Gated incident crawl → Firestore
+        # A forced translation dispatch must not also start a provider crawl.
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.force_translation != true }}
+        id: crawl
         run: npx tsx scripts/incidentCrawlRun.ts
         env:
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
@@ -50,3 +61,16 @@ jobs:
           DISASTERWATCH_GEMINI_SEARCH_KEY: ${{ secrets.DISASTERWATCH_GEMINI_SEARCH_KEY }}
           ZAPI_API_KEY: ${{ secrets.ZAPI_API_KEY }}
           FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+
+      # Share this already-scheduled runner with the existing crawler. The
+      # translator has an independent Firestore five-day gate and lease.
+      - name: Gated news-card translation → Firestore
+        # Runs after the crawl step settles (including failure); it can safely
+        # translate the still-current Firestore feed if a refresh failed.
+        if: ${{ always() && steps.checkout.outcome == 'success' && steps.install.outcome == 'success' && steps.crawl.outcome != 'cancelled' }}
+        run: npx tsx scripts/translateIncidentNews.ts
+        env:
+          FIREBASE_NEWS_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_NEWS_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_DISASTERWATCH_61ED5 }}
+          DISASTERWATCH_GEMINI_KEY: ${{ secrets.DISASTERWATCH_GEMINI_KEY || secrets.DISASTERWATCH_GEMINI_SEARCH_KEY || secrets.GEMINI_API_KEY }}
+          NEWS_TRANSLATION_MAX_RECORDS: '15'
+          NEWS_TRANSLATION_FORCE: ${{ inputs.force_translation }}

@@ -5,6 +5,24 @@ export type MetricProvenance = 'OFFICIAL' | 'REPORTED' | 'ESTIMATED' | 'DEMO' | 
 
 export type RelevanceStatus = 'MATCHED' | 'REVIEW_REQUIRED' | 'REJECTED';
 
+/** Persisted card-only English localization. Source fields remain authoritative. */
+export interface IncidentArticleTranslation {
+  language: 'en';
+  status: 'translated' | 'failed';
+  titleStatus?: 'translated' | 'failed' | 'original';
+  summaryStatus?: 'translated' | 'failed' | 'original';
+  title: string | null;
+  summary: string | null;
+  sourceTitle: string;
+  sourceSummary: string | null;
+  sourceLanguage: 'id' | 'en' | 'unknown';
+  fingerprint: string;
+  translatedAt: string | null;
+  model: string | null;
+  promptVersion: string;
+  errorCode?: string;
+}
+
 /** Raw candidate article before/after classification. Nullable when unknown — never invented. */
 export interface IncidentArticle {
   url: string;
@@ -16,6 +34,7 @@ export interface IncidentArticle {
   eventDate?: string;
   retrievedAt: string;
   summary: string | null;
+  englishTranslation?: IncidentArticleTranslation;
   contentStatus: 'FULL' | 'PARTIAL' | 'METADATA_ONLY' | 'FAILED';
   /** Explicit link (e.g. NTT caseId) when the source record already declares it. */
   incidentId: string | null;

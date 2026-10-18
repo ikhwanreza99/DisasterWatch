@@ -105,6 +105,7 @@ function articleDocToCandidate(a: IncidentArticleDoc): IncidentArticle {
     publishedAt: a.publishedAt,
     retrievedAt: a.retrievedAt,
     summary: a.summary,
+    englishTranslation: a.englishTranslation,
     contentStatus: a.contentStatus,
     incidentId: null, // Crawl target is not proof that an article matches.
     discoveredBy: a.discoveredBy,

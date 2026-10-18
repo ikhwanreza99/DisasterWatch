@@ -1,11 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ExternalLink, Newspaper } from 'lucide-react';
 import { translate, useI18n } from '../../i18n';
 import {
   newsDisplayText,
   newsOriginalLanguageLabel,
-  newsTranslationProviderConfigured,
-  requestNewsTranslation,
   type NewsDisplayText,
 } from '../../i18n/newsText';
 import { incidentText } from '../../i18n/incidentText';
@@ -39,41 +37,10 @@ export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched: matc
   const [showReview, setShowReview] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const selected = useMemo(() => (showReview ? review : matched), [showReview, review, matched]);
-  // Async translation-provider results (only used when a provider is
-  // configured). Key: `${url}::${field}`; language switches clear them.
-  const [providerOverrides, setProviderOverrides] = useState<Record<string, NewsDisplayText>>({});
-  useEffect(() => {
-    if (lang !== 'en' || !newsTranslationProviderConfigured()) {
-      setProviderOverrides({});
-      return;
-    }
-    let cancelled = false;
-    const jobs: Array<Promise<void>> = [];
-    for (const item of selected) {
-      for (const [field, text] of [['title', item.title], ['summary', item.summary ?? '']] as const) {
-        if (!text.trim()) continue;
-        const key = `${item.url}::${field}`;
-        if (newsDisplayText(text, lang).status === 'translated') continue;
-        jobs.push(
-          requestNewsTranslation(text, lang).then((result) => {
-            if (!cancelled) setProviderOverrides((prev) => ({ ...prev, [key]: result }));
-          }),
-        );
-      }
-    }
-    return () => { cancelled = true; };
-  }, [lang, selected]);
-  // Shared presentation resolution: dictionary/cache first; when a
-  // translation provider is configured and no verified translation exists,
-  // the async request runs and the card shows 'pending' until it resolves.
-  // The ORIGINAL article text is kept untouched — only display changes.
-  const resolveDisplayText = (text: string, field: 'title' | 'summary', url: string): NewsDisplayText => {
-    const sync = newsDisplayText(text, lang);
-    if (lang === 'en' && sync.status === 'original' && newsTranslationProviderConfigured()) {
-      return providerOverrides[`${url}::${field}`] ?? { text, status: 'pending' };
-    }
-    return sync;
-  };
+  // Translation is a persisted backend result. Rendering and language switches
+  // never call an AI provider.
+  const resolveDisplayText = (text: string, field: 'title' | 'summary', item: IncidentArticle): NewsDisplayText =>
+    newsDisplayText(text, lang, item.englishTranslation, item.title, item.summary, field);
   return (
     <section className={compact ? "min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-white p-4" : "bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col h-[min(70vh,640px)] min-h-[360px] shrink-0 transition-all hover:shadow-md"} aria-label={t('Berita {name}', { name: incidentName })} data-testid="incident-news">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-100 pb-3">
@@ -119,15 +86,15 @@ export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched: matc
           const prefix = ['Kebakaran Hutan Dan Lahan', 'Tanah Longsor', 'Gempabumi', 'Banjir', 'Kekeringan', 'Cuaca Ekstrem'].find(label => item.title.startsWith(label + ' '));
           const prefixLabel = generated && prefix ? t(prefix) : '';
           const titleBody = generated && prefix ? item.title.slice(prefix.length) : item.title;
-          const titleDisplay = resolveDisplayText(titleBody, 'title', item.url);
+          const titleDisplay = resolveDisplayText(titleBody, 'title', item);
           const title = titleDisplay.text ? (prefixLabel ? prefixLabel + titleDisplay.text : titleDisplay.text) : item.title;
-          const summaryDisplay = item.summary ? resolveDisplayText(item.summary, 'summary', item.url) : null;
+          const summaryDisplay = item.summary ? resolveDisplayText(item.summary, 'summary', item) : null;
           const summaryText = summaryDisplay?.text ? (generated ? incidentText(summaryDisplay.text) : summaryDisplay.text) : '';
           const displayText = summaryText ? `${title} — ${summaryText}` : title;
           const pending = titleDisplay.status === 'pending' || summaryDisplay?.status === 'pending';
-          const originalLabel = !pending && lang === 'en'
-            && (titleDisplay.status !== 'translated' || (summaryDisplay !== null && summaryDisplay.status !== 'translated'))
-            ? newsOriginalLanguageLabel(item.title, lang)
+          const originalLabel = lang === 'en'
+            ? (titleDisplay.status !== 'translated' ? newsOriginalLanguageLabel(item.title, lang) : null)
+              ?? (summaryDisplay && summaryDisplay.status !== 'translated' ? newsOriginalLanguageLabel(item.summary ?? '', lang) : null)
             : null;
           const category = newsCategoryStyles[classifyNews(report)];
           return (

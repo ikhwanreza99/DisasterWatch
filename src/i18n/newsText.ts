@@ -19,6 +19,7 @@
 // dictionary and degrades safely.
 
 import { getLang, hasEnglish, translateFor, type Lang } from './index';
+import type { IncidentArticleTranslation } from '../domain/incidentDetail';
 
 export type NewsTextStatus = 'translated' | 'original' | 'pending' | 'failed';
 
@@ -54,9 +55,15 @@ export function newsTranslationProviderConfigured(): boolean {
  * exact source string is a dictionary key AND the English value is non-empty
  * and actually different from the source.
  */
-export function newsDisplayText(text: string, lang: Lang = getLang()): NewsDisplayText {
+export function newsDisplayText(text: string, lang: Lang = getLang(), persisted?: IncidentArticleTranslation, sourceTitle?: string, sourceSummary?: string | null, field?: 'title' | 'summary'): NewsDisplayText {
   const trimmed = text.trim();
   if (!trimmed) return { text, status: 'original' };
+  if (lang === 'en' && persisted?.language === 'en') {
+    const translated = field === 'title'
+      ? (persisted.titleStatus === 'translated' && persisted.sourceTitle === sourceTitle ? persisted.title : null)
+      : (persisted.summaryStatus === 'translated' && persisted.sourceSummary === sourceSummary ? persisted.summary : null);
+    if (translated?.trim()) return { text: translated.trim(), status: 'translated' };
+  }
   const cacheKey = `${lang}::${trimmed}`;
   const cached = translationCache.get(cacheKey);
   if (cached) return { text: cached, status: 'translated' };
@@ -104,11 +111,14 @@ export async function requestNewsTranslation(text: string, lang: Lang = getLang(
  * Used solely to LABEL original text — never to rewrite it.
  */
 const INDONESIAN_MARKERS =
-  /\b(yang|di|ke|dari|dan|atau|untuk|dengan|pada|ini|itu|telah|sedang|juga|akan|oleh|karena|agar|namun|lalu|serta|bagi|sampai|tersebut)\b/i;
+  /\b(yang|di|ke|dari|dan|atau|untuk|dengan|pada|ini|itu|telah|sedang|juga|akan|oleh|karena|agar|namun|lalu|serta|bagi|sampai|tersebut|mengalami|terdampak|menyebabkan|dilaporkan|warga|korban|gempa|banjir|longsor|erupsi|terjadi|akibat|hingga|sejumlah|puluhan|ratusan)\b/i;
 
 export function looksIndonesian(text: string): boolean {
   return INDONESIAN_MARKERS.test(text);
 }
+
+const ENGLISH_MARKERS = /\b(the|and|for|with|after|during|in|on|at|to|from|as|officials|residents|floods?|earthquake|landslide|eruption|volcano|evacuated|damaged|kills?|injured|strikes?|hits?|warns?|reports?|says?|aid|reaches|families|homes|roads|province|district)\b/i;
+export function looksEnglish(text: string): boolean { return ENGLISH_MARKERS.test(text) && !looksIndonesian(text); }
 
 /**
  * Label shown on untranslated cards in English mode. Null when the text

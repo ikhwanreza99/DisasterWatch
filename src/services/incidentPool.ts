@@ -35,6 +35,7 @@ export async function loadIncidentPool(): Promise<IncidentArticle[]> {
       publishedAt: typeof a.publishedAt === 'string' ? a.publishedAt : null,
       retrievedAt: a.retrievedAt,
       summary: typeof a.summary === 'string' ? a.summary : null,
+      englishTranslation: a.englishTranslation,
       contentStatus: a.contentStatus === 'FULL' || a.contentStatus === 'PARTIAL' || a.contentStatus === 'FAILED' ? a.contentStatus : 'METADATA_ONLY',
       incidentId: null,
       discoveredBy: typeof a.discoveredBy === 'string' ? a.discoveredBy : 'incident-pool',

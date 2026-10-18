@@ -123,6 +123,22 @@ test('original headlines, source attribution, and source URLs remain unchanged',
   assert.match(enHtml, /https:\/\/www\.infopublik\.id\/berita\/2026\/pembersihan-banjir-padang/);
 });
 
+test('stored English title and summary render in EN while ID keeps source fields', async () => {
+  await loadEnglishTranslations();
+  const item = fixture({ title: ID_TITLE, summary: ID_SUMMARY, englishTranslation: {
+    language: 'en', status: 'translated', titleStatus: 'translated', summaryStatus: 'translated',
+    title: EN_TITLE, summary: 'Teams are clearing flash-flood debris in Padang.',
+    sourceTitle: ID_TITLE, sourceSummary: ID_SUMMARY, sourceLanguage: 'id', fingerprint: 'test',
+    translatedAt: '2026-10-18T00:00:00Z', model: 'test', promptVersion: 'news-card-en-v1',
+  } });
+  const enHtml = renderWithLang('en', panelNode([item]));
+  assert.match(enHtml, /Cleanup of flash-flood debris in Padang/);
+  assert.match(enHtml, /Teams are clearing flash-flood debris in Padang/);
+  const idHtml = renderWithLang('id', panelNode([item]));
+  assert.match(idHtml, new RegExp(ID_TITLE));
+  assert.match(idHtml, new RegExp(ID_SUMMARY));
+});
+
 test('an already-English headline is not unnecessarily translated or mislabeled', async () => {
   await loadEnglishTranslations();
   const englishHeadline = 'Flash flooding reported in Padang';
@@ -132,6 +148,13 @@ test('an already-English headline is not unnecessarily translated or mislabeled'
   assert.equal(newsOriginalLanguageLabel(englishHeadline, 'en'), null);
   assert.equal(looksIndonesian(englishHeadline), false);
   assert.equal(looksIndonesian(ID_TITLE), true);
+});
+
+test('untranslated Indonesian summary is labeled even when the headline is English', async () => {
+  await loadEnglishTranslations();
+  const html = renderWithLang('en', panelNode([fixture({ title: 'Floods hit Padang after heavy rain', summary: ID_SUMMARY })]));
+  assert.match(html, /Floods hit Padang after heavy rain/);
+  assert.match(html, /Bahasa Indonesia/);
 });
 
 test('a missing translation never produces an empty headline and is explicitly labeled', async () => {
@@ -216,19 +239,19 @@ test('translation preserves quantities, dates, and location names', async () => 
   }
 });
 
-test('news cards remain usable while a translation is pending', async () => {
+test('news card rendering never invokes the translation provider', async () => {
   await loadEnglishTranslations();
-  let resolveTranslation: (value: string) => void = () => {};
-  setNewsTranslationProvider(() => new Promise<string>((resolve) => { resolveTranslation = resolve; }));
+  let providerCalls = 0;
+  setNewsTranslationProvider(async () => { providerCalls++; return 'should not run'; });
   try {
     const html = renderWithLang('en', panelNode([fixture({ title: ID_TITLE_3 })]));
-    // Pending state: original content stays visible, card renders, source intact.
+    // Stored or curated content is rendered synchronously; no provider call.
     assert.match(html, new RegExp(ID_TITLE_3.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-    assert.match(html, /Translating/);
+    assert.doesNotMatch(html, /Translating/);
     assert.match(html, /Open Source/);
+    assert.equal(providerCalls, 0);
   } finally {
     setNewsTranslationProvider(null);
-    resolveTranslation('ignored');
   }
 });
 

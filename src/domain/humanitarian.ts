@@ -3,6 +3,7 @@
 // Rules: unknown quantities are null (never guessed); conflicting claims coexist;
 // recovery keeps append-only history; map pins require validated coordinates.
 import type { VerificationStatus } from './intelligence';
+import type { IncidentArticleTranslation } from './incidentDetail';
 
 export const HUMANITARIAN_COLLECTIONS = {
   incidents: 'incidents',
@@ -66,6 +67,7 @@ export interface IncidentArticleDoc {
   retrievedAt: string;
   updatedAt: string;
   summary: string | null;
+  englishTranslation?: IncidentArticleTranslation;
   contentHash: string;
   contentStatus: 'FULL' | 'PARTIAL' | 'METADATA_ONLY' | 'FAILED';
   discoveredBy: string;
