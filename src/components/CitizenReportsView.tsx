@@ -16,6 +16,7 @@ import {
 import { DisasterIncident } from '../types';
 import { useI18n } from '../i18n';
 import { incidentText } from '../i18n/incidentText';
+import { newsDisplayText, newsOriginalLanguageLabel } from '../i18n/newsText';
 
 interface CitizenReportsViewProps {
   disaster: DisasterIncident;
@@ -36,7 +37,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
   onViewRoute,
   isDarkMode = false,
 }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [filter, setFilter] = useState<ReportFilter>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -168,7 +169,11 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
               {t('Tidak ada laporan pada kategori ini.')}
             </div>
           ) : (
-            filteredReports.map((rep) => (
+            filteredReports.map((rep) => {
+              const titleDisplay = newsDisplayText(rep.title ?? '', lang);
+              const descDisplay = newsDisplayText(rep.desc ?? '', lang);
+              const originalLabel = lang === 'en' && titleDisplay.status !== 'translated' ? newsOriginalLanguageLabel(rep.title ?? '', lang) : null;
+              return (
               <article
                 key={rep.id}
                 className="p-3.5 rounded-2xl bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all space-y-2"
@@ -177,7 +182,7 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h4 className="font-bold text-slate-900 dark:text-white text-xs leading-snug">
-                      {rep.title}
+                      {titleDisplay.text}
                     </h4>
                     <span className="text-[10px] text-slate-400 font-medium block">
                       📍 {rep.location}
@@ -192,8 +197,9 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
 
                 {/* Description Body */}
                 <p className="text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed bg-slate-50/70 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80">
-                  {rep.desc}
+                  {descDisplay.text}
                 </p>
+                {originalLabel && <p className="text-[9px] font-medium text-slate-400">{originalLabel}</p>}
 
                 {/* Footer Metadata & Share Action */}
                 <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
@@ -218,7 +224,8 @@ export const CitizenReportsView: React.FC<CitizenReportsViewProps> = ({
                   </button>
                 </div>
               </article>
-            ))
+              );
+            })
           )}
         </div>
       </div>

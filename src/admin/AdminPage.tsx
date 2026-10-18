@@ -40,8 +40,9 @@ import { adminApi, AdminError, type Page } from "./api";
 import type { TokenSample } from "./tokenUsage";
 import { isFinalReviewStatus } from "./reviewPolicy";
 import "./admin.css";
-import { useI18n, translate, localeFor } from "../i18n";
+import { useI18n, translate, localeFor, getLang } from "../i18n";
 import { LanguageToggle } from "../i18n/LanguageToggle";
+import { newsDisplayText, newsOriginalLanguageLabel } from "../i18n/newsText";
 
 const GoogleStatusPage = lazy(() => import("../components/GoogleStatusPage"));
 
@@ -841,11 +842,16 @@ function DisasterDetail({
         </dl>
         {summary && <><h3>{t("Ringkasan")}</h3><p className="admin-report-text">{summary}</p></>}
         <h3>{t("Sumber berita dan data")}</h3>
-        {articles.length ? articles.map((article) => (
+        {articles.length ? articles.map((article) => {
+          const title = article.title || article.sourceName || article.url;
+          const display = newsDisplayText(title, getLang());
+          const label = display.status !== 'translated' ? newsOriginalLanguageLabel(title, getLang()) : null;
+          return (
           <a key={article.url} href={article.url} target="_blank" rel="noopener noreferrer">
-            {article.title || article.sourceName || article.url} · {t("Buka sumber")} ↗
+            {display.text}{label ? ` · ${label}` : ""} · {t("Buka sumber")} ↗
           </a>
-        )) : <p>{t("Belum ada tautan sumber yang tercatat.")}</p>}
+          );
+        }) : <p>{t("Belum ada tautan sumber yang tercatat.")}</p>}
       </div>
       <footer><button className="admin-secondary" onClick={onClose}>{t("Tutup")}</button></footer>
     </dialog>

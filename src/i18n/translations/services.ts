@@ -247,6 +247,18 @@ const services: Record<string, string> = {
   'Perahu / Evakuasi': 'Boat / Evacuation',
   'Genset / Listrik': 'Generator / Electricity',
   'Pakaian': 'Clothing',
+
+  // ----- News content (curated headlines + untranslated-content labels) -----
+  // Source headlines stay Indonesian; English display uses these curated
+  // entries. Quantities, place names, and org names (KemenPU, BNPB, ANTARA)
+  // are preserved as published. No provider output is ever mixed in here.
+  'Pembersihan material banjir bandang di Padang': 'Cleanup of flash-flood debris in Padang',
+  'Bantuan Pascabanjir Padang Menjangkau 250 Keluarga di Koto Tangah dan Kuranji':
+    'Post-flood aid for Padang reaches 250 families in Koto Tangah and Kuranji',
+  'KemenPU Percepat Pemulihan Fasum dan Permukiman Terdampak Banjir di Padang':
+    'KemenPU accelerates recovery of public facilities and settlements affected by flooding in Padang',
+  'Menerjemahkan…': 'Translating…',
+  'Bahasa Indonesia': 'Bahasa Indonesia',
 };
 
 export default services;

@@ -4,12 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { NEWS_REFRESH_MS, type DisasterNewsFeed } from '../services/disasterNews';
 import { useI18n, localeFor } from '../i18n';
+import { newsDisplayText, newsOriginalLanguageLabel } from '../i18n/newsText';
 
 const formatDate = (date: string) => new Date(date).toLocaleString(localeFor(), {
   day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta',
 });
 export function DisasterNewsCard({ compact = false }: { compact?: boolean }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [feed, setFeed] = useState<DisasterNewsFeed | null>(null);
   const [failed, setFailed] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -42,11 +43,15 @@ export function DisasterNewsCard({ compact = false }: { compact?: boolean }) {
     {!feed && !failed && <p role="status" className="mt-3 text-xs text-slate-500">{t('Memuat berita…')}</p>}
     {feed && !items.length && !failed && <p role="status" className="mt-3 text-xs text-slate-500">{t('Belum ada berita terbaru yang tersedia.')}</p>}
     <div className="mt-3 space-y-2 max-h-[60vh] overflow-y-auto">
-      {items.slice(0, compact && !expanded ? 2 : 15).map(item => <article key={item.url} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+      {items.slice(0, compact && !expanded ? 2 : 15).map(item => {
+        const titleDisplay = newsDisplayText(item.title, lang);
+        const originalLabel = lang === 'en' && titleDisplay.status !== 'translated' ? newsOriginalLanguageLabel(item.title, lang) : null;
+        return <article key={item.url} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
         <time dateTime={item.publishedAt} className="text-[10px] text-slate-500">{formatDate(item.publishedAt)}</time>
-        <a href={newsSourceUrl(item.url)!} target="_blank" rel="noopener noreferrer" className="mt-1 block text-xs font-semibold leading-relaxed text-slate-800 hover:text-blue-600 focus-visible:outline-2 focus-visible:outline-blue-600">{item.title}<ExternalLink className="inline ml-1 h-3 w-3" aria-hidden="true" /></a>
-        <p className="mt-2 text-[10px] text-slate-500">{t('Sumber: {source}', { source: item.source })}</p>
-      </article>)}
+        <a href={newsSourceUrl(item.url)!} target="_blank" rel="noopener noreferrer" className="mt-1 block text-xs font-semibold leading-relaxed text-slate-800 hover:text-blue-600 focus-visible:outline-2 focus-visible:outline-blue-600">{titleDisplay.text}<ExternalLink className="inline ml-1 h-3 w-3" aria-hidden="true" /></a>
+        <p className="mt-2 text-[10px] text-slate-500">{t('Sumber: {source}', { source: item.source })}{originalLabel && <span className="ml-1 font-medium text-slate-400">{originalLabel}</span>}</p>
+      </article>;
+      })}
     </div>
   </section>;
 }

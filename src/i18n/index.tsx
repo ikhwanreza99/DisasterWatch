@@ -90,6 +90,16 @@ export function translateFor(lang: Lang, key: string, params?: TranslationParams
   return interpolate(raw, params);
 }
 
+/**
+ * Membership check for the English dictionary. Unlike `translateFor` (which
+ * falls back to the key), this lets callers distinguish a real translation
+ * from a missing key — required so untranslated news content is never
+ * presented as translated.
+ */
+export function hasEnglish(key: string): boolean {
+  return en != null && Object.prototype.hasOwnProperty.call(en, key);
+}
+
 export function t(key: string, params?: TranslationParams): string {
   return translateFor(activeLang, key, params);
 }

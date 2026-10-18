@@ -1,10 +1,17 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { ExternalLink, Newspaper } from 'lucide-react';
+import { translate, useI18n } from '../../i18n';
+import {
+  newsDisplayText,
+  newsOriginalLanguageLabel,
+  newsTranslationProviderConfigured,
+  requestNewsTranslation,
+  type NewsDisplayText,
+} from '../../i18n/newsText';
 import { incidentText } from '../../i18n/incidentText';
 import { newsSourceUrl } from '../../services/newsSourceUrl';
 // Incident news panel: MATCHED articles by default, REVIEW_REQUIRED in a separate filter.
 // Freshness + crawl-error states never block the dashboard.
-import React, { useState } from 'react';
-import { ExternalLink, Newspaper } from 'lucide-react';
-import { translate, useI18n } from '../../i18n';
 import { classifyNews, newsCategoryStyles, getNewsInsight } from '../../services/newsClassification';
 import type { IncidentArticle } from '../../domain/incidentDetail';
 
@@ -28,10 +35,45 @@ interface Props {
 export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched: matchedInput, review: reviewInput, freshness, compact = false, onExpandView, onOpenAIHelpdesk }) => {
   const matched = matchedInput.filter(a => a.discoveredBy!=='threads:keyword-search' && newsSourceUrl(a.url));
   const review = reviewInput.filter(a => a.discoveredBy!=='threads:keyword-search' && newsSourceUrl(a.url));
-  const { t, locale } = useI18n();
+  const { t, locale, lang } = useI18n();
   const [showReview, setShowReview] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const selected = showReview ? review : matched;
+  const selected = useMemo(() => (showReview ? review : matched), [showReview, review, matched]);
+  // Async translation-provider results (only used when a provider is
+  // configured). Key: `${url}::${field}`; language switches clear them.
+  const [providerOverrides, setProviderOverrides] = useState<Record<string, NewsDisplayText>>({});
+  useEffect(() => {
+    if (lang !== 'en' || !newsTranslationProviderConfigured()) {
+      setProviderOverrides({});
+      return;
+    }
+    let cancelled = false;
+    const jobs: Array<Promise<void>> = [];
+    for (const item of selected) {
+      for (const [field, text] of [['title', item.title], ['summary', item.summary ?? '']] as const) {
+        if (!text.trim()) continue;
+        const key = `${item.url}::${field}`;
+        if (newsDisplayText(text, lang).status === 'translated') continue;
+        jobs.push(
+          requestNewsTranslation(text, lang).then((result) => {
+            if (!cancelled) setProviderOverrides((prev) => ({ ...prev, [key]: result }));
+          }),
+        );
+      }
+    }
+    return () => { cancelled = true; };
+  }, [lang, selected]);
+  // Shared presentation resolution: dictionary/cache first; when a
+  // translation provider is configured and no verified translation exists,
+  // the async request runs and the card shows 'pending' until it resolves.
+  // The ORIGINAL article text is kept untouched — only display changes.
+  const resolveDisplayText = (text: string, field: 'title' | 'summary', url: string): NewsDisplayText => {
+    const sync = newsDisplayText(text, lang);
+    if (lang === 'en' && sync.status === 'original' && newsTranslationProviderConfigured()) {
+      return providerOverrides[`${url}::${field}`] ?? { text, status: 'pending' };
+    }
+    return sync;
+  };
   return (
     <section className={compact ? "min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-white p-4" : "bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 flex flex-col h-[min(70vh,640px)] min-h-[360px] shrink-0 transition-all hover:shadow-md"} aria-label={t('Berita {name}', { name: incidentName })} data-testid="incident-news">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-100 pb-3">
@@ -70,11 +112,23 @@ export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched: matc
       )}
       <div className={compact ? "mt-3 space-y-2" : "mt-3 flex-1 min-h-0 space-y-3 overflow-y-auto overscroll-contain pr-1"}>
         {selected.slice(0, compact && !expanded ? 2 : undefined).map((item) => {
+          // Classification always runs on the ORIGINAL source text so the
+          // category/insight stays stable across language switches.
           const report = { title: item.title, desc: item.summary || item.title };
           const generated = item.discoveredBy === 'bnpb-documentation';
           const prefix = ['Kebakaran Hutan Dan Lahan', 'Tanah Longsor', 'Gempabumi', 'Banjir', 'Kekeringan', 'Cuaca Ekstrem'].find(label => item.title.startsWith(label + ' '));
-          const title = generated && prefix ? t(prefix) + item.title.slice(prefix.length) : item.title;
-          const displayText = item.summary ? `${title} — ${generated ? incidentText(item.summary) : item.summary}` : title;
+          const prefixLabel = generated && prefix ? t(prefix) : '';
+          const titleBody = generated && prefix ? item.title.slice(prefix.length) : item.title;
+          const titleDisplay = resolveDisplayText(titleBody, 'title', item.url);
+          const title = titleDisplay.text ? (prefixLabel ? prefixLabel + titleDisplay.text : titleDisplay.text) : item.title;
+          const summaryDisplay = item.summary ? resolveDisplayText(item.summary, 'summary', item.url) : null;
+          const summaryText = summaryDisplay?.text ? (generated ? incidentText(summaryDisplay.text) : summaryDisplay.text) : '';
+          const displayText = summaryText ? `${title} — ${summaryText}` : title;
+          const pending = titleDisplay.status === 'pending' || summaryDisplay?.status === 'pending';
+          const originalLabel = !pending && lang === 'en'
+            && (titleDisplay.status !== 'translated' || (summaryDisplay !== null && summaryDisplay.status !== 'translated'))
+            ? newsOriginalLanguageLabel(item.title, lang)
+            : null;
           const category = newsCategoryStyles[classifyNews(report)];
           return (
           <article key={item.url} className={compact ? "min-w-0 rounded-xl bg-slate-50 border border-slate-100 px-3 py-3" : "min-w-0 p-3 bg-slate-50/80 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all shrink-0"} data-testid="news-card">
@@ -86,6 +140,8 @@ export const IncidentNewsPanel: React.FC<Props> = ({ incidentName, matched: matc
               <time className="text-[10px] text-slate-400 font-medium shrink-0">{fmt(item.publishedAt || item.eventDate || null, locale)}</time>
             </div>
             <p className="break-words text-xs text-slate-600 leading-snug mb-2">{displayText}</p>
+            {pending && <p role="status" className="text-[9px] font-medium text-slate-400">{t('Menerjemahkan…')}</p>}
+            {originalLabel && <p className="text-[9px] font-medium text-slate-400">{originalLabel}</p>}
             <div className="flex flex-wrap items-center justify-between gap-2 text-[10px]">
               {!compact && <span className={`font-semibold px-2 py-0.5 rounded-full border ${category.badge}`}>{t(getNewsInsight(report))}</span>}
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">

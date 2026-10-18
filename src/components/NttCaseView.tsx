@@ -10,6 +10,7 @@ import { buildNttTimeline, countNtt, type NttCaseState } from '../services/nttCa
 import { askNttAssistant } from '../services/ai/nttAssistant';
 import { useI18n, t as translate, localeFor } from '../i18n';
 import { verificationLabel, sourceTypeLabel, contentStatusLabel, extractionLabel, claimTypeLabel, topicLabel } from '../i18n/labels';
+import { newsDisplayText, newsOriginalLanguageLabel } from '../i18n/newsText';
 
 const VERIF_BADGE: Record<NttVerificationStatus, string> = {
   VERIFIED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -28,8 +29,12 @@ function fmtTime(iso: string | null): string {
 }
 
 function ArticleCard({ a }: { a: CaseArticle }) {
+  const { t, lang } = useI18n();
   const sourceUrl = newsSourceUrl(a.url);
   if (!sourceUrl) return null;
+  const titleDisplay = newsDisplayText(a.title, lang);
+  const summaryDisplay = a.summary ? newsDisplayText(a.summary, lang) : null;
+  const originalLabel = lang === 'en' && titleDisplay.status !== 'translated' ? newsOriginalLanguageLabel(a.title, lang) : null;
   return (
     <article className="rounded-xl border border-slate-100 bg-slate-50 p-3" data-case-article={a.id}>
       <div className="flex flex-wrap items-center gap-1.5">
@@ -47,10 +52,11 @@ function ArticleCard({ a }: { a: CaseArticle }) {
         rel="noopener noreferrer"
         className="mt-1 block text-xs font-semibold leading-relaxed text-slate-800 hover:text-blue-600 focus-visible:outline-2 focus-visible:outline-blue-600"
       >
-        {a.title}
+        {titleDisplay.text}
         <ExternalLink className="ml-1 inline h-3 w-3" aria-hidden="true" />
       </a>
-      {a.summary && <p className="mt-1 text-xs leading-relaxed text-slate-600">{a.summary}</p>}
+      {summaryDisplay && summaryDisplay.text && <p className="mt-1 text-xs leading-relaxed text-slate-600">{summaryDisplay.text}</p>}
+      {originalLabel && <p className="mt-1 text-[9px] font-medium text-slate-400">{t(originalLabel)}</p>}
       <p className="mt-2 text-[10px] text-slate-500">
         {translate('Terbit:')} {a.publishedAt ? fmtTime(a.publishedAt) : translate('tidak tersedia')} · {translate('Diambil:')} {fmtTime(a.retrievedAt)}
       </p>
